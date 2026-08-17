@@ -136,7 +136,7 @@ private struct LockScreenLiveActivityView: View {
                 .frame(width: 60)
             }
             .padding()
-            .widgetContainerBackground()
+            .widgetBackgroundSafe()
         }
     }
 
