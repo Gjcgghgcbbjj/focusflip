@@ -166,7 +166,7 @@ jobs:
       - name: Package IPA
         run: |
           chmod +x Scripts/package-ipa.sh
-          ./Scripts/package-ipa.sh build/FocusFlip.xcarchive
+          APP_VERSION="${{ env.APP_VERSION }}" ./Scripts/package-ipa.sh build/FocusFlip.xcarchive
 
       - name: Verify IPA
         run: |

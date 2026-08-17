@@ -13,7 +13,7 @@ set -euo pipefail
 
 ARCHIVE_PATH="${1:?Usage: package-ipa.sh <xcarchive-path>}"
 APP_NAME="FocusFlip"
-APP_VERSION="1.0.0"
+APP_VERSION="${APP_VERSION:-1.0.0}"
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${PROJECT_DIR}/build"
