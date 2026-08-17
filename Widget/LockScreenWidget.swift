@@ -4,7 +4,7 @@ import ActivityKit
 
 /// Live Activity widget for pomodoro timer on lock screen and Dynamic Island.
 /// Shows remaining time, session type, and progress.
-@available(iOS 16.1, *)
+@available(iOS 16.2, *)
 struct PomodoroLiveActivity: Widget {
 
     var body: some WidgetConfiguration {
@@ -91,7 +91,7 @@ struct PomodoroLiveActivity: Widget {
 
 // MARK: - Lock screen view
 
-@available(iOS 16.1, *)
+@available(iOS 16.2, *)
 private struct LockScreenLiveActivityView: View {
     let context: ActivityViewContext<PomodoroActivityAttributes>
 

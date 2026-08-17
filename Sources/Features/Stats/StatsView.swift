@@ -92,17 +92,12 @@ struct StatsView: View {
                 )
             }
             .chartYAxis {
-                AxisMarks(position: .leading) { _ in
-                    GridLine().foregroundStyle(DS.Color.textPrimary.opacity(0.05))
-                }
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4))
             }
             .chartXAxis {
-                AxisMarks { _ in
-                    GridLine().foregroundStyle(.clear)
-                    AxisValueText()
-                        .foregroundColor(DS.Color.textMuted)
-                }
+                AxisMarks(values: .automatic)
             }
+            .chartYScale(domain: 0...)
             .frame(height: 160)
         }
         .card()

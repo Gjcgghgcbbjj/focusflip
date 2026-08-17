@@ -3,7 +3,7 @@ import ActivityKit
 
 /// Live Activity attributes for pomodoro timer display on lock screen / Dynamic Island.
 /// Available iOS 16.1+. On earlier versions, the app silently skips Live Activity.
-@available(iOS 16.1, *)
+@available(iOS 16.2, *)
 public struct PomodoroActivityAttributes: ActivityAttributes {
 
     public typealias ContentState = PomodoroState
@@ -25,7 +25,7 @@ public struct PomodoroActivityAttributes: ActivityAttributes {
 
 // MARK: - Live Activity Manager
 
-@available(iOS 16.1, *)
+@available(iOS 16.2, *)
 public final class LiveActivityManager {
 
     public static let shared = LiveActivityManager()

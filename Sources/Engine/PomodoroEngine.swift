@@ -70,8 +70,14 @@ public final class PomodoroEngine: ObservableObject {
 
     public func pause() {
         guard state == .focusing || state == .shortBreak || state == .longBreak else { return }
-        state = .paused(state == .focusing ? .focusing :
-                        state == .shortBreak ? .shortBreak : .longBreak)
+        let sessionType: SessionType
+        switch state {
+        case .focusing:   sessionType = .focus
+        case .shortBreak: sessionType = .shortBreak
+        case .longBreak:  sessionType = .longBreak
+        default:          return
+        }
+        state = .paused(sessionType)
         timerService.stop()
     }
 

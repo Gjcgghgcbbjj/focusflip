@@ -55,32 +55,30 @@ struct SettingsView: View {
 
     private var durationSection: some View {
         Section("时长") {
-            Picker("专注", selection: $settings.focusDuration) {
-                ForEach([15*60, 20*60, 25*60, 30*60, 40*60, 45*60, 50*60, 60*60, 90*60], id: \.self) {
-                    Text("\($0/60) 分钟").tag($0)
-                }
-            }
-            .tint(DS.Color.focus)
-
-            Picker("短休息", selection: $settings.shortBreakDuration) {
-                ForEach([3*60, 5*60, 10*60, 15*60], id: \.self) {
-                    Text("\($0/60) 分钟").tag($0)
-                }
-            }
-            .tint(DS.Color.shortBreak)
-
-            Picker("长休息", selection: $settings.longBreakDuration) {
-                ForEach([10*60, 15*60, 20*60, 30*60], id: \.self) {
-                    Text("\($0/60) 分钟").tag($0)
-                }
-            }
-            .tint(DS.Color.longBreak)
+            durationPicker(title: "专注", selection: $settings.focusDuration,
+                           options: [15*60, 20*60, 25*60, 30*60, 40*60, 45*60, 50*60, 60*60, 90*60],
+                           tint: DS.Color.focus)
+            durationPicker(title: "短休息", selection: $settings.shortBreakDuration,
+                           options: [3*60, 5*60, 10*60, 15*60],
+                           tint: DS.Color.shortBreak)
+            durationPicker(title: "长休息", selection: $settings.longBreakDuration,
+                           options: [10*60, 15*60, 20*60, 30*60],
+                           tint: DS.Color.longBreak)
 
             Stepper("长休息前番茄数: \(settings.pomodorosBeforeLongBreak)",
                     value: $settings.pomodorosBeforeLongBreak, in: 1...12)
                 .tint(DS.Color.accent)
         }
         .listRowBackground(DS.Color.bgSecondary)
+    }
+
+    private func durationPicker(title: String, selection: Binding<Int>, options: [Int], tint: SwiftUI.Color) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(options, id: \.self) { value in
+                Text("\(value / 60) 分钟").tag(value)
+            }
+        }
+        .tint(tint)
     }
 
     // MARK: - Sound
