@@ -2,28 +2,33 @@
 
 > 最后更新：2026-08-18
 > 仓库：https://github.com/Gjcgghgcbbjj/focusflip （公开）
-> 构建方式：GitHub Actions（macos-15 + 动态选择 Xcode + xcodegen）
+> 构建方式：GitHub Actions（macos-15 + 动态选择 Xcode + xcodegen，双 target）
 
 ---
 
-## 一、项目现状
+## 一、项目现状（v1.1.0）
 
 **已完成：**
-- ✅ SwiftUI 番茄钟 App 完整源码（25 个 Swift 文件，~3200 行）
-- ✅ Catppuccin Mocha 设计系统（`Sources/Theme/DesignSystem.swift`）
-- ✅ 番茄计时引擎 + 后台保活（静音音频 + DispatchSourceTimer）
-- ✅ 任务管理、统计图表、白噪音合成、Live Activity/Widget、App 屏蔽（TrollStore 提权）
-- ✅ GitHub Actions 自动化构建 IPA
-- ✅ **闪退三大根因已修复**：Info.plist 被覆盖清空 / 编造私有 entitlements / App 图标缺失
-- ✅ **模拟器冒烟测试已跑通**：CI 里真启动 App 并确认进程存活（直接证据）
+- ✅ SwiftUI 番茄钟 App（26 个 Swift 文件，~3600 行）
+- ✅ 自适应主题：Catppuccin **Mocha（暗色）+ Latte（亮色）** 随系统切换
+- ✅ 番茄计时引擎 + 后台保活（静音音频 + DispatchSourceTimer）+ Live Activity 推送
+- ✅ 主屏今日卡（今日番茄/分钟/每日目标进度条）+ 目标达成庆祝动画 + `.finished` 状态
+- ✅ 每日目标（设置可调 1-24）+ 完成后状态机（onAllComplete 真实触发）
+- ✅ 统计页日/周/月切换 + 24h 分段图 + 30 天图 + **当月日历热力图** + 连续天数 streak
+- ✅ `focusflip://` 快捷指令（start/pause/resume/skip/reset/tasks/stats/settings）+ tab 路由
+- ✅ **真实 WAV 音频**（雨/海/森林/风扇 10-16s 无缝循环 + 4 种完成音，Python 离线合成）
+- ✅ **锁屏小组件 + Live Activity**：独立 Widget Extension target + App Group 共享 CoreData
+- ✅ 备份到文件 App：导出/导入（按 id 去重 upsert）/清除数据（二次确认）
+- ✅ iOS 15 统计降级页（无 Charts 依赖）
+- ✅ 技术债清理：@StateObject 单例反模式 → @ObservedObject
+- ✅ 闪退三大根因修复：Info.plist 覆盖 / 编造 entitlements / 图标缺失
+- ✅ CI 冒烟测试（模拟器真启动 + 进程存活）全绿
 
 **IPA 状态：**
-- ✅ GitHub Actions Artifacts `FocusFlip-1.0.0-ipa`（~238KB，无签名，TrollStore 安装时签名）
-- ✅ 已验证：Info.plist 关键键齐全（UILaunchScreen / UIBackgroundModes / NSSupportsLiveActivities）、
-    无编造 entitlements、无 _CodeSignature
-- ⚠️ **尚未在真机验证**：用户需安装最新 Artifacts 测试，确认不再闪退
-- ❌ **旧 IPA 全部作废**：仓库根目录 `FocusFlip-1.0.0.ipa`、`build/fixed/`、`build/download/` 里的
-    都是 entitlements 修复前构建的（内含 `com.apple.backboard.hid.presenter` 等编造键），**不要安装**
+- ✅ v1.1.0 Release：`https://github.com/Gjcgghgcbbjj/focusflip/releases/download/v1.1.0/FocusFlip-1.1.0.ipa`（~5MB）
+- ✅ 已含 Widget 扩展（PlugIns/FocusFlipWidgetExtension.appex）+ 8 个 WAV + 无签名（TrollStore 安装时签名）
+- ⚠️ 真机已验证能打开不闪退（v1.0.1）；**1.1.0 新功能待真机验收**
+- ❌ 旧 v1.0.0 本地 IPA 已删除（含编造 entitlements）
 
 ---
 
@@ -31,109 +36,98 @@
 
 ```
 Sources/
-├── Theme/
-│   ├── DesignSystem.swift      # 设计 token（颜色/间距/圆角/字体/动画）
-│   └── Compatibility.swift     # iOS 15 兼容层（contentTransition 等降级）
-├── App/FocusFlipApp.swift      # @main + TabView + UIAppearance
-├── Models/                     # CoreData（程序化模型，无 xcdatamodeld）
-│   ├── FocusSession.swift      # 会话记录
-│   ├── TaskItem.swift          # 任务
-│   ├── AppSettings.swift       # UserDefaults 设置
-│   └── PersistenceController.swift  # CoreData 栈 + JSON 导出
-├── Engine/
-│   ├── PomodoroEngine.swift    # 状态机（专注/短休/长休循环）
-│   ├── TimerService.swift      # 后台计时（静音保活）
-│   └── NotificationService.swift # 本地通知
-├── Features/
-│   ├── FlipClock/              # 简约数字显示（旧 3D 翻页已弃用）
-│   ├── Timer/TimerView.swift   # 主计时屏
-│   ├── Tasks/TasksView.swift   # 任务卡片列表
-│   ├── Stats/StatsView.swift   # Charts 统计
-│   ├── Sound/SoundPlayer.swift # AVAudioEngine 白噪音合成
-│   └── Settings/SettingsView.swift
-├── FocusShield/FocusShieldManager.swift  # App 屏蔽（私有 API）
-└── Utils/                      # Haptics + DateUtils
-Widget/                         # Live Activity + Widget（编入主 binary）
+├── App/FocusFlipApp.swift        # @main + TabView(路由) + onOpenURL + UIAppearance
+├── Theme/DesignSystem.swift      # Mocha+Latte 双调色板，动态 UIColor token
+│        Compatibility.swift      # iOS 15/16 兼容（numericTextTransition 等）
+├── Engine/                       # PomodoroEngine 状态机 + TimerService 保活 + 通知
+├── Features/                     # Timer（今日卡/庆祝）/Tasks/Stats(+Legacy)/Settings/Sound/FlipClock
+├── FocusShield/                  # App 屏蔽（私有 API，待真机验证）
+└── Models/AppSettings.swift      # 设置（含 dailyGoalPomodoros）
+Shared/                           # 主 App 与 Widget 扩展【双 target 共用】
+├── PersistenceController.swift   # CoreData（App Group 容器 + 旧库自动迁移 + JSON 导入导出/清除）
+├── FocusSession.swift            # 会话模型 + SessionType
+├── TaskItem.swift                # 任务模型
+└── LiveActivityAttributes.swift  # ActivityKit 属性 + LiveActivityManager（phaseEndDate 驱动）
+Widget/                           # 仅编译进 Widget 扩展 target
+├── FocusFlipWidget.swift         # 锁屏小组件（今日专注）
+├── FocusFlipWidgetBundle.swift   # @main WidgetBundle
+├── LockScreenWidget.swift        # Live Activity 渲染（TimelineView 自走倒计时）
+└── Info.plist                    # NSExtensionPointIdentifier=com.apple.widgetkit-extension
 ```
+
+### 双 target
+1. **FocusFlip**（主 App，iOS 15.0+，embed Widget 扩展）
+2. **FocusFlipWidgetExtension**（app-extension，iOS 16.0+，Widget + Live Activity 渲染）
+
+### 数据共享
+- App Group `group.com.focusflip.app`，CoreData 库在共享容器
+- 旧版（Application Support）数据首次启动自动迁移到共享容器
 
 ---
 
 ## 三、构建系统
 
-### 双路径
-1. **GitHub Actions（推荐，已验证）**：`.github/workflows/build-ipa.yml`
-   - macos-15 runner，**动态选择 Xcode**（见下）
-   - `brew install xcodegen` → `xcodegen generate` → `xcodebuild archive`（免签名）→ 打包（不预签名）
-   - 触发：push 到 master 或打 tag `v*`
-   - 产物：Actions Artifacts（`FocusFlip-1.0.0-ipa`）+ 模拟器启动截图
+### GitHub Actions（推荐，已验证）
+- macos-15 runner，**动态选择 Xcode**（见教训）
+- `xcodegen generate` → `xcodebuild archive`（免签名）→ package-ipa.sh 打 zip（不预签名）
+- tag `v*` 自动创建 Release（需 workflow 里 `permissions: contents: write`）
+- 产物：Artifacts `FocusFlip-<版本>-ipa` + Release asset + 模拟器截图
 
-2. **本地 theos**：`Makefile`（未验证，环境无 Swift 编译器，不推荐）
+### 手动重建
+```bash
+xcodegen generate
+xcodebuild archive -project FocusFlip.xcodeproj -scheme FocusFlip -configuration Release \
+  -destination "generic/platform=iOS" -archivePath build/FocusFlip.xcarchive \
+  CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+APP_VERSION=1.1.0 ./Scripts/package-ipa.sh build/FocusFlip.xcarchive
+```
 
 ### ⚠️ 关键教训（必须记住）
-- **不要用 xcodegen 的 `info: path:` 块** —— 它会重新生成空 Info.plist，
-  覆盖手写的 `FocusFlip.plist`，导致 UILaunchScreen 等键丢失 → **App 闪退**
-- 正确做法：`settings.base` 里设 `INFOPLIST_FILE: FocusFlip.plist` + `GENERATE_INFOPLIST_FILE: NO`
-- Widget 文件编入主 binary 时 **不能有 `@main`**（会和 App 的 `@main` 冲突）
-- **不要预签名 / 不要塞编造 entitlements** —— TrollStore 安装时自行注入 platform-application
-  提权；`package-ipa.sh` 只打无签名 zip，`FocusFlip.entitlements` 仅作文档参考不进 IPA
-- **Xcode 版本不能写死** —— macos-15 镜像只给新版 Xcode 预装匹配的模拟器运行时。
-  用 Xcode 16.x 编译含 App 图标的资源目录会报
-  `No simulator runtime version ... available to use with iphonesimulator SDK version ...`
-  工作流里的 "Select Xcode" 步骤会从新到旧逐个探测 actool 直到找到可用运行时（当前镜像
-  命中 Xcode 26.x）。**换镜像/换 CI 时别改回写死版本**
-
-### 手动重建命令
-```bash
-# 1. 本地生成 Xcode 工程
-brew install xcodegen
-xcodegen generate
-
-# 2. 无签名构建
-xcodebuild archive \
-  -project FocusFlip.xcodeproj \
-  -scheme FocusFlip -configuration Release \
-  -destination "generic/platform=iOS" \
-  -archivePath build/FocusFlip.xcarchive \
-  CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-
-# 3. ldid 打包（TrollStore 会自行重签名）
-./Scripts/package-ipa.sh build/FocusFlip.xcarchive
-```
+- **不要用 xcodegen 的 `info: path:` 块** —— 会生成空 Info.plist 覆盖手写 plist → 闪退。
+  正确：`INFOPLIST_FILE` + `GENERATE_INFOPLIST_FILE: NO`
+- **不要预签名 / 不要塞编造 entitlements** —— TrollStore 安装时自行注入 platform-application。
+  只保留合法键：ActivityKit + application-groups
+- **Xcode 版本不能写死** —— "Select Xcode" 步骤用 actool 探测自动选（当前镜像命中 Xcode 26.3）。
+  Xcode 16.x 无匹配模拟器运行时会导致 actool 报 "No simulator runtime version..."
+- **Widget 相关背景 API 在 Xcode 26 下不稳定** —— 不要用 `widgetContainerBackground()` /
+  `containerBackground(for: .widget)`（主 target 报 `ContainerBackgroundPlacement.widget` 无法解析）。
+  小组件背景交给系统自动渲染即可
+- **不要写 `APPLICATION_EXTENSION_API_ONLY: YES`** 到 widget 扩展 target（疑似引发上述解析问题）
+- 版本号集中：project.yml 的 MARKETING_VERSION + FocusFlip.plist + workflow 的 APP_VERSION
+  （package-ipa.sh 从环境变量读 APP_VERSION）
+- 共享代码改动后必须**双 target 都验证**（CI 的 archive 会同时编）
 
 ---
 
 ## 四、待办 / 已知问题
 
 ### 优先级高
-1. **真机验证闪退修复** —— 用户需安装 `build/fixed/FocusFlip-1.0.0.ipa` 测试
-2. **App 图标** —— 目前是空占位（`Resources/Assets.xcassets/AppIcon.appiconset` 无 1024px 图），需要生成图标
-3. **App 屏蔽功能验证** —— `FocusShieldManager` 用私有 API（`setApplicationHidden:forBundleIdentifier:`），
-   依赖 TrollStore 的 platform-application 提权，真机未验证
+1. **App 屏蔽真机验证** —— `FocusShieldManager` 用私有 API
+   （`setApplicationHidden:forBundleIdentifier:`），依赖 TrollStore 注入的 platform-application。
+   若失效需谨慎补真实 entitlement（只加验证过的合法键）
+2. **Widget/Live Activity 真机验证** —— TrollStore 下 Widget 有先例（EeveeSpotify）可行；
+   **动态岛/Live Activity 在 TrollStore 下有已知失效风险**（社区多个案例），真机确认
 
 ### 优先级中
-4. **@StateObject 单例反模式** —— `TimerView` 等用 `@StateObject` 包 `PomodoroEngine.shared`，
-   严格应改 `@ObservedObject`（目前能编译能跑）
-5. **Widget 是死代码** —— 编入主 binary 但无 `@main` WidgetBundle，锁屏小组件实际不生效。
-   若要真正支持 Widget，需拆分成独立 Widget Extension target（xcodegen 支持多 target）
-6. **`onAllComplete` 回调未使用** —— `PomodoroEngine` 里声明了但从未触发 `.finished` 状态
+3. 统计页热力图只有当月，可扩展为可翻月
+4. 白噪音音质仍有提升空间（换专业录音素材）
+5. 任务 tab 与今日卡数据联动（导入后需刷新）
 
-### 优先级低
-7. 白噪音合成音质（雨声/海浪）较粗糙，可换真实音频文件
-8. 统计页 Charts 在 iOS 15 上不可用（已用 `@available(iOS 16.0, *)` 降级隐藏 tab）
+### 已知限制
+- iOS 15 无真实 Charts（降级页为简化版）
+- Live Activity 需要 iOS 16.2+
 
 ---
 
-## 五、验证清单（用户验收前必须确认）
+## 五、验证清单
 
-- [x] CI 冒烟测试：App 在模拟器真启动且进程存活（PID 7906，截图 Artifact）
-- [ ] 安装 IPA 后 App 能正常启动（不闪退）—— **待真机确认**
-- [ ] 点击开始 → 计时器倒数
-- [ ] 专注结束 → 通知 + 提示音
-- [ ] 任务创建/编辑/删除
-- [ ] 统计页显示数据
-- [ ] 白噪音开关
-- [ ] 设置页时长修改生效
-- [ ] （可选）App 屏蔽功能
+- [x] CI：编译（双 target）+ 模拟器冒烟测试（启动存活）
+- [x] v1.0.1 真机打开不闪退
+- [ ] 1.1.0 真机：今日卡/每日目标达成庆祝/深浅色切换/统计热力图/快捷指令/白噪音新音质
+- [ ] 1.1.0 真机：锁屏小组件是否出现（TrollStore）
+- [ ] 1.1.0 真机：Live Activity 是否显示（TrollStore，风险项）
+- [ ] 备份导出→导入→数据还原
+- [ ] App 屏蔽
 
 ---
 
@@ -142,12 +136,11 @@ xcodebuild archive \
 | 项 | 值 |
 |----|-----|
 | 仓库 | https://github.com/Gjcgghgcbbjj/focusflip |
-| GitHub 账号 | Gjcgghgcbbjj |
-| Windows 桌面 | `C:\Users\niting\Desktop\` |
-| 最新 IPA | Actions Artifacts `FocusFlip-1.0.0-ipa`；本地镜像 `build/final/FocusFlip-1.0.0.ipa`（238KB，sha256 `10a0ee9c…`） |
+| 最新 Release | v1.1.0（`FocusFlip-1.1.0.ipa`，~5MB） |
 | 本地路径 | `/root/dsphn/focusflip/` |
-| 最低系统 | iOS 15.0 |
-| Bundle ID | com.focusflip.app |
+| 最低系统 | iOS 15.0（Widget 扩展 16.0+） |
+| Bundle ID | com.focusflip.app（扩展 com.focusflip.app.widget） |
+| App Group | group.com.focusflip.app |
 | 安装方式 | TrollStore（巨魔） |
 | 构建 Xcode | 动态选择（当前镜像命中 Xcode 26.3.0） |
 
@@ -155,9 +148,9 @@ xcodebuild archive \
 
 ## 七、给下一个 AI 的建议
 
-1. **先让用户安装最新 Artifacts 里的 IPA**（或本地 `build/final/FocusFlip-1.0.0.ipa`），确认不闪退再继续开发
-2. 如果用户要 **换 App 图标**：替换 `Resources/Assets.xcassets/AppIcon.appiconset/icon_1024.png`（1024×1024）
-3. 如果要 **真正的锁屏 Widget**：用 xcodegen 加 `FocusFlipWidgetExtension` target
-4. 每次改完源码 → push 到 master → 等 Actions 构建（约 5-10 分钟）→ 下载 IPA → 复制到桌面
-5. 修改 `project.yml` 后必须验证 Info.plist 关键键仍在（UILaunchScreen / UIBackgroundModes / NSSupportsLiveActivities）
-6. **不要动 "Select Xcode" 步骤的动态探测逻辑** —— 那是应对镜像运行时缺失的唯一自愈手段
+1. 任何改动 → push master → 等 CI 全绿 → 打 tag `vX.Y.Z` 自动发 Release
+2. 改 Shared/ 或 project.yml 后必须确认双 target 编译通过（CI archive 步骤覆盖）
+3. 用户优先验收：小组件/Live Activity/App 屏蔽三个真机项
+4. 若 Live Activity 在 TrollStore 真机失效：保留代码，标注限制，不投入修复
+5. 若 App 屏蔽失效：只补 `com.apple.frontboard.launchapplications` 等真实存在的键并真机验证，
+   严禁再引入编造键
