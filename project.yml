@@ -27,13 +27,14 @@ targets:
     platform: iOS
     sources:
       - path: Sources
-      - path: Widget
+      - path: Shared
       - path: Resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.focusflip.app
         INFOPLIST_FILE: FocusFlip.plist
         GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: FocusFlip.entitlements
         PRODUCT_NAME: FocusFlip
         ENABLE_PREVIEWS: YES
         OTHER_LDFLAGS: "-ObjC"
@@ -46,3 +47,29 @@ targets:
       - sdk: ActivityKit.framework
       - sdk: WidgetKit.framework
       - sdk: Charts.framework
+      - target: FocusFlipWidgetExtension
+        embed: true
+
+  FocusFlipWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.focusflip.app.widget
+        PRODUCT_NAME: FocusFlipWidgetExtension
+        INFOPLIST_FILE: Widget/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: FocusFlipWidgetExtension.entitlements
+        IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_PREVIEWS: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: NO
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: ActivityKit.framework
+      - sdk: CoreData.framework

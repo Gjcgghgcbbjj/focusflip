@@ -12,5 +12,10 @@
     <!-- ActivityKit (Live Activity) — valid, real entitlement -->
     <key>com.apple.developer.activitykit.launch-activities</key>
     <true/>
+    <!-- App Group (shared with the widget extension) — valid, real entitlement -->
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.com.focusflip.app</string>
+    </array>
 </dict>
 </plist>

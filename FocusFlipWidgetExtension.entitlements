@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--!
+  FocusFlipWidgetExtension entitlements.
+  App Group is required so the widget can read the shared CoreData store.
+  NOTE: TrollStore signs the extension with these same entitlements on install.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.com.focusflip.app</string>
+    </array>
+</dict>
+</plist>

@@ -19,6 +19,8 @@ public final class PersistenceController {
 
         container = NSPersistentContainer(name: "FocusFlip", managedObjectModel: model)
 
+        Self.migrateLegacyStoreIfNeeded()
+
         let storeURL = Self.dataStoreURL()
         let description = NSPersistentStoreDescription(url: storeURL)
         description.shouldMigrateStoreAutomatically = true
@@ -35,19 +37,62 @@ public final class PersistenceController {
 
     public var viewContext: NSManagedObjectContext { container.viewContext }
 
+    /// App Group shared with the widget extension.
+    public static let appGroupID = "group.com.focusflip.app"
+
     // MARK: - Store location
 
-    private static func dataStoreURL() -> URL {
+    /// Store lives in the App Group container so the widget extension can read
+    /// the same data. Falls back to Application Support if the group is
+    /// unavailable (e.g. entitlements stripped).
+    public static func dataStoreURL() -> URL {
         let fm = FileManager.default
-        let appSupport = try! fm.url(for: .applicationSupportDirectory,
-                                     in: .userDomainMask,
-                                     appropriateFor: nil,
-                                     create: true)
-        let dir = appSupport.appendingPathComponent("FocusFlip", isDirectory: true)
+        let dir: URL
+        if let groupURL = fm.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
+            dir = groupURL.appendingPathComponent("FocusFlip", isDirectory: true)
+        } else {
+            let appSupport = try! fm.url(for: .applicationSupportDirectory,
+                                         in: .userDomainMask,
+                                         appropriateFor: nil,
+                                         create: true)
+            dir = appSupport.appendingPathComponent("FocusFlip", isDirectory: true)
+        }
         if !fm.fileExists(atPath: dir.path) {
             try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         }
         return dir.appendingPathComponent("FocusFlip.sqlite")
+    }
+
+    /// v1.0.x stored data in Application Support. Copy it into the App Group
+    /// container once so existing users keep their history after this update.
+    private static func migrateLegacyStoreIfNeeded() {
+        let fm = FileManager.default
+        let newStore = dataStoreURL()
+        guard !fm.fileExists(atPath: newStore.path) else { return }
+
+        let appSupport = (try? fm.url(for: .applicationSupportDirectory,
+                                      in: .userDomainMask,
+                                      appropriateFor: nil,
+                                      create: true)) ?? newStore.deletingLastPathComponent()
+        let legacyDir = appSupport.appendingPathComponent("FocusFlip", isDirectory: true)
+        let legacyStore = legacyDir.appendingPathComponent("FocusFlip.sqlite")
+        guard fm.fileExists(atPath: legacyStore.path) else { return }
+
+        do {
+            try fm.createDirectory(at: newStore.deletingLastPathComponent(),
+                                   withIntermediateDirectories: true)
+            try fm.copyItem(at: legacyStore, to: newStore)
+            // Copy sidecar files if present (WAL mode)
+            for suffix in ["-wal", "-shm"] {
+                let src = URL(fileURLWithPath: legacyStore.path + suffix)
+                if fm.fileExists(atPath: src.path) {
+                    try? fm.copyItem(at: src, to: URL(fileURLWithPath: newStore.path + suffix))
+                }
+            }
+            NSLog("[FocusFlip] Migrated legacy store to App Group container")
+        } catch {
+            NSLog("[FocusFlip] Store migration error: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - CRUD helpers
