@@ -8,6 +8,11 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+# Needed so the "Create Release on tag" step can publish a GitHub Release
+# (the default GITHUB_TOKEN is read-only unless granted here).
+permissions:
+  contents: write
+
 env:
   APP_NAME: FocusFlip
   BUNDLE_ID: com.focusflip.app
