@@ -22,11 +22,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode
+      - name: Select Xcode (must have a matching simulator runtime)
         run: |
-          ls /Applications/Xcode*.app
-          sudo xcode-select -s /Applications/Xcode_16.0.app 2>/dev/null || sudo xcode-select -s /Applications/Xcode_16.1.app 2>/dev/null || sudo xcode-select -s /Applications/Xcode_16.2.app 2>/dev/null || true
+          set -e
+          echo "=== Installed Xcode versions ==="
+          ls -d /Applications/Xcode*.app
+          echo ""
+          echo "=== Installed Simulator Runtimes ==="
+          xcrun simctl list runtimes 2>/dev/null || true
+          echo ""
+          # Why dynamic selection: on macos-15 images the pre-installed simulator
+          # runtimes only match the newer Xcode releases (e.g. iOS 26.x runtimes
+          # for Xcode 26.x). Building with Xcode 16.x fails in actool with
+          # "No simulator runtime version ... available to use with
+          # iphonesimulator SDK version ..." once the asset catalog contains an
+          # app icon. So probe each Xcode (newest first) and pick the first one
+          # whose actool can compile the asset catalog, i.e. has a usable runtime.
+          SELECTED=""
+          for X in $(ls -d /Applications/Xcode*.app | sort -V -r); do
+            echo "--- Probing $X ---"
+            sudo xcode-select -s "$X" 2>/dev/null || continue
+            mkdir -p "$RUNNER_TEMP/actool-probe"
+            if xcodebuild -version >/dev/null 2>&1 && \
+               xcrun actool --output-format human-readable-text \
+                 --minimum-deployment-target 15.0 --platform iphoneos \
+                 --target-device iphone --app-icon AppIcon \
+                 --compile "$RUNNER_TEMP/actool-probe" Resources/Assets.xcassets \
+                 >/tmp/actool.log 2>&1; then
+              echo "✅ Selected: $X"
+              SELECTED="$X"
+              break
+            else
+              echo "⚠️ actool probe failed (no usable simulator runtime for this SDK):"
+              tail -2 /tmp/actool.log 2>/dev/null || true
+            fi
+          done
+          if [ -z "$SELECTED" ]; then
+            echo "!! No Xcode passed the probe; falling back to newest installed."
+            sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V -r | head -1)"
+          fi
+          echo ""
+          echo "=== Final toolchain ==="
           xcodebuild -version
+          xcrun simctl list runtimes
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -71,24 +109,32 @@ jobs:
             echo "ERROR: simulator app not found"
             exit 1
           fi
-          # Pick an available iPhone simulator
+          # Pick an available iPhone simulator, preferring the NEWEST runtime
+          # (most likely to match the SDK of the Xcode selected above).
           DEVICE=$(xcrun simctl list devices available -j | python3 -c "
             import json,sys
             data=json.load(sys.stdin)
-            for k,v in data['devices'].items():
-                for d in v:
+            best=None
+            for runtime,devices in data['devices'].items():
+                for d in devices:
                     if d['isAvailable'] and 'iPhone' in d['name']:
-                        print(d['udid']); sys.exit()
+                        if best is None or runtime > best[0]:
+                            best=(runtime,d)
+            if best is None:
+                print('', file=sys.stderr); sys.exit(2)
+            print(best[1]['udid'])
           ")
           echo "Device: $DEVICE"
           xcrun simctl boot "$DEVICE" 2>/dev/null || true
           xcrun simctl bootstatus "$DEVICE" -b
           xcrun simctl install "$DEVICE" "$APP"
           # Launch and check it stays alive
-          xcrun simctl launch "$DEVICE" com.focusflip.app
-          sleep 5
-          # Verify process is still running (didn't crash)
-          PID=$(xcrun simctl spawn "$DEVICE" launchctl list 2>/dev/null | grep -i focusflip | awk '{print $1}')
+          LAUNCH_OUT=$(xcrun simctl launch "$DEVICE" com.focusflip.app 2>&1)
+          echo "Launch output: $LAUNCH_OUT"
+          # First launch after cold boot can be slow (SpringBoard warm-up)
+          sleep 10
+          # Verify process is still running (didn't crash) via launchctl inside sim
+          PID=$(xcrun simctl spawn "$DEVICE" launchctl list 2>/dev/null | grep -i "UIKitApplication:com.focusflip.app" | awk '{print $1}' | head -1)
           if [ -n "$PID" ] && [ "$PID" != "-" ]; then
             echo "✅ App launched and still running (PID: $PID)"
           else
