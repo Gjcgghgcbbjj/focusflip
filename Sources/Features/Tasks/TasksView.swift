@@ -51,8 +51,7 @@ struct TasksView: View {
             }
             .onAppear { reload() }
         }
-        .preferredColorScheme(.dark)
-    }
+            }
 
     // MARK: - Empty state
 
@@ -216,8 +215,7 @@ private struct TaskEditSheet: View {
             }
             .onAppear { loadTask() }
         }
-        .preferredColorScheme(.dark)
-    }
+            }
 
     private func loadTask() {
         guard let t = task else { return }

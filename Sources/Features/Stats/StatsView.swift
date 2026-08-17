@@ -41,8 +41,7 @@ struct StatsView: View {
             .background(DS.Color.bgPrimary.ignoresSafeArea())
             .navigationTitle("统计")
         }
-        .preferredColorScheme(.dark)
-        .onAppear { loadData() }
+                .onAppear { loadData() }
         .onChange(of: range) { _ in loadData() }
     }
 

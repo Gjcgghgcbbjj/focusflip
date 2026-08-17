@@ -27,8 +27,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
-    }
+            }
 
     // MARK: - Presets
 

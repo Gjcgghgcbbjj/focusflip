@@ -10,10 +10,10 @@ struct FocusFlipApp: App {
     @StateObject private var router = AppRouter.shared
 
     init() {
-        // Tab bar appearance
+        // Tab bar appearance (dynamic — adapts to light/dark)
         let tabAppearance = UITabBarAppearance()
         tabAppearance.configureWithOpaqueBackground()
-        tabAppearance.backgroundColor = UIColor(DS.Color.bgPrimary)
+        tabAppearance.backgroundColor = DS.UIColorToken.bgPrimary
         tabAppearance.shadowColor = .clear
         UITabBar.appearance().standardAppearance = tabAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
@@ -21,13 +21,13 @@ struct FocusFlipApp: App {
         // Nav bar appearance
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithOpaqueBackground()
-        navAppearance.backgroundColor = UIColor(DS.Color.bgPrimary)
+        navAppearance.backgroundColor = DS.UIColorToken.bgPrimary
         navAppearance.shadowColor = .clear
         navAppearance.titleTextAttributes = [
-            .foregroundColor: UIColor(DS.Color.textPrimary)
+            .foregroundColor: DS.UIColorToken.textPrimary
         ]
         navAppearance.largeTitleTextAttributes = [
-            .foregroundColor: UIColor(DS.Color.textPrimary)
+            .foregroundColor: DS.UIColorToken.textPrimary
         ]
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance

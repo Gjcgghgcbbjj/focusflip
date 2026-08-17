@@ -1,37 +1,122 @@
 import SwiftUI
+import UIKit
 import Foundation
 
 // MARK: - Design Tokens
 //
-// Centralized design system inspired by Catppuccin Mocha + iOS 18 conventions.
-// Every color, spacing, radius, and font in the app references these tokens
-// to ensure visual consistency and eliminate "randomly picked" AI aesthetics.
+// Centralized design system: Catppuccin Mocha (dark) + Catppuccin Latte (light).
+// Every color token adapts automatically to the system appearance via dynamic
+// UIColor providers, so views just use DS.Color.* without any scheme handling.
+// Spacing, radius, and font tokens are shared between both palettes.
 
 enum DS {
 
-    // MARK: - Color Palette (Catppuccin Mocha based)
+    // MARK: - Raw palette values (Catppuccin)
+
+    enum Palette {
+        // Mocha (dark)
+        static let mochaBgPrimary   = SwiftUI.Color(red: 0.118, green: 0.118, blue: 0.180)  // #1e1e2e
+        static let mochaBgSecondary = SwiftUI.Color(red: 0.192, green: 0.196, blue: 0.267)  // #313244
+        static let mochaBgElevated  = SwiftUI.Color(red: 0.243, green: 0.247, blue: 0.314)  // #45475a
+        static let mochaBgOverlay   = SwiftUI.Color(red: 0.345, green: 0.353, blue: 0.439)  // #585b70
+        static let mochaTextPrimary = SwiftUI.Color(red: 0.804, green: 0.839, blue: 0.957)  // #cdd6f4
+        static let mochaTextSecondary = SwiftUI.Color(red: 0.651, green: 0.678, blue: 0.784) // #a6adc8
+        static let mochaTextMuted   = SwiftUI.Color(red: 0.580, green: 0.600, blue: 0.698)  // #9399b2
+        static let mochaFocus       = SwiftUI.Color(red: 0.953, green: 0.545, blue: 0.659)  // #f38ba8
+        static let mochaShortBreak  = SwiftUI.Color(red: 0.649, green: 0.891, blue: 0.631)  // #a6e3a1
+        static let mochaLongBreak   = SwiftUI.Color(red: 0.537, green: 0.706, blue: 0.980)  // #89b4fa
+        static let mochaAccent      = SwiftUI.Color(red: 0.796, green: 0.649, blue: 0.969)  // #cba6f7
+        static let mochaWarning     = SwiftUI.Color(red: 0.949, green: 0.761, blue: 0.408)  // #f9e2af
+
+        // Latte (light)
+        static let latteBgPrimary   = SwiftUI.Color(red: 0.937, green: 0.945, blue: 0.961)  // #eff1f5
+        static let latteBgSecondary = SwiftUI.Color(red: 0.902, green: 0.914, blue: 0.937)  // #e6e9ef
+        static let latteBgElevated  = SwiftUI.Color(red: 0.863, green: 0.878, blue: 0.910)  // #dce0e8
+        static let latteBgOverlay   = SwiftUI.Color(red: 0.800, green: 0.816, blue: 0.855)  // #ccd0da
+        static let latteTextPrimary = SwiftUI.Color(red: 0.298, green: 0.310, blue: 0.412)  // #4c4f69
+        static let latteTextSecondary = SwiftUI.Color(red: 0.361, green: 0.373, blue: 0.467) // #5c5f77
+        static let latteTextMuted   = SwiftUI.Color(red: 0.424, green: 0.435, blue: 0.522)  // #6c6f85
+        static let latteFocus       = SwiftUI.Color(red: 0.824, green: 0.055, blue: 0.224)  // #d20f39
+        static let latteShortBreak  = SwiftUI.Color(red: 0.251, green: 0.627, blue: 0.169)  // #40a02b
+        static let latteLongBreak   = SwiftUI.Color(red: 0.118, green: 0.400, blue: 0.961)  // #1e66f5
+        static let latteAccent      = SwiftUI.Color(red: 0.533, green: 0.220, blue: 0.937)  // #8839ef
+        static let latteWarning     = SwiftUI.Color(red: 0.875, green: 0.557, blue: 0.114)  // #df8e1d
+    }
+
+    /// Build a SwiftUI color that resolves per appearance via a dynamic UIColor.
+    static func adaptive(dark: SwiftUI.Color, light: SwiftUI.Color) -> SwiftUI.Color {
+        SwiftUI.Color(uiColor: UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
+        })
+    }
+
+    // MARK: - Color Tokens (adaptive)
 
     enum Color {
         // Backgrounds
-        static let bgPrimary     = SwiftUI.Color(red: 0.118, green: 0.118, blue: 0.180)  // #1e1e2e
-        static let bgSecondary   = SwiftUI.Color(red: 0.192, green: 0.196, blue: 0.267)  // #313244
-        static let bgElevated    = SwiftUI.Color(red: 0.243, green: 0.247, blue: 0.314)  // #45475a
-        static let bgOverlay     = SwiftUI.Color(red: 0.345, green: 0.353, blue: 0.439)  // #585b70
+        static var bgPrimary: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaBgPrimary, light: Palette.latteBgPrimary)
+        }
+        static var bgSecondary: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaBgSecondary, light: Palette.latteBgSecondary)
+        }
+        static var bgElevated: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaBgElevated, light: Palette.latteBgElevated)
+        }
+        static var bgOverlay: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaBgOverlay, light: Palette.latteBgOverlay)
+        }
 
         // Text
-        static let textPrimary   = SwiftUI.Color(red: 0.804, green: 0.839, blue: 0.957)  // #cdd6f4
-        static let textSecondary = SwiftUI.Color(red: 0.651, green: 0.678, blue: 0.784)  // #a6adc8
-        static let textMuted     = SwiftUI.Color(red: 0.580, green: 0.600, blue: 0.698)  // #9399b2
+        static var textPrimary: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaTextPrimary, light: Palette.latteTextPrimary)
+        }
+        static var textSecondary: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaTextSecondary, light: Palette.latteTextSecondary)
+        }
+        static var textMuted: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaTextMuted, light: Palette.latteTextMuted)
+        }
 
         // Phase colors (semantic)
-        static let focus         = SwiftUI.Color(red: 0.953, green: 0.545, blue: 0.659)  // #f38ba8
-        static let shortBreak    = SwiftUI.Color(red: 0.649, green: 0.891, blue: 0.631)  // #a6e3a1
-        static let longBreak     = SwiftUI.Color(red: 0.537, green: 0.706, blue: 0.980)  // #89b4fa
+        static var focus: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaFocus, light: Palette.latteFocus)
+        }
+        static var shortBreak: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaShortBreak, light: Palette.latteShortBreak)
+        }
+        static var longBreak: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaLongBreak, light: Palette.latteLongBreak)
+        }
 
         // Accents
-        static let accent        = SwiftUI.Color(red: 0.796, green: 0.649, blue: 0.969)  // #cba6f7
-        static let warning       = SwiftUI.Color(red: 0.949, green: 0.761, blue: 0.408)  // #f9e2af
-        static let danger        = SwiftUI.Color(red: 0.953, green: 0.545, blue: 0.659)  // #f38ba8
+        static var accent: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaAccent, light: Palette.latteAccent)
+        }
+        static var warning: SwiftUI.Color {
+            DS.adaptive(dark: Palette.mochaWarning, light: Palette.latteWarning)
+        }
+        static var danger: SwiftUI.Color { focus }
+    }
+
+    // MARK: - UIKit appearance helpers
+
+    /// Dynamic UIColor versions for UIKit appearance proxies (tab/nav bars).
+    enum UIColorToken {
+        static var bgPrimary: UIColor {
+            UIColor { trait in
+                trait.userInterfaceStyle == .dark
+                    ? UIColor(DS.Palette.mochaBgPrimary)
+                    : UIColor(DS.Palette.latteBgPrimary)
+            }
+        }
+        static var textPrimary: UIColor {
+            UIColor { trait in
+                trait.userInterfaceStyle == .dark
+                    ? UIColor(DS.Palette.mochaTextPrimary)
+                    : UIColor(DS.Palette.latteTextPrimary)
+            }
+        }
     }
 
     // MARK: - Spacing (4pt grid)

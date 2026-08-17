@@ -39,8 +39,7 @@ struct TimerView: View {
                     .padding(.bottom, DS.S.xxxl)
             }
         }
-        .preferredColorScheme(.dark)
-        .onAppear {
+                .onAppear {
             NotificationService.shared.requestPermission()
             engine.refreshTodayStats()
         }
@@ -479,8 +478,7 @@ private struct TaskPickerSheet: View {
                 tasks = PersistenceController.shared.fetchTasks()
             }
         }
-        .preferredColorScheme(.dark)
-    }
+            }
 
     private var phaseAccent: SwiftUI.Color {
         DS.Color.accent
