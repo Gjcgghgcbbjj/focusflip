@@ -109,7 +109,7 @@ public final class PersistenceController {
         save()
     }
 
-    private func fetchTask(id: UUID) -> TaskItem? {
+    public func fetchTask(id: UUID) -> TaskItem? {
         let req: NSFetchRequest<TaskItem> = TaskItem.fetchRequest()
         req.predicate = NSPredicate(format: "id == %@", id.uuidString as NSString)
         req.fetchLimit = 1

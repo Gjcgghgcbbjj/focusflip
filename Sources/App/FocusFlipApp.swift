@@ -5,8 +5,9 @@ import UIKit
 @main
 struct FocusFlipApp: App {
 
-    @StateObject private var engine = PomodoroEngine.shared
-    @StateObject private var settings = AppSettings.shared
+    @ObservedObject private var engine = PomodoroEngine.shared
+    @ObservedObject private var settings = AppSettings.shared
+    @StateObject private var router = AppRouter.shared
 
     init() {
         // Tab bar appearance
@@ -36,42 +37,94 @@ struct FocusFlipApp: App {
         WindowGroup {
             ContentView()
                 .environment(\.managedObjectContext, PersistenceController.shared.viewContext)
-                .environmentObject(engine)
-                .environmentObject(settings)
+                .environmentObject(router)
                 .onAppear {
                     NotificationService.shared.requestPermission()
                 }
+                .onOpenURL { url in
+                    handleURL(url)
+                }
         }
     }
+
+    // MARK: - URL scheme (focusflip://...)
+
+    private func handleURL(_ url: URL) {
+        guard url.scheme == "focusflip" else { return }
+
+        switch url.host ?? "" {
+        case "start":
+            engine.startFocus()
+        case "pause":
+            engine.pause()
+        case "resume":
+            engine.resume()
+        case "skip":
+            engine.skip()
+        case "reset":
+            engine.reset()
+        case "tasks":
+            router.selectedTab = .tasks
+        case "stats":
+            router.selectedTab = .stats
+        case "settings":
+            router.selectedTab = .settings
+        default:
+            break
+        }
+    }
+}
+
+// MARK: - App router (tab switching from URL schemes / shortcuts)
+
+/// Minimal navigation state shared across the app.
+final class AppRouter: ObservableObject {
+
+    static let shared = AppRouter()
+
+    enum Tab: Int {
+        case timer
+        case tasks
+        case stats
+        case settings
+    }
+
+    @Published var selectedTab: Tab = .timer
 }
 
 // MARK: - Root tab view
 
 struct ContentView: View {
 
+    @EnvironmentObject private var router: AppRouter
+
     var body: some View {
-        TabView {
+        TabView(selection: $router.selectedTab) {
             TimerView()
                 .tabItem {
                     Label("计时", systemImage: "timer")
                 }
+                .tag(AppRouter.Tab.timer)
 
             TasksView()
                 .tabItem {
                     Label("任务", systemImage: "checklist")
                 }
+                .tag(AppRouter.Tab.tasks)
 
             if #available(iOS 16.0, *) {
                 StatsView()
                     .tabItem {
                         Label("统计", systemImage: "chart.bar.fill")
                     }
+                    .tag(AppRouter.Tab.stats)
             }
 
             SettingsView()
                 .tabItem {
                     Label("设置", systemImage: "gearshape")
                 }
+                .tag(AppRouter.Tab.settings)
         }
         .tint(DS.Color.accent)
     }

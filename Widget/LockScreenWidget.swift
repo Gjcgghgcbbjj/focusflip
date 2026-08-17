@@ -96,41 +96,70 @@ private struct LockScreenLiveActivityView: View {
     let context: ActivityViewContext<PomodoroActivityAttributes>
 
     var body: some View {
-        HStack(spacing: 16) {
-            // Left: icon + label
-            VStack(spacing: 8) {
-                Image(systemName: sessionIcon)
-                    .font(.title)
-                    .foregroundColor(sessionColor)
-                Text(sessionLabel)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .frame(width: 60)
+        // Self-ticking countdown: TimelineView re-renders every second and
+        // remaining time is derived from the absolute phaseEndDate, so the app
+        // only pushes activity updates on state changes (start/pause/resume).
+        TimelineView(.periodic(from: .now, by: 1)) { timelineContext in
+            let remaining = Self.remainingSeconds(state: context.state, at: timelineContext.date)
 
-            // Center: timer + progress
-            VStack(spacing: 6) {
-                Text(formatTime(context.state.remainingSeconds))
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .monospacedDigit()
+            HStack(spacing: 16) {
+                // Left: icon + label
+                VStack(spacing: 8) {
+                    Image(systemName: sessionIcon)
+                        .font(.title)
+                        .foregroundColor(sessionColor)
+                    Text(sessionLabel)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(width: 60)
 
-                ProgressView(value: progress)
-                    .tint(sessionColor)
-                    .frame(width: 120)
-            }
+                // Center: timer + progress
+                VStack(spacing: 6) {
+                    Text(Self.formatTime(remaining))
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .monospacedDigit()
 
-            // Right: cycle info
-            VStack(spacing: 8) {
-                Text("\(context.state.completedPomodoros)")
-                    .font(.title2.bold())
-                Text("番茄")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    ProgressView(value: Self.progress(state: context.state, remaining: remaining))
+                        .tint(sessionColor)
+                        .frame(width: 120)
+                }
+
+                // Right: cycle info
+                VStack(spacing: 8) {
+                    Text("\(context.state.completedPomodoros)")
+                        .font(.title2.bold())
+                    Text("番茄")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                .frame(width: 60)
             }
-            .frame(width: 60)
+            .padding()
+            .widgetContainerBackground()
         }
-        .padding()
-        .widgetContainerBackground()
+    }
+
+    // MARK: - Countdown helpers
+
+    private static func remainingSeconds(state: PomodoroActivityAttributes.PomodoroState,
+                                         at date: Date) -> Int {
+        if let end = state.phaseEndDate {
+            return max(0, Int(end.timeIntervalSince(date)))
+        }
+        return max(0, state.remainingSeconds)   // paused — show snapshot
+    }
+
+    private static func progress(state: PomodoroActivityAttributes.PomodoroState,
+                                 remaining: Int) -> Double {
+        guard state.totalSeconds > 0 else { return 0 }
+        return 1.0 - Double(remaining) / Double(state.totalSeconds)
+    }
+
+    private static func formatTime(_ seconds: Int) -> String {
+        let m = seconds / 60
+        let s = seconds % 60
+        return String(format: "%02d:%02d", m, s)
     }
 
     private var sessionIcon: String {
@@ -158,16 +187,5 @@ private struct LockScreenLiveActivityView: View {
         case "longBreak":   return .purple
         default:            return .blue
         }
-    }
-
-    private var progress: Double {
-        guard context.state.totalSeconds > 0 else { return 0 }
-        return 1.0 - Double(context.state.remainingSeconds) / Double(context.state.totalSeconds)
-    }
-
-    private func formatTime(_ seconds: Int) -> String {
-        let m = seconds / 60
-        let s = seconds % 60
-        return String(format: "%02d:%02d", m, s)
     }
 }

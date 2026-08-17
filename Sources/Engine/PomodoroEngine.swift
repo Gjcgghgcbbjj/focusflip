@@ -9,7 +9,7 @@ import Combine
 ///   .paused       — focus paused by user
 ///   .shortBreak   — short break in progress
 ///   .longBreak    — long break in progress
-///   .finished     — all planned cycles done
+///   .finished     — daily goal reached (all planned pomodoros done)
 public final class PomodoroEngine: ObservableObject {
 
     public static let shared = PomodoroEngine()
@@ -23,6 +23,10 @@ public final class PomodoroEngine: ObservableObject {
 
     /// Timestamp when the current counting phase started (for sub-second progress).
     @Published public private(set) var phaseStartDate: Date?
+
+    // MARK: - Today stats (snapshot, refreshed on phase transitions)
+    @Published public private(set) var todayPomodoros: Int = 0
+    @Published public private(set) var todayFocusSeconds: Int = 0
 
     // MARK: - Settings reference
     private let settings = AppSettings.shared
@@ -55,6 +59,7 @@ public final class PomodoroEngine: ObservableObject {
         phaseStartDate = Date()
         state = .focusing
         timerService.start()
+        startLiveActivity()
     }
 
     public func startBreak() {
@@ -66,6 +71,7 @@ public final class PomodoroEngine: ObservableObject {
         phaseStartDate = Date()
         state = isLongBreak ? .longBreak : .shortBreak
         timerService.start()
+        startLiveActivity()
     }
 
     public func pause() {
@@ -79,6 +85,7 @@ public final class PomodoroEngine: ObservableObject {
         }
         state = .paused(sessionType)
         timerService.stop()
+        updateLiveActivity(endDate: nil)
     }
 
     public func resume() {
@@ -92,14 +99,17 @@ public final class PomodoroEngine: ObservableObject {
         case .longBreak:   state = .longBreak
         }
         timerService.start()
+        updateLiveActivity(endDate: Date().addingTimeInterval(TimeInterval(remainingSeconds)))
     }
 
     public func skip() {
+        endLiveActivity()
         timerService.stop()
         advancePhase()
     }
 
     public func reset() {
+        endLiveActivity()
         timerService.stop()
         state = .idle
         remainingSeconds = 0
@@ -107,6 +117,15 @@ public final class PomodoroEngine: ObservableObject {
         completedFocusCount = 0
         currentCycle = 1
         phaseStartDate = nil
+        refreshTodayStats()
+    }
+
+    /// Refresh the today snapshot from CoreData (call on appear & after phase changes).
+    public func refreshTodayStats() {
+        let sessions = PersistenceController.shared.fetchSessions(for: Date())
+        let focus = sessions.filter { $0.sessionType == .focus }
+        todayPomodoros = focus.count
+        todayFocusSeconds = focus.reduce(0) { $0 + Int($1.durationSeconds) }
     }
 
     // MARK: - Tick handling
@@ -130,14 +149,24 @@ public final class PomodoroEngine: ObservableObject {
             completedFocusCount += 1
             PersistenceController.shared.recordSession(
                 type: .focus, duration: totalSeconds, taskId: currentTaskId)
+            refreshTodayStats()
 
             onPhaseComplete?(.focus)
+
+            // Daily goal reached → whole cycle finished
+            if settings.dailyGoalPomodoros > 0 && todayPomodoros >= settings.dailyGoalPomodoros {
+                state = .finished
+                onAllComplete?()
+                endLiveActivity()
+                return
+            }
 
             let isLongBreak = completedFocusCount % settings.pomodorosBeforeLongBreak == 0
             if settings.autoStartBreaks {
                 startBreak()
             } else {
                 state = isLongBreak ? .breakReady(.longBreak) : .breakReady(.shortBreak)
+                endLiveActivity()
             }
 
         case .shortBreak, .longBreak:
@@ -154,11 +183,49 @@ public final class PomodoroEngine: ObservableObject {
                 startFocus()
             } else {
                 state = .focusReady
+                endLiveActivity()
             }
 
         default:
             break
         }
+    }
+
+    // MARK: - Live Activity
+
+    private func startLiveActivity() {
+        guard #available(iOS 16.2, *) else { return }
+        LiveActivityManager.shared.startActivity(
+            remaining: remainingSeconds,
+            total: totalSeconds,
+            endDate: Date().addingTimeInterval(TimeInterval(remainingSeconds)),
+            type: currentSessionType,
+            completed: completedFocusCount,
+            cycle: currentCycle,
+            taskTitle: currentTaskTitle
+        )
+    }
+
+    private func updateLiveActivity(endDate: Date?) {
+        guard #available(iOS 16.2, *) else { return }
+        LiveActivityManager.shared.updateActivity(
+            remaining: remainingSeconds,
+            total: totalSeconds,
+            endDate: endDate,
+            type: currentSessionType,
+            completed: completedFocusCount,
+            cycle: currentCycle
+        )
+    }
+
+    private func endLiveActivity() {
+        guard #available(iOS 16.2, *) else { return }
+        LiveActivityManager.shared.endActivity()
+    }
+
+    private var currentTaskTitle: String? {
+        guard let id = currentTaskId else { return nil }
+        return PersistenceController.shared.fetchTask(id: id)?.title
     }
 
     // MARK: - Computed helpers
@@ -182,6 +249,12 @@ public final class PomodoroEngine: ObservableObject {
         guard let start = phaseStartDate else { return Double(remainingSeconds) }
         let elapsed = date.timeIntervalSince(start)
         return Double(remainingSeconds) - (elapsed - Double(totalSeconds - remainingSeconds))
+    }
+
+    /// 0.0–1.0 progress toward the daily pomodoro goal.
+    public var dailyGoalProgress: Double {
+        guard settings.dailyGoalPomodoros > 0 else { return 0 }
+        return min(1.0, Double(todayPomodoros) / Double(settings.dailyGoalPomodoros))
     }
 
     public var currentSessionType: SessionType {
@@ -210,5 +283,5 @@ public enum EngineState: Equatable {
     case longBreak
     case breakReady(SessionType)   // waiting for user to start break
     case focusReady                // waiting for user to start next focus
-    case finished
+    case finished                  // daily goal reached
 }

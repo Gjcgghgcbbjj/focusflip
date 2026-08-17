@@ -3,7 +3,7 @@ import SwiftUI
 /// Settings screen using system Form with dark theme.
 struct SettingsView: View {
 
-    @StateObject private var settings = AppSettings.shared
+    @ObservedObject private var settings = AppSettings.shared
     @State private var exportURL: URL?
     @State private var showingShareSheet = false
 
@@ -117,6 +117,9 @@ struct SettingsView: View {
 
     private var behaviorSection: some View {
         Section("行为") {
+            Stepper("每日目标: \(settings.dailyGoalPomodoros) 个番茄",
+                    value: $settings.dailyGoalPomodoros, in: 1...24)
+                .tint(DS.Color.accent)
             Toggle("自动开始休息", isOn: $settings.autoStartBreaks)
                 .tint(DS.Color.accent)
             Toggle("自动开始专注", isOn: $settings.autoStartFocus)
@@ -215,7 +218,7 @@ struct SettingsView: View {
 // MARK: - App shield picker
 
 private struct AppShieldPickerView: View {
-    @StateObject private var settings = AppSettings.shared
+    @ObservedObject private var settings = AppSettings.shared
     @State private var installedApps: [InstalledApp] = []
 
     var body: some View {

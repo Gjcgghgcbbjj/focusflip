@@ -6,12 +6,13 @@ import SwiftUI
 /// semantic phase colors, no gratuitous gradients or shadows.
 struct TimerView: View {
 
-    @StateObject private var engine = PomodoroEngine.shared
-    @StateObject private var settings = AppSettings.shared
-    @StateObject private var soundPlayer = SoundPlayer.shared
+    @ObservedObject private var engine = PomodoroEngine.shared
+    @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var soundPlayer = SoundPlayer.shared
 
     @State private var showTaskPicker = false
     @State private var selectedTask: TaskItem?
+    @State private var showCelebration = false
 
     var body: some View {
         ZStack {
@@ -28,6 +29,9 @@ struct TimerView: View {
 
                 Spacer()
 
+                todayCard
+                    .padding(.bottom, DS.S.md)
+
                 taskChip
                     .padding(.bottom, DS.S.md)
 
@@ -36,8 +40,18 @@ struct TimerView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { NotificationService.shared.requestPermission() }
+        .onAppear {
+            NotificationService.shared.requestPermission()
+            engine.refreshTodayStats()
+        }
         .onReceive(engine.$state) { handleStateChange($0) }
+        .overlay {
+            if showCelebration {
+                CelebrationOverlay(todayPomodoros: engine.todayPomodoros,
+                                   todayMinutes: engine.todayFocusSeconds / 60)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+            }
+        }
         .sheet(isPresented: $showTaskPicker) {
             TaskPickerSheet(selectedTask: $selectedTask)
         }
@@ -159,8 +173,46 @@ struct TimerView: View {
         case .breakReady:
             return "休息时间"
         case .finished:
-            return "已完成"
+            return "今日目标达成 🎉"
         }
+    }
+
+    // MARK: - Today card
+
+    private var todayCard: some View {
+        let goal = settings.dailyGoalPomodoros
+        let progress = engine.dailyGoalProgress
+
+        return HStack(spacing: DS.S.sm) {
+            Image(systemName: "flame.fill")
+                .font(.system(size: 12))
+                .foregroundColor(DS.Color.warning)
+
+            Text("今日 \(engine.todayPomodoros)/\(goal) 番茄")
+                .font(DS.Font.caption)
+                .foregroundColor(DS.Color.textSecondary)
+
+            // Goal progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(DS.Color.textPrimary.opacity(0.08))
+                    Capsule()
+                        .fill(DS.Color.focus)
+                        .frame(width: max(6, geo.size.width * progress))
+                }
+            }
+            .frame(width: 110, height: 5)
+
+            Text(DateUtils.hoursMinutes(from: engine.todayFocusSeconds))
+                .font(DS.Font.micro)
+                .foregroundColor(DS.Color.textMuted)
+        }
+        .padding(.horizontal, DS.S.md)
+        .padding(.vertical, DS.S.sm)
+        .background(
+            Capsule().fill(DS.Color.bgSecondary)
+        )
     }
 
     // MARK: - Task chip
@@ -261,8 +313,10 @@ struct TimerView: View {
 
     private var mainButtonIcon: String {
         switch engine.state {
-        case .idle, .breakReady, .focusReady, .finished:
+        case .idle, .breakReady, .focusReady:
             return "play.fill"
+        case .finished:
+            return "arrow.counterclockwise.circle.fill"
         case .focusing, .shortBreak, .longBreak:
             return "pause.fill"
         case .paused:
@@ -275,17 +329,19 @@ struct TimerView: View {
         case .idle, .focusReady:
             engine.startFocus()
             if settings.whiteNoiseEnabled { soundPlayer.playWhiteNoise() }
-            if settings.appShieldEnabled { FocusShieldManager.shared.activateShield() }
         case .breakReady:
             engine.startBreak()
+        case .finished:
+            // Start a fresh cycle
+            engine.reset()
+            engine.startFocus()
+            if settings.whiteNoiseEnabled { soundPlayer.playWhiteNoise() }
         case .focusing, .shortBreak, .longBreak:
             engine.pause()
             if settings.whiteNoiseEnabled { soundPlayer.pauseWhiteNoise() }
         case .paused:
             engine.resume()
             if settings.whiteNoiseEnabled { soundPlayer.resumeWhiteNoise() }
-        case .finished:
-            engine.reset()
         }
     }
 
@@ -295,6 +351,7 @@ struct TimerView: View {
         switch newState {
         case .focusing:
             if settings.whiteNoiseEnabled { soundPlayer.playWhiteNoise() }
+            if settings.appShieldEnabled { FocusShieldManager.shared.activateShield() }
         case .shortBreak, .longBreak:
             soundPlayer.stopWhiteNoise()
             HapticManager.shared.success()
@@ -305,8 +362,61 @@ struct TimerView: View {
             FocusShieldManager.shared.deactivateShield()
         case .finished:
             FocusShieldManager.shared.deactivateShield()
+            HapticManager.shared.success()
+            if settings.completionSoundEnabled { soundPlayer.playCompletionSound() }
+            triggerCelebration()
         default:
             break
+        }
+    }
+
+    private func triggerCelebration() {
+        withAnimation(DS.Anim.bouncy) { showCelebration = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+            withAnimation(DS.Anim.standard) { showCelebration = false }
+        }
+    }
+}
+
+// MARK: - Celebration overlay
+
+/// Minimal "daily goal reached" celebration: a soft dark scrim + checkmark card.
+private struct CelebrationOverlay: View {
+    let todayPomodoros: Int
+    let todayMinutes: Int
+
+    var body: some View {
+        ZStack {
+            DS.Color.bgPrimary.opacity(0.75)
+                .ignoresSafeArea()
+
+            VStack(spacing: DS.S.lg) {
+                ZStack {
+                    Circle()
+                        .fill(DS.Color.focus.opacity(0.15))
+                        .frame(width: 96, height: 96)
+                    Circle()
+                        .stroke(DS.Color.focus, lineWidth: 2)
+                        .frame(width: 96, height: 96)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 40, weight: .semibold))
+                        .foregroundColor(DS.Color.focus)
+                }
+
+                VStack(spacing: DS.S.xs) {
+                    Text("今日目标达成！")
+                        .font(DS.Font.title2)
+                        .foregroundColor(DS.Color.textPrimary)
+                    Text("\(todayPomodoros) 个番茄 · \(DateUtils.hoursMinutes(from: todayMinutes * 60))")
+                        .font(DS.Font.caption)
+                        .foregroundColor(DS.Color.textMuted)
+                }
+            }
+            .padding(DS.S.xxl)
+            .background(
+                RoundedRectangle(cornerRadius: DS.R.xl)
+                    .fill(DS.Color.bgSecondary)
+            )
         }
     }
 }

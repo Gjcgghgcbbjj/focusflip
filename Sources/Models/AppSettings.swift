@@ -34,6 +34,9 @@ public final class AppSettings: ObservableObject {
     @Published public var flipClockStyle: String      { didSet { save() } }
     @Published public var themeColorHex: String        { didSet { save() } }
 
+    // MARK: - Daily goal
+    @Published public var dailyGoalPomodoros: Int      { didSet { save() } }
+
     // MARK: - Persistence
 
     private let defaults = UserDefaults.standard
@@ -61,6 +64,8 @@ public final class AppSettings: ObservableObject {
         autoStartFocus      = d.object(forKey: "autoStartFocus") as? Bool ?? false
         flipClockStyle      = d.object(forKey: "flipClockStyle") as? String ?? "classic"
         themeColorHex       = d.object(forKey: "themeColorHex") as? String ?? "#FF6B6B"
+
+        dailyGoalPomodoros  = d.object(forKey: "dailyGoalPomodoros") as? Int ?? 8
     }
 
     private func save() {
@@ -81,6 +86,7 @@ public final class AppSettings: ObservableObject {
         defaults.set(autoStartFocus, forKey: "autoStartFocus")
         defaults.set(flipClockStyle, forKey: "flipClockStyle")
         defaults.set(themeColorHex, forKey: "themeColorHex")
+        defaults.set(dailyGoalPomodoros, forKey: "dailyGoalPomodoros")
     }
 
     // MARK: - Presets
