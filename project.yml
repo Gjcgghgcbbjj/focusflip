@@ -29,12 +29,11 @@ targets:
       - path: Sources
       - path: Widget
       - path: Resources
-    info:
-      path: FocusFlip.plist
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.focusflip.app
         INFOPLIST_FILE: FocusFlip.plist
+        GENERATE_INFOPLIST_FILE: NO
         PRODUCT_NAME: FocusFlip
         ENABLE_PREVIEWS: YES
         OTHER_LDFLAGS: "-ObjC"

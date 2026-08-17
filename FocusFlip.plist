@@ -22,12 +22,9 @@
     <key>MinimumOSVersion</key>
     <string>15.0</string>
 
-    <!-- Launch screen -->
+    <!-- Launch screen (empty dict = system default, prevents compatibility mode crash) -->
     <key>UILaunchScreen</key>
-    <dict>
-        <key>UIColorName</key>
-        <string>LaunchBackground</string>
-    </dict>
+    <dict/>
 
     <!-- Orientations -->
     <key>UISupportedInterfaceOrientations</key>
