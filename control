@@ -1,0 +1,10 @@
+Package: com.focusflip.app
+Name: FocusFlip
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: A pomodoro timer app with flip clock, live activity, and app shielding. Built for TrollStore.
+Maintainer: FocusFlip
+Author: FocusFlip
+Section: Productivity
+Depends: mobilesubstrate
+Homepage: https://github.com/focusflip/focusflip
