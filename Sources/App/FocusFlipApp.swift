@@ -118,6 +118,12 @@ struct ContentView: View {
                         Label("统计", systemImage: "chart.bar.fill")
                     }
                     .tag(AppRouter.Tab.stats)
+            } else {
+                StatsLegacyView()
+                    .tabItem {
+                        Label("统计", systemImage: "chart.bar.fill")
+                    }
+                    .tag(AppRouter.Tab.stats)
             }
 
             SettingsView()

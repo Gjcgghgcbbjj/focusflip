@@ -214,4 +214,62 @@ public final class PersistenceController {
         try data.write(to: url)
         return url
     }
+
+    // MARK: - JSON Import / Clear
+
+    /// Import an exported JSON file. Upserts by id — existing records are kept,
+    /// new ones are added, so importing is safe to repeat.
+    public func importJSON(from url: URL) throws {
+        let data = try Data(contentsOf: url)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let export = try decoder.decode(ExportData.self, from: data)
+
+        let ctx = container.viewContext
+
+        // Existing ids for dedup
+        let existingSessionIds = Set(fetchAllSessions().compactMap { $0.id })
+        let existingTaskIds = Set(fetchTasks().compactMap { $0.id })
+
+        for s in export.sessions {
+            guard !existingSessionIds.contains(s.id) else { continue }
+            let session = FocusSession(context: ctx)
+            session.id = s.id
+            session.startDate = s.startDate
+            session.endDate = s.endDate
+            session.durationSeconds = Int32(s.durationSeconds)
+            session.typeRaw = s.type
+            session.completed = true
+            session.taskId = s.taskId
+        }
+
+        for t in export.tasks {
+            guard !existingTaskIds.contains(t.id) else { continue }
+            let task = TaskItem(context: ctx)
+            task.id = t.id
+            task.title = t.title
+            task.note = t.note
+            task.createdAt = t.createdAt
+            task.completed = t.completed
+            task.estimatedPomodoros = Int32(t.estimatedPomodoros)
+            task.completedPomodoros = Int32(t.completedPomodoros)
+            task.sortOrder = 0
+            task.colorHex = "#FF6B6B"
+        }
+
+        save()
+    }
+
+    /// Delete every session and task (destructive — callers must confirm).
+    public func clearAllData() {
+        let ctx = container.viewContext
+        let reqS: NSFetchRequest<NSFetchRequestResult> =
+            FocusSession.fetchRequest() as! NSFetchRequest<NSFetchRequestResult>
+        let reqT: NSFetchRequest<NSFetchRequestResult> =
+            TaskItem.fetchRequest() as! NSFetchRequest<NSFetchRequestResult>
+        try? ctx.execute(NSBatchDeleteRequest(fetchRequest: reqS))
+        try? ctx.execute(NSBatchDeleteRequest(fetchRequest: reqT))
+        try? ctx.save()
+        ctx.reset()
+    }
 }

@@ -1,11 +1,14 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// Settings screen using system Form with dark theme.
+/// Settings screen using system Form with adaptive theme.
 struct SettingsView: View {
 
     @ObservedObject private var settings = AppSettings.shared
     @State private var exportURL: URL?
     @State private var showingShareSheet = false
+    @State private var showingImporter = false
+    @State private var showingClearConfirm = false
 
     var body: some View {
         NavigationView {
@@ -26,8 +29,18 @@ struct SettingsView: View {
                     ShareSheet(items: [url])
                 }
             }
-        }
+            .fileImporter(isPresented: $showingImporter,
+                          allowedContentTypes: [.json]) { result in
+                importData(result)
             }
+            .confirmationDialog("清除所有数据？此操作不可恢复。",
+                                isPresented: $showingClearConfirm,
+                                titleVisibility: .visible) {
+                Button("全部清除", role: .destructive) { clearData() }
+                Button("取消", role: .cancel) {}
+            }
+        }
+    }
 
     // MARK: - Presets
 
@@ -168,7 +181,15 @@ struct SettingsView: View {
                 .foregroundColor(DS.Color.textPrimary)
             }
 
-            Button(role: .destructive, action: {}) {
+            Button(action: { showingImporter = true }) {
+                HStack {
+                    Image(systemName: "square.and.arrow.down")
+                    Text("导入数据")
+                }
+                .foregroundColor(DS.Color.textPrimary)
+            }
+
+            Button(role: .destructive, action: { showingClearConfirm = true }) {
                 HStack {
                     Image(systemName: "trash")
                     Text("清除所有数据")
@@ -211,6 +232,21 @@ struct SettingsView: View {
         } catch {
             NSLog("[FocusFlip] Export error: \(error.localizedDescription)")
         }
+    }
+
+    private func importData(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+        do {
+            try PersistenceController.shared.importJSON(from: url)
+            PomodoroEngine.shared.refreshTodayStats()
+        } catch {
+            NSLog("[FocusFlip] Import error: \(error.localizedDescription)")
+        }
+    }
+
+    private func clearData() {
+        PersistenceController.shared.clearAllData()
+        PomodoroEngine.shared.refreshTodayStats()
     }
 }
 
