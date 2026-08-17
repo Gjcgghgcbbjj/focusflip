@@ -5,6 +5,7 @@ options:
     iOS: "15.0"
   developmentLanguage: zh-Hans
   createIntermediateGroups: true
+  xcodeVersion: "15.0"
 
 settings:
   base:
