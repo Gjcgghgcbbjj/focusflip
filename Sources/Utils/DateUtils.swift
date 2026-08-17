@@ -31,6 +31,13 @@ public struct DateUtils {
         return (0..<7).reversed().map { cal.date(byAdding: .day, value: -$0, to: today)! }
     }
 
+    /// Last n days (oldest → newest), each at startOfDay.
+    public static func lastNDays(_ n: Int) -> [Date] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        return (0..<n).reversed().map { cal.date(byAdding: .day, value: -$0, to: today)! }
+    }
+
     /// Short weekday label: "一", "二", ...
     public static func weekdayLabel(_ date: Date) -> String {
         let cal = Calendar.current
