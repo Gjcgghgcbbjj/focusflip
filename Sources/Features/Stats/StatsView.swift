@@ -97,7 +97,6 @@ struct StatsView: View {
             .chartXAxis {
                 AxisMarks(values: .automatic)
             }
-            .chartYScale(domain: 0...)
             .frame(height: 160)
         }
         .card()

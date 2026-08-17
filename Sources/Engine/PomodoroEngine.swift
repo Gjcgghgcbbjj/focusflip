@@ -86,7 +86,11 @@ public final class PomodoroEngine: ObservableObject {
         // Adjust phase start to account for elapsed time
         let elapsed = totalSeconds - remainingSeconds
         phaseStartDate = Date().addingTimeInterval(TimeInterval(-elapsed))
-        state = prev
+        switch prev {
+        case .focus:       state = .focusing
+        case .shortBreak:  state = .shortBreak
+        case .longBreak:   state = .longBreak
+        }
         timerService.start()
     }
 
