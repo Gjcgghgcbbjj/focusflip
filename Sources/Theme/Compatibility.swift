@@ -26,15 +26,4 @@ extension View {
             self
         }
     }
-
-    /// Applies container background for widgets on iOS 17+,
-    /// falls back to regular background on older versions.
-    @ViewBuilder
-    func widgetContainerBackground() -> some View {
-        if #available(iOS 17.0, *) {
-            self.containerBackground(.fill.tertiary, for: .widget)
-        } else {
-            self
-        }
-    }
 }

@@ -200,11 +200,15 @@ public final class PersistenceController {
                        completedPomodoros: Int($0.completedPomodoros))
         }
         let export = ExportData(sessions: sessions, tasks: tasks,
-                                exportDate: Date(), appVersion: "1.0.0")
+                                exportDate: Date(), appVersion: currentVersion)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(export)
+    }
+
+    private var currentVersion: String {
+        (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0.0"
     }
 
     public func exportToURL() throws -> URL {

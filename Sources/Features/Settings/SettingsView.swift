@@ -206,7 +206,7 @@ struct SettingsView: View {
             HStack {
                 Text("版本")
                 Spacer()
-                Text("1.0.0")
+                Text(appVersion)
                     .foregroundColor(DS.Color.textMuted)
             }
             HStack {
@@ -223,6 +223,10 @@ struct SettingsView: View {
             }
         }
         .listRowBackground(DS.Color.bgSecondary)
+    }
+
+    private var appVersion: String {
+        (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0.0"
     }
 
     private func exportData() {

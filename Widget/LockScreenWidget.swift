@@ -136,8 +136,7 @@ private struct LockScreenLiveActivityView: View {
                 .frame(width: 60)
             }
             .padding()
-            .widgetBackgroundSafe()
-        }
+                    }
     }
 
     // MARK: - Countdown helpers

@@ -2,24 +2,8 @@ import SwiftUI
 import WidgetKit
 import ActivityKit
 
-// MARK: - Version-safe widget background helper
-//
-// `.widgetBackgroundSafe()` / `.containerBackground(for:)` are iOS 17+
-// APIs. On iOS 16 the system renders the widget background automatically,
-// so we only apply an explicit background where it is available.
-
-extension View {
-    @ViewBuilder func widgetBackgroundSafe() -> some View {
-        if #available(iOS 17.0, *) {
-            self.containerBackground(for: .widget) { Color.clear }
-        } else {
-            self
-        }
-    }
-}
-
 /// Lock screen widget showing today's focus stats.
-/// Requires iOS 16+ for WidgetKit families; iOS 17+ for containerBackground.
+/// Requires iOS 16+ for WidgetKit families.
 @available(iOS 16.0, *)
 struct FocusFlipWidget: Widget {
 
@@ -96,8 +80,7 @@ struct FocusStatsWidgetView: View {
                 Text("🍅")
                     .font(.system(size: 10))
             }
-            .widgetBackgroundSafe()
-
+            
         case .accessoryRectangular:
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -115,8 +98,7 @@ struct FocusStatsWidgetView: View {
                     .font(.title2)
                     .foregroundColor(.red)
             }
-            .widgetBackgroundSafe()
-
+            
         default:
             HStack {
                 VStack(alignment: .leading, spacing: 8) {
@@ -135,7 +117,6 @@ struct FocusStatsWidgetView: View {
                     .foregroundColor(.red.opacity(0.3))
             }
             .padding()
-            .widgetBackgroundSafe()
-        }
+                    }
     }
 }

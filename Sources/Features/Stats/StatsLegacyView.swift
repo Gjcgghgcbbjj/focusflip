@@ -84,7 +84,7 @@ struct StatsLegacyView: View {
                                 .overlay(
                                     Capsule()
                                         .fill(DS.Color.focus)
-                                        .frame(height: barHeight(item.minutes, max: maxWeekMinutes, in: geo.size.height))
+                                        .frame(height: barHeight(item.minutes, maxValue: maxWeekMinutes, in: geo.size.height))
                                         .frame(maxHeight: .infinity, alignment: .bottom)
                                 )
                         }
@@ -108,9 +108,9 @@ struct StatsLegacyView: View {
         max(1, weekData.map { $0.minutes }.max() ?? 1)
     }
 
-    private func barHeight(_ minutes: Int, max: Int, in totalHeight: CGFloat) -> CGFloat {
-        let pct = CGFloat(minutes) / CGFloat(max)
-        return max(4, totalHeight * pct)
+    private func barHeight(_ minutes: Int, maxValue: Int, in totalHeight: CGFloat) -> CGFloat {
+        let pct = CGFloat(minutes) / CGFloat(maxValue)
+        return Swift.max(4, totalHeight * pct)
     }
 
     // MARK: - Totals
