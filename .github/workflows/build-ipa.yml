@@ -160,9 +160,6 @@ jobs:
           xcrun simctl io "$DEVICE" screenshot build/simulator-launch.png 2>/dev/null || true
           xcrun simctl shutdown "$DEVICE" 2>/dev/null || true
 
-      - name: Install ldid
-        run: brew install ldid
-
       - name: Package IPA
         run: |
           chmod +x Scripts/package-ipa.sh
