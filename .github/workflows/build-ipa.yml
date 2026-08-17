@@ -51,6 +51,56 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="" \
             IPHONEOS_DEPLOYMENT_TARGET=15.0
 
+      - name: Build for Simulator
+        run: |
+          xcodebuild build \
+            -project FocusFlip.xcodeproj \
+            -scheme FocusFlip \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0
+
+      - name: Launch test in Simulator (smoke test)
+        run: |
+          set -x
+          # Find the simulator build
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -name "FocusFlip.app" -path "*Debug-iphonesimulator*" | head -1)
+          echo "Simulator app: $APP"
+          if [ -z "$APP" ]; then
+            echo "ERROR: simulator app not found"
+            exit 1
+          fi
+          # Pick an available iPhone simulator
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c "
+            import json,sys
+            data=json.load(sys.stdin)
+            for k,v in data['devices'].items():
+                for d in v:
+                    if d['isAvailable'] and 'iPhone' in d['name']:
+                        print(d['udid']); sys.exit()
+          ")
+          echo "Device: $DEVICE"
+          xcrun simctl boot "$DEVICE" 2>/dev/null || true
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" "$APP"
+          # Launch and check it stays alive
+          xcrun simctl launch "$DEVICE" com.focusflip.app
+          sleep 5
+          # Verify process is still running (didn't crash)
+          PID=$(xcrun simctl spawn "$DEVICE" launchctl list 2>/dev/null | grep -i focusflip | awk '{print $1}')
+          if [ -n "$PID" ] && [ "$PID" != "-" ]; then
+            echo "✅ App launched and still running (PID: $PID)"
+          else
+            echo "❌ App CRASHED - process not running after launch"
+            # Try to get crash log
+            xcrun simctl spawn "$DEVICE" log show --last 1m --predicate 'process == "FocusFlip"' 2>/dev/null | tail -30 || true
+            exit 1
+          fi
+          # Screenshot for evidence
+          xcrun simctl io "$DEVICE" screenshot build/simulator-launch.png 2>/dev/null || true
+          xcrun simctl shutdown "$DEVICE" 2>/dev/null || true
+
       - name: Install ldid
         run: brew install ldid
 
@@ -74,6 +124,14 @@ jobs:
           path: build/*.ipa
           retention-days: 90
           compression-level: 0
+
+      - name: Upload Simulator Screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-launch-screenshot
+          path: build/simulator-launch.png
+          retention-days: 30
 
       - name: Create Release on tag
         if: startsWith(github.ref, 'refs/tags/v')

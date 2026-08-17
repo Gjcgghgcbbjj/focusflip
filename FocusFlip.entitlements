@@ -1,38 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--!
-  TrollStore entitlements: platform-application grants elevated privileges
-  enabling LSApplicationWorkspace access for app shielding.
-  This plist is fake-signed by ldid; TrollStore re-signs with real platform entitlements.
+  FocusFlip entitlements.
+  NOTE: TrollStore automatically injects platform-application and related
+  entitlements when installing. We only keep the minimal set here.
+  Any invalid/unknown keys would cause the app to crash on launch,
+  so DO NOT add speculative private entitlement keys.
 -->
 <plist version="1.0">
 <dict>
-    <!-- Core platform app (TrollStore benefit) -->
-    <key>platform-application</key>
-    <true/>
-
-    <!-- Allow access to FrontBoard/LSApplicationWorkspace for app shielding -->
-    <key>com.apple.frontboard.launchapplications</key>
-    <true/>
-    <key>com.apple.backboardd.launchapplications</key>
-    <true/>
-    <key>com.apple.backboard.hid.presenter</key>
-    <true/>
-
-    <!-- Run unsigned / elevated code in background -->
-    <key>com.apple.runningboard.assertions.frontboard</key>
-    <true/>
-
-    <!-- ActivityKit (Live Activity) -->
+    <!-- ActivityKit (Live Activity) — valid, real entitlement -->
     <key>com.apple.developer.activitykit.launch-activities</key>
-    <true/>
-
-    <!-- No sandbox (TrollStore platform apps bypass sandbox) -->
-    <key>com.apple.private.security.no-sandbox</key>
-    <true/>
-
-    <!-- Allow reading/writing to container paths of other apps -->
-    <key>com.apple.private.mobile_container_manager.allowed</key>
     <true/>
 </dict>
 </plist>

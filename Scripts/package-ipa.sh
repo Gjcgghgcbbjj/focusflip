@@ -1,6 +1,12 @@
 #!/bin/bash
 # =============================================================================
 # Package a .xcarchive into a TrollStore-installable .ipa
+#
+# IMPORTANT: This script does NOT pre-sign the binary.
+# TrollStore signs apps itself at install time and injects its own
+# platform-application entitlements. Pre-signing with speculative
+# entitlements caused crash-on-launch — so we deliberately skip it.
+#
 # Usage: package-ipa.sh <path-to-xcarchive>
 # =============================================================================
 set -euo pipefail
@@ -22,50 +28,35 @@ if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
 fi
 echo "[pkg] Found app: ${APP_PATH}"
 
-# --- Locate ldid ---
-LDID=""
-for candidate in "$(which ldid 2>/dev/null)" \
-                 "/opt/homebrew/bin/ldid" \
-                 "/usr/local/bin/ldid"; do
-    if [ -x "$candidate" ]; then
-        LDIS="$candidate"
-        LIDID="$candidate"
-        LDID="$candidate"
-        break
-    fi
-done
-if [ -z "$LDID" ]; then
-    echo "[pkg] ldid not found, installing via brew..."
-    brew install ldid
-    LDID="$(which ldid)"
+# --- Sanity check: binary exists ---
+if [ ! -f "${APP_PATH}/${APP_NAME}" ]; then
+    echo "ERROR: binary ${APP_PATH}/${APP_NAME} not found"
+    exit 1
 fi
-echo "[pkg] Using ldid: ${LDID}"
+echo "[pkg] Binary exists: $(( $(stat -f%z "${APP_PATH}/${APP_NAME}" 2>/dev/null || stat -c%s "${APP_PATH}/${APP_NAME}" 2>/dev/null) / 1024 )) KB"
 
-# --- Copy entitlements next to the app for signing ---
-cp "${PROJECT_DIR}/FocusFlip.entitlements" "${BUILD_DIR}/" 2>/dev/null || true
+# --- Remove any code signature from the binary ---
+# (xcodebuild with CODE_SIGNING_ALLOWED=NO leaves it unsigned, but be safe)
+# Strip ad-hoc signature if present
+if command -v codesign &>/dev/null; then
+    codesign --remove-signature "${APP_PATH}/${APP_NAME}" 2>/dev/null || true
+fi
 
-# --- Fake-sign the binary with entitlements ---
-BINARY="${APP_PATH}/${APP_NAME}"
-echo "[pkg] Signing ${BINARY} with entitlements..."
-"${LDID}" -S"${PROJECT_DIR}/FocusFlip.entitlements" "${BINARY}" || {
-    echo "[pkg] WARNING: ldid signing failed, proceeding without entitlements"
-    "${LDID}" -S "${BINARY}" || true
-}
-
-# --- Build IPA ---
-echo "[pkg] Packaging IPA..."
+# --- Build IPA (unsigned — TrollStore signs on install) ---
+echo "[pkg] Packaging unsigned IPA..."
 PAYLOAD_DIR="${BUILD_DIR}/Payload"
 rm -rf "$PAYLOAD_DIR"
 mkdir -p "$PAYLOAD_DIR"
 cp -R "$APP_PATH" "$PAYLOAD_DIR/"
 
 cd "$BUILD_DIR"
-zip -r -q "$IPA_FILE" Payload/ FocusFlip.entitlements 2>/dev/null || zip -r -q "$IPA_FILE" Payload/
+rm -f "$IPA_FILE"
+zip -r -q "$IPA_FILE" Payload/
 rm -rf Payload/
 
 # --- Done ---
 echo ""
-echo "[pkg] ✅ IPA built successfully"
+echo "[pkg] ✅ IPA built successfully (unsigned, TrollStore will sign)"
 echo "      File: ${IPA_FILE}"
 echo "      Size: $(du -h "$IPA_FILE" | cut -f1)"
 echo ""
