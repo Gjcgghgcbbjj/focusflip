@@ -2,7 +2,7 @@
 
 > 最后更新：2026-08-18
 > 仓库：https://github.com/Gjcgghgcbbjj/focusflip （公开）
-> 构建方式：GitHub Actions（macos-15 + Xcode 16 + xcodegen）
+> 构建方式：GitHub Actions（macos-15 + 动态选择 Xcode + xcodegen）
 
 ---
 
@@ -14,13 +14,16 @@
 - ✅ 番茄计时引擎 + 后台保活（静音音频 + DispatchSourceTimer）
 - ✅ 任务管理、统计图表、白噪音合成、Live Activity/Widget、App 屏蔽（TrollStore 提权）
 - ✅ GitHub Actions 自动化构建 IPA
-- ✅ **最近修复了闪退根因**：Info.plist 关键键曾被 xcodegen 覆盖清空，现已修复
+- ✅ **闪退三大根因已修复**：Info.plist 被覆盖清空 / 编造私有 entitlements / App 图标缺失
+- ✅ **模拟器冒烟测试已跑通**：CI 里真启动 App 并确认进程存活（直接证据）
 
 **IPA 状态：**
-- ✅ `build/fixed/FocusFlip-1.0.0.ipa`（212KB）已在 GitHub Actions 成功构建
-- ✅ 已验证 Info.plist 包含全部关键键（UILaunchScreen / UIBackgroundModes / NSSupportsLiveActivities）
-- ✅ 已复制到 Windows 桌面 `C:\Users\niting\Desktop\FocusFlip-1.0.0.ipa`
-- ⚠️ **尚未在真机验证**：用户需要安装测试，确认不再闪退
+- ✅ GitHub Actions Artifacts `FocusFlip-1.0.0-ipa`（~238KB，无签名，TrollStore 安装时签名）
+- ✅ 已验证：Info.plist 关键键齐全（UILaunchScreen / UIBackgroundModes / NSSupportsLiveActivities）、
+    无编造 entitlements、无 _CodeSignature
+- ⚠️ **尚未在真机验证**：用户需安装最新 Artifacts 测试，确认不再闪退
+- ❌ **旧 IPA 全部作废**：仓库根目录 `FocusFlip-1.0.0.ipa`、`build/fixed/`、`build/download/` 里的
+    都是 entitlements 修复前构建的（内含 `com.apple.backboard.hid.presenter` 等编造键），**不要安装**
 
 ---
 
@@ -59,10 +62,10 @@ Widget/                         # Live Activity + Widget（编入主 binary）
 
 ### 双路径
 1. **GitHub Actions（推荐，已验证）**：`.github/workflows/build-ipa.yml`
-   - macos-15 runner + Xcode 16
-   - `brew install xcodegen` → `xcodegen generate` → `xcodebuild archive`（免签名）→ ldid 打包
+   - macos-15 runner，**动态选择 Xcode**（见下）
+   - `brew install xcodegen` → `xcodegen generate` → `xcodebuild archive`（免签名）→ 打包（不预签名）
    - 触发：push 到 master 或打 tag `v*`
-   - 产物：Actions Artifacts（`FocusFlip-1.0.0-ipa`）
+   - 产物：Actions Artifacts（`FocusFlip-1.0.0-ipa`）+ 模拟器启动截图
 
 2. **本地 theos**：`Makefile`（未验证，环境无 Swift 编译器，不推荐）
 
@@ -71,6 +74,13 @@ Widget/                         # Live Activity + Widget（编入主 binary）
   覆盖手写的 `FocusFlip.plist`，导致 UILaunchScreen 等键丢失 → **App 闪退**
 - 正确做法：`settings.base` 里设 `INFOPLIST_FILE: FocusFlip.plist` + `GENERATE_INFOPLIST_FILE: NO`
 - Widget 文件编入主 binary 时 **不能有 `@main`**（会和 App 的 `@main` 冲突）
+- **不要预签名 / 不要塞编造 entitlements** —— TrollStore 安装时自行注入 platform-application
+  提权；`package-ipa.sh` 只打无签名 zip，`FocusFlip.entitlements` 仅作文档参考不进 IPA
+- **Xcode 版本不能写死** —— macos-15 镜像只给新版 Xcode 预装匹配的模拟器运行时。
+  用 Xcode 16.x 编译含 App 图标的资源目录会报
+  `No simulator runtime version ... available to use with iphonesimulator SDK version ...`
+  工作流里的 "Select Xcode" 步骤会从新到旧逐个探测 actool 直到找到可用运行时（当前镜像
+  命中 Xcode 26.x）。**换镜像/换 CI 时别改回写死版本**
 
 ### 手动重建命令
 ```bash
@@ -115,7 +125,8 @@ xcodebuild archive \
 
 ## 五、验证清单（用户验收前必须确认）
 
-- [ ] 安装 IPA 后 App 能正常启动（不闪退）
+- [x] CI 冒烟测试：App 在模拟器真启动且进程存活（PID 7906，截图 Artifact）
+- [ ] 安装 IPA 后 App 能正常启动（不闪退）—— **待真机确认**
 - [ ] 点击开始 → 计时器倒数
 - [ ] 专注结束 → 通知 + 提示音
 - [ ] 任务创建/编辑/删除
@@ -133,19 +144,20 @@ xcodebuild archive \
 | 仓库 | https://github.com/Gjcgghgcbbjj/focusflip |
 | GitHub 账号 | Gjcgghgcbbjj |
 | Windows 桌面 | `C:\Users\niting\Desktop\` |
-| 最新 IPA | `build/fixed/FocusFlip-1.0.0.ipa`（212KB） |
+| 最新 IPA | Actions Artifacts `FocusFlip-1.0.0-ipa`；本地镜像 `build/final/FocusFlip-1.0.0.ipa`（238KB，sha256 `10a0ee9c…`） |
 | 本地路径 | `/root/dsphn/focusflip/` |
 | 最低系统 | iOS 15.0 |
 | Bundle ID | com.focusflip.app |
 | 安装方式 | TrollStore（巨魔） |
+| 构建 Xcode | 动态选择（当前镜像命中 Xcode 26.3.0） |
 
 ---
 
 ## 七、给下一个 AI 的建议
 
-1. **先让用户安装测试** `build/fixed/FocusFlip-1.0.0.ipa`，确认不闪退再继续开发
-2. 如果用户要 **App 图标**：生成 1024×1024 图标放入 `Resources/Assets.xcassets/AppIcon.appiconset/`，
-   命名 `icon_1024.png` 并更新 Contents.json
+1. **先让用户安装最新 Artifacts 里的 IPA**（或本地 `build/final/FocusFlip-1.0.0.ipa`），确认不闪退再继续开发
+2. 如果用户要 **换 App 图标**：替换 `Resources/Assets.xcassets/AppIcon.appiconset/icon_1024.png`（1024×1024）
 3. 如果要 **真正的锁屏 Widget**：用 xcodegen 加 `FocusFlipWidgetExtension` target
-4. 每次改完源码 → push 到 master → 等 Actions 构建 → 下载 IPA → 复制到桌面
-5. 修改 `project.yml` 后必须验证 Info.plist 关键键仍在（用上面 python 脚本检查）
+4. 每次改完源码 → push 到 master → 等 Actions 构建（约 5-10 分钟）→ 下载 IPA → 复制到桌面
+5. 修改 `project.yml` 后必须验证 Info.plist 关键键仍在（UILaunchScreen / UIBackgroundModes / NSSupportsLiveActivities）
+6. **不要动 "Select Xcode" 步骤的动态探测逻辑** —— 那是应对镜像运行时缺失的唯一自愈手段
