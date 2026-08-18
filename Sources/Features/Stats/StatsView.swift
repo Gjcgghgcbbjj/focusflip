@@ -33,6 +33,8 @@ struct StatsView: View {
     @State private var bestStreak: Int = 0
     @State private var heatmapData: [HeatDay] = []
     @State private var sessionBreakdown: (focus: Int, shortBreak: Int, longBreak: Int) = (0, 0, 0)
+    @State private var monthFocusSecondsCache: Int = 0
+    @State private var monthPomodorosCache: Int = 0
 
     var body: some View {
         NavigationView {
@@ -80,16 +82,16 @@ struct StatsView: View {
                 .foregroundColor(DS.Color.textPrimary)
 
             HStack(spacing: DS.S.xxxl) {
-                miniStat(value: "\(todayPomodoros)", label: "番茄", icon: "circle.fill")
-                miniStat(value: "\(todaySessions.count)", label: "会话", icon: "list.bullet")
-                miniStat(value: "\(currentStreak)", label: "连续天", icon: "flame")
+                miniStat(value: "\(todayPomodoros)", label: "番茄")
+                miniStat(value: "\(currentStreak)", label: "连续天")
+                miniStat(value: "\(bestStreak)", label: "最长记录")
             }
         }
         .frame(maxWidth: .infinity)
         .card()
     }
 
-    private func miniStat(value: String, label: String, icon: String) -> some View {
+    private func miniStat(value: String, label: String) -> some View {
         VStack(spacing: DS.S.xxs) {
             Text(value)
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
@@ -163,7 +165,7 @@ struct StatsView: View {
                     .font(DS.Font.captionBold)
                     .foregroundColor(DS.Color.textSecondary)
                 Spacer()
-                Text("\(monthPomodoros) 番茄")
+                Text("\(monthPomodorosCache) 番茄")
                     .font(DS.Font.micro)
                     .foregroundColor(DS.Color.textMuted)
                     .monospacedDigit()
@@ -214,7 +216,7 @@ struct StatsView: View {
             statTile(icon: "circle.fill", title: "总番茄数",
                      value: "\(totalPomodoros)", color: DS.Color.focus)
             statTile(icon: "calendar", title: "本月",
-                     value: DateUtils.hoursMinutes(from: monthFocusSeconds),
+                     value: DateUtils.hoursMinutes(from: monthFocusSecondsCache),
                      color: DS.Color.shortBreak)
             statTile(icon: "flame.fill", title: "连续天数",
                      value: "\(currentStreak)", color: DS.Color.warning)
@@ -302,20 +304,8 @@ struct StatsView: View {
         todaySessions.filter { $0.sessionType == .focus }.count
     }
 
-    private var monthFocusSeconds: Int {
-        let cal = Calendar.current
-        let start = cal.date(from: cal.dateComponents([.year, .month], from: Date()))!
-        let sessions = PersistenceController.shared.fetchAllSessions()
-            .filter { $0.startDate >= start && $0.sessionType == .focus }
-        return sessions.reduce(0) { $0 + Int($1.durationSeconds) }
-    }
-
-    private var monthPomodoros: Int {
-        let cal = Calendar.current
-        let start = cal.date(from: cal.dateComponents([.year, .month], from: Date()))!
-        return PersistenceController.shared.fetchAllSessions()
-            .filter { $0.startDate >= start && $0.sessionType == .focus }.count
-    }
+    private var monthFocusSeconds: Int { monthFocusSecondsCache }
+    private var monthPomodoros: Int { monthPomodorosCache }
 
     private func loadData() {
         todaySessions = PersistenceController.shared.fetchSessions(for: Date())
@@ -369,6 +359,13 @@ struct StatsView: View {
         )
         currentStreak = calculateStreak()
         bestStreak = calculateBestStreak()
+
+        // Cache month totals (avoid per-render fetchAllSessions in view body)
+        let cal = Calendar.current
+        let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: Date()))!
+        let monthSessions = all.filter { $0.startDate >= monthStart && $0.sessionType == .focus }
+        monthFocusSecondsCache = monthSessions.reduce(0) { $0 + Int($1.durationSeconds) }
+        monthPomodorosCache = monthSessions.count
     }
 
     private func hourlyBars(for date: Date) -> [DayStat] {
@@ -383,7 +380,9 @@ struct StatsView: View {
             let minutes = sessions
                 .filter { $0.startDate >= hourStart && $0.startDate < hourEnd }
                 .reduce(0) { $0 + Int($1.durationSeconds) } / 60
-            return DayStat(date: hourStart, label: "\(hour)", focusMinutes: minutes)
+            return DayStat(date: hourStart,
+                          label: hour % 2 == 0 ? "\(hour)" : "",
+                          focusMinutes: minutes)
         }
     }
 
