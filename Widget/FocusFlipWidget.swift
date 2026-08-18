@@ -106,7 +106,7 @@ struct FocusStatsWidgetView: View {
 
         default:
             HStack {
-                VStack(alignment: .leading, spacing: DS.S.sm) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("今日专注")
                         .font(.caption)
                         .foregroundColor(.secondary)

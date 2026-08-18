@@ -124,7 +124,7 @@ private struct LockScreenLiveActivityView: View {
 
             HStack(spacing: 16) {
                 // Left: icon + label
-                VStack(spacing: DS.S.sm) {
+                VStack(spacing: 8) {
                     Image(systemName: sessionIcon)
                         .font(.title)
                         .foregroundColor(sessionColor)
@@ -135,7 +135,7 @@ private struct LockScreenLiveActivityView: View {
                 .frame(width: 60)
 
                 // Center: timer + progress
-                VStack(spacing: DS.S.xs) {
+                VStack(spacing: 6) {
                     Text(Self.formatTime(remaining))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
                         .monospacedDigit()
@@ -146,7 +146,7 @@ private struct LockScreenLiveActivityView: View {
                 }
 
                 // Right: cycle info
-                VStack(spacing: DS.S.sm) {
+                VStack(spacing: 8) {
                     Text("\(context.state.completedPomodoros)")
                         .font(.title2.bold())
                     Text("番茄")
