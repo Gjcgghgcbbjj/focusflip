@@ -3,7 +3,10 @@ import WidgetKit
 import ActivityKit
 
 /// Lock screen widget showing today's focus stats.
-/// Requires iOS 16+ for WidgetKit families.
+///
+/// 对标 Be Focused 小组件：
+/// - systemSmall / systemMedium：今日专注时长 + 番茄数
+/// - accessoryRectangular / accessoryCircular：锁屏精简版
 @available(iOS 16.0, *)
 struct FocusFlipWidget: Widget {
 
@@ -42,8 +45,8 @@ struct FocusStatsProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<FocusStatsEntry>) -> Void) {
         let entry = currentEntry()
-        // Refresh every 5 minutes so today's stats stay reasonably current.
-        // The app also calls WidgetCenter.reloadAllTimelines() after each session.
+        // Refresh every 5 minutes; the app also calls WidgetCenter.reloadAllTimelines()
+        // after each session so the widget updates promptly.
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 5, to: Date())!
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
         completion(timeline)
@@ -82,7 +85,7 @@ struct FocusStatsWidgetView: View {
                 Text("🍅")
                     .font(.system(size: 10))
             }
-            
+
         case .accessoryRectangular:
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -100,10 +103,10 @@ struct FocusStatsWidgetView: View {
                     .font(.title2)
                     .foregroundColor(.red)
             }
-            
+
         default:
             HStack {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: DS.S.sm) {
                     Text("今日专注")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -119,6 +122,6 @@ struct FocusStatsWidgetView: View {
                     .foregroundColor(.red.opacity(0.3))
             }
             .padding()
-                    }
+        }
     }
 }

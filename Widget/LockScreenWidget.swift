@@ -3,17 +3,20 @@ import WidgetKit
 import ActivityKit
 
 /// Live Activity widget for pomodoro timer on lock screen and Dynamic Island.
-/// Shows remaining time, session type, and progress.
+///
+/// 对标 Be Focused Live Activity：
+/// - 锁屏：大倒计时 + 进度环 + 阶段图标
+/// - Dynamic Island：compact 区域自走倒计时（Text timerInterval）
+/// - 暂停时显示静态剩余时间
 @available(iOS 16.2, *)
 struct PomodoroLiveActivity: Widget {
 
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: PomodoroActivityAttributes.self) { context in
-            // Lock screen Live Activity view
             LockScreenLiveActivityView(context: context)
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded Dynamic Island
+                // Expanded
                 DynamicIslandExpandedRegion(.leading) {
                     VStack {
                         Image(systemName: sessionIcon(context.state.sessionType))
@@ -25,9 +28,15 @@ struct PomodoroLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack {
-                        Text(formatTime(context.state.remainingSeconds))
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .monospacedDigit()
+                        if let end = context.state.phaseEndDate {
+                            Text(timerInterval: Date()...end, countsDown: true)
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                        } else {
+                            Text(formatTime(context.state.remainingSeconds))
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                        }
                         Text("第 \(context.state.currentCycle) 轮")
                             .font(.caption2)
                             .foregroundColor(.secondary)
@@ -45,7 +54,7 @@ struct PomodoroLiveActivity: Widget {
                     .foregroundColor(sessionColor(context.state.sessionType))
             } compactTrailing: {
                 // Use Text(timerInterval:) so the compact trailing auto-updates
-                // without TimelineView (which isn't available in compact regions).
+                // without needing TimelineView.
                 if let end = context.state.phaseEndDate {
                     Text(timerInterval: Date()...end, countsDown: true)
                         .font(.caption.monospacedDigit())
@@ -109,15 +118,13 @@ private struct LockScreenLiveActivityView: View {
     let context: ActivityViewContext<PomodoroActivityAttributes>
 
     var body: some View {
-        // Self-ticking countdown: TimelineView re-renders every second and
-        // remaining time is derived from the absolute phaseEndDate, so the app
-        // only pushes activity updates on state changes (start/pause/resume).
+        // Self-ticking countdown via TimelineView.
         TimelineView(.periodic(from: .now, by: 1)) { timelineContext in
             let remaining = Self.remainingSeconds(state: context.state, at: timelineContext.date)
 
             HStack(spacing: 16) {
                 // Left: icon + label
-                VStack(spacing: 8) {
+                VStack(spacing: DS.S.sm) {
                     Image(systemName: sessionIcon)
                         .font(.title)
                         .foregroundColor(sessionColor)
@@ -128,7 +135,7 @@ private struct LockScreenLiveActivityView: View {
                 .frame(width: 60)
 
                 // Center: timer + progress
-                VStack(spacing: 6) {
+                VStack(spacing: DS.S.xs) {
                     Text(Self.formatTime(remaining))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
                         .monospacedDigit()
@@ -139,7 +146,7 @@ private struct LockScreenLiveActivityView: View {
                 }
 
                 // Right: cycle info
-                VStack(spacing: 8) {
+                VStack(spacing: DS.S.sm) {
                     Text("\(context.state.completedPomodoros)")
                         .font(.title2.bold())
                     Text("番茄")
@@ -149,7 +156,7 @@ private struct LockScreenLiveActivityView: View {
                 .frame(width: 60)
             }
             .padding()
-                    }
+        }
     }
 
     // MARK: - Countdown helpers
@@ -159,7 +166,7 @@ private struct LockScreenLiveActivityView: View {
         if let end = state.phaseEndDate {
             return max(0, Int(end.timeIntervalSince(date)))
         }
-        return max(0, state.remainingSeconds)   // paused — show snapshot
+        return max(0, state.remainingSeconds)
     }
 
     private static func progress(state: PomodoroActivityAttributes.PomodoroState,

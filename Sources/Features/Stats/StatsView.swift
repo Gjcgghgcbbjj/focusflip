@@ -1,8 +1,15 @@
 import SwiftUI
 import Charts
 
-/// Statistics screen with clean card layout and consistent palette.
-/// Requires iOS 16.0+ for Charts framework.
+/// Statistics screen — Be Focused style data dashboard.
+///
+/// 对标 Be Focused / Focus Keeper：
+/// - 今日大卡（专注时长 + 番茄数 + 连续天数）
+/// - 日/周/月范围切换
+/// - 柱状图（日=24h / 周=7天 / 月=30天）
+/// - 月日历热力图（GitHub 式色块）
+/// - 总览网格（累计/总番茄/本月/连续天数）
+/// - 会话分布比例条
 @available(iOS 16.0, *)
 struct StatsView: View {
 
@@ -15,6 +22,7 @@ struct StatsView: View {
 
     @State private var range: StatsRange = .week
 
+    // Cached data (loaded once in loadData, not on every render)
     @State private var todaySessions: [FocusSession] = []
     @State private var rangeData: [DayStat] = []
     @State private var rangeFocusSeconds: Int = 0
@@ -22,6 +30,7 @@ struct StatsView: View {
     @State private var totalFocusSeconds: Int = 0
     @State private var totalPomodoros: Int = 0
     @State private var currentStreak: Int = 0
+    @State private var bestStreak: Int = 0
     @State private var heatmapData: [HeatDay] = []
     @State private var sessionBreakdown: (focus: Int, shortBreak: Int, longBreak: Int) = (0, 0, 0)
 
@@ -42,7 +51,7 @@ struct StatsView: View {
             .background(DS.Color.bgPrimary.ignoresSafeArea())
             .navigationTitle("统计")
         }
-                .onAppear { loadData() }
+        .onAppear { loadData() }
         .onChange(of: range) { _ in loadData() }
     }
 
@@ -55,10 +64,9 @@ struct StatsView: View {
             }
         }
         .pickerStyle(.segmented)
-        .padding(.horizontal, DS.S.sm)
     }
 
-    // MARK: - Today summary
+    // MARK: - Today card
 
     private var todayCard: some View {
         VStack(spacing: DS.S.sm) {
@@ -67,26 +75,22 @@ struct StatsView: View {
                 .foregroundColor(DS.Color.textMuted)
 
             Text(DateUtils.hoursMinutes(from: todayFocusSeconds))
-                .font(.system(size: 44, weight: .ultraLight, design: .rounded))
+                .font(DS.Font.statLarge)
                 .monospacedDigit()
                 .foregroundColor(DS.Color.textPrimary)
 
-            HStack(spacing: DS.S.xl) {
+            HStack(spacing: DS.S.xxxl) {
                 miniStat(value: "\(todayPomodoros)", label: "番茄", icon: "circle.fill")
                 miniStat(value: "\(todaySessions.count)", label: "会话", icon: "list.bullet")
                 miniStat(value: "\(currentStreak)", label: "连续天", icon: "flame")
             }
         }
         .frame(maxWidth: .infinity)
-        .card(padding: DS.S.lg)
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.lg)
-                .fill(DS.Color.bgSecondary)
-        )
+        .card()
     }
 
     private func miniStat(value: String, label: String, icon: String) -> some View {
-        VStack(spacing: DS.S.xs) {
+        VStack(spacing: DS.S.xxs) {
             Text(value)
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .monospacedDigit()
@@ -97,7 +101,7 @@ struct StatsView: View {
         }
     }
 
-    // MARK: - Range chart
+    // MARK: - Chart card
 
     private var chartCard: some View {
         VStack(alignment: .leading, spacing: DS.S.sm) {
@@ -109,6 +113,7 @@ struct StatsView: View {
                 Text("\(rangePomodoros) 番茄 · \(DateUtils.hoursMinutes(from: rangeFocusSeconds))")
                     .font(DS.Font.micro)
                     .foregroundColor(DS.Color.textMuted)
+                    .monospacedDigit()
             }
 
             Chart(rangeData) { stat in
@@ -123,20 +128,22 @@ struct StatsView: View {
                         endPoint: .bottom
                     )
                 )
+                .cornerRadius(3)
             }
             .chartYAxis {
-                AxisMarks(position: .leading, values: .automatic(desiredCount: 4))
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) {
+                    AxisGridLine().foregroundStyle(DS.Color.separator)
+                    AxisValueLabel().foregroundStyle(DS.Color.textMuted)
+                }
             }
             .chartXAxis {
-                AxisMarks(values: .automatic)
+                AxisMarks(values: .automatic) {
+                    AxisValueLabel().foregroundStyle(DS.Color.textMuted)
+                }
             }
             .frame(height: 160)
         }
         .card()
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.lg)
-                .fill(DS.Color.bgSecondary)
-        )
     }
 
     private var chartTitle: String {
@@ -147,15 +154,21 @@ struct StatsView: View {
         }
     }
 
-    // MARK: - Month heatmap
+    // MARK: - Heatmap
 
     private var heatmapCard: some View {
         VStack(alignment: .leading, spacing: DS.S.md) {
-            Text("本月热力图")
-                .font(DS.Font.captionBold)
-                .foregroundColor(DS.Color.textSecondary)
+            HStack {
+                Text("本月热力图")
+                    .font(DS.Font.captionBold)
+                    .foregroundColor(DS.Color.textSecondary)
+                Spacer()
+                Text("\(monthPomodoros) 番茄")
+                    .font(DS.Font.micro)
+                    .foregroundColor(DS.Color.textMuted)
+                    .monospacedDigit()
+            }
 
-            // Weekday header
             HStack(spacing: 4) {
                 ForEach(["日", "一", "二", "三", "四", "五", "六"], id: \.self) { day in
                     Text(day)
@@ -171,11 +184,11 @@ struct StatsView: View {
                     if day.isPlaceholder {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(Color.clear)
-                            .frame(height: 26)
+                            .frame(height: 28)
                     } else {
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(heatColor(day.pomodoros))
-                            .frame(height: 26)
+                            .fill(DS.Color.heatLevel(day.pomodoros))
+                            .frame(height: 28)
                             .overlay(
                                 Text("\(day.dayNumber)")
                                     .font(.system(size: 9))
@@ -186,19 +199,6 @@ struct StatsView: View {
             }
         }
         .card()
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.lg)
-                .fill(DS.Color.bgSecondary)
-        )
-    }
-
-    private func heatColor(_ pomodoros: Int) -> SwiftUI.Color {
-        switch pomodoros {
-        case 0:   return DS.Color.textPrimary.opacity(0.06)
-        case 1:   return DS.Color.focus.opacity(0.25)
-        case 2:   return DS.Color.focus.opacity(0.5)
-        default:  return DS.Color.focus
-        }
     }
 
     // MARK: - Stats grid
@@ -210,16 +210,14 @@ struct StatsView: View {
         ], spacing: DS.S.sm) {
             statTile(icon: "clock", title: "累计专注",
                      value: DateUtils.hoursMinutes(from: totalFocusSeconds),
-                 color: DS.Color.longBreak)
+                     color: DS.Color.longBreak)
             statTile(icon: "circle.fill", title: "总番茄数",
-                     value: "\(totalPomodoros)",
-                 color: DS.Color.focus)
+                     value: "\(totalPomodoros)", color: DS.Color.focus)
             statTile(icon: "calendar", title: "本月",
                      value: DateUtils.hoursMinutes(from: monthFocusSeconds),
-                 color: DS.Color.shortBreak)
+                     color: DS.Color.shortBreak)
             statTile(icon: "flame.fill", title: "连续天数",
-                     value: "\(currentStreak)",
-                 color: DS.Color.warning)
+                     value: "\(currentStreak)", color: DS.Color.warning)
         }
     }
 
@@ -229,9 +227,7 @@ struct StatsView: View {
                 .font(.system(size: 18))
                 .foregroundColor(color)
                 .frame(width: 36, height: 36)
-                .background(
-                    Circle().fill(color.opacity(0.12))
-                )
+                .background(Circle().fill(color.opacity(0.12)))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
@@ -245,10 +241,6 @@ struct StatsView: View {
             Spacer()
         }
         .card(padding: DS.S.md)
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.lg)
-                .fill(DS.Color.bgSecondary)
-        )
     }
 
     // MARK: - Breakdown
@@ -268,17 +260,13 @@ struct StatsView: View {
             }
         }
         .card()
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.lg)
-                .fill(DS.Color.bgSecondary)
-        )
     }
 
     private func breakdownBar(type: SessionType, count: Int, total: Int) -> some View {
         let theme = PhaseTheme.theme(for: type)
         let pct = Double(count) / Double(total)
 
-        return VStack(spacing: DS.S.xs) {
+        return VStack(spacing: DS.S.xxs) {
             Text("\(count)")
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .monospacedDigit()
@@ -303,7 +291,7 @@ struct StatsView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Data
+    // MARK: - Data loading
 
     private var todayFocusSeconds: Int {
         todaySessions.filter { $0.sessionType == .focus }
@@ -320,6 +308,13 @@ struct StatsView: View {
         let sessions = PersistenceController.shared.fetchAllSessions()
             .filter { $0.startDate >= start && $0.sessionType == .focus }
         return sessions.reduce(0) { $0 + Int($1.durationSeconds) }
+    }
+
+    private var monthPomodoros: Int {
+        let cal = Calendar.current
+        let start = cal.date(from: cal.dateComponents([.year, .month], from: Date()))!
+        return PersistenceController.shared.fetchAllSessions()
+            .filter { $0.startDate >= start && $0.sessionType == .focus }.count
     }
 
     private func loadData() {
@@ -373,9 +368,9 @@ struct StatsView: View {
             longBreak: all.filter { $0.sessionType == .longBreak }.count
         )
         currentStreak = calculateStreak()
+        bestStreak = calculateBestStreak()
     }
 
-    /// 24 hourly bars for today's focus minutes.
     private func hourlyBars(for date: Date) -> [DayStat] {
         let cal = Calendar.current
         let start = cal.startOfDay(for: date)
@@ -388,7 +383,7 @@ struct StatsView: View {
             let minutes = sessions
                 .filter { $0.startDate >= hourStart && $0.startDate < hourEnd }
                 .reduce(0) { $0 + Int($1.durationSeconds) } / 60
-            return DayStat(date: hourStart, label: "\(hour)时", focusMinutes: minutes)
+            return DayStat(date: hourStart, label: "\(hour)", focusMinutes: minutes)
         }
     }
 
@@ -399,10 +394,8 @@ struct StatsView: View {
         let monthRange = cal.range(of: .day, in: .month, for: now)!
         let daysInMonth = monthRange.count
 
-        // Leading offset: weekday of monthStart (1=Sun ... 7=Sat)
         let leading = cal.component(.weekday, from: monthStart) - 1
 
-        // Day-of-month → pomodoro count
         let sessions = PersistenceController.shared.fetchAllSessions()
             .filter { $0.sessionType == .focus && $0.startDate >= monthStart }
         var counts: [Int: Int] = [:]
@@ -412,7 +405,6 @@ struct StatsView: View {
         }
 
         var cells: [HeatDay] = []
-        // Leading empty cells (from previous month)
         for _ in 0..<leading {
             cells.append(HeatDay(dayNumber: -1, pomodoros: 0, isPlaceholder: true))
         }
@@ -429,8 +421,6 @@ struct StatsView: View {
             .fetchSessions(for: today)
             .contains { $0.sessionType == .focus }
 
-        // If today already has a focus session, count from today.
-        // If not, count from yesterday (streak is "at risk" but not broken yet).
         var streak = 0
         var date = todayHasFocus ? today : cal.date(byAdding: .day, value: -1, to: today)!
         while true {
@@ -443,6 +433,31 @@ struct StatsView: View {
             }
         }
         return streak
+    }
+
+    private func calculateBestStreak() -> Int {
+        let all = PersistenceController.shared.fetchAllSessions()
+            .filter { $0.sessionType == .focus }
+            .sorted { $0.startDate < $1.startDate }
+
+        guard !all.isEmpty else { return 0 }
+        let cal = Calendar.current
+        var best = 1
+        var current = 1
+        var prevDate = cal.startOfDay(for: all[0].startDate)
+
+        for session in all.dropFirst() {
+            let day = cal.startOfDay(for: session.startDate)
+            let diff = cal.dateComponents([.day], from: prevDate, to: day).day ?? 0
+            if diff == 1 {
+                current += 1
+                best = max(best, current)
+            } else if diff > 1 {
+                current = 1
+            }
+            prevDate = day
+        }
+        return best
     }
 }
 

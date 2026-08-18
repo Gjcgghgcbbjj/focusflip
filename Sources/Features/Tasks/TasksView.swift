@@ -1,6 +1,12 @@
 import SwiftUI
 
-/// Task list screen with card-based design.
+/// Task list screen — clean card-based design with swipe actions.
+///
+/// 对标 Be Focused / 滴答清单：
+/// - 清单式卡片，左侧色条，进度条 + X/Y 番茄
+/// - 滑动删除/完成
+/// - 点击关联当前专注任务
+/// - 新建/编辑/删除
 struct TasksView: View {
 
     @State private var tasks: [TaskItem] = []
@@ -13,7 +19,7 @@ struct TasksView: View {
                 LazyVStack(spacing: DS.S.sm) {
                     if tasks.isEmpty {
                         emptyState
-                            .padding(.top, DS.S.xxl)
+                            .padding(.top, DS.S.xxxl)
                     } else {
                         ForEach(tasks) { task in
                             TaskCard(task: task)
@@ -51,14 +57,14 @@ struct TasksView: View {
             }
             .onAppear { reload() }
         }
-            }
+    }
 
     // MARK: - Empty state
 
     private var emptyState: some View {
         VStack(spacing: DS.S.md) {
             Image(systemName: "checklist")
-                .font(.system(size: 40, weight: .light))
+                .font(.system(size: 44, weight: .light))
                 .foregroundColor(DS.Color.textMuted)
             Text("还没有任务")
                 .font(DS.Font.headline)
@@ -103,7 +109,7 @@ private struct TaskCard: View {
                 .fill(Color(hex: task.colorHex))
                 .frame(width: 3)
 
-            VStack(alignment: .leading, spacing: DS.S.xs) {
+            VStack(alignment: .leading, spacing: DS.S.xxs) {
                 Text(task.title)
                     .font(DS.Font.body)
                     .foregroundColor(DS.Color.textPrimary)
@@ -116,7 +122,7 @@ private struct TaskCard: View {
                         .lineLimit(1)
                 }
 
-                // Progress
+                // Progress bar
                 HStack(spacing: DS.S.sm) {
                     ProgressView(value: task.progress)
                         .tint(Color(hex: task.colorHex))
@@ -138,10 +144,6 @@ private struct TaskCard: View {
             }
         }
         .card()
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.lg)
-                .fill(DS.Color.bgSecondary)
-        )
     }
 }
 
@@ -177,6 +179,7 @@ private struct TaskEditSheet: View {
                                 .foregroundColor(DS.Color.textMuted)
                             Text("\(estimatedPomodoros) 个")
                                 .font(DS.Font.body)
+                                .monospacedDigit()
                         }
                     }
                 }
@@ -215,7 +218,7 @@ private struct TaskEditSheet: View {
             }
             .onAppear { loadTask() }
         }
-            }
+    }
 
     private func loadTask() {
         guard let t = task else { return }

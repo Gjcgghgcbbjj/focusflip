@@ -1,9 +1,13 @@
 import SwiftUI
 
-/// Main timer screen: clean numeric display + progress ring + minimal controls.
+/// Main timer screen — immersive ring + clean controls.
 ///
-/// Design language: Catppuccin Mocha palette, SF Pro Rounded ultra-light,
-/// semantic phase colors, no gratuitous gradients or shadows.
+/// 对标 Be Focused / Flow：
+/// - 大圆环居中，背景近黑
+/// - 阶段语义色（红=专注 / 绿=短休 / 紫=长休）
+/// - 底部三按钮：重置 / 播放-暂停 / 跳过
+/// - 顶部：轮次进度圆点（视觉暗示，不用文字）
+/// - 今日卡：番茄数 + 专注时长 + 目标进度
 struct TimerView: View {
 
     @ObservedObject private var engine = PomodoroEngine.shared
@@ -20,35 +24,40 @@ struct TimerView: View {
 
             VStack(spacing: 0) {
                 topBar
-                    .padding(.top, DS.S.xxl)
+                    .padding(.top, DS.S.xxxl)
 
                 Spacer()
 
-                timerDisplay
-                    .padding(.horizontal, DS.S.lg)
+                cycleDots
+                    .padding(.bottom, DS.S.lg)
+
+                timerRing
+                    .padding(.horizontal, DS.S.xl)
 
                 Spacer()
 
-                todayCard
+                todayBar
                     .padding(.bottom, DS.S.md)
 
                 taskChip
-                    .padding(.bottom, DS.S.md)
+                    .padding(.bottom, DS.S.lg)
 
                 controls
                     .padding(.bottom, DS.S.xxxl)
             }
         }
-                .onAppear {
+        .onAppear {
             NotificationService.shared.requestPermission()
             engine.refreshTodayStats()
         }
         .onReceive(engine.$state) { handleStateChange($0) }
         .overlay {
             if showCelebration {
-                CelebrationOverlay(todayPomodoros: engine.todayPomodoros,
-                                   todayMinutes: engine.todayFocusSeconds / 60)
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                CelebrationOverlay(
+                    pomodoros: engine.todayPomodoros,
+                    minutes: engine.todayFocusSeconds / 60
+                )
+                .transition(.scale(scale: 0.7).combined(with: .opacity))
             }
         }
         .sheet(isPresented: $showTaskPicker) {
@@ -62,11 +71,11 @@ struct TimerView: View {
         ZStack {
             DS.Color.bgPrimary.ignoresSafeArea()
 
-            // Subtle radial accent from top — not a flashy gradient
+            // Subtle phase accent glow from top
             phaseTheme.gradient[0]
                 .ignoresSafeArea()
-                .blur(radius: 120)
-                .offset(y: -200)
+                .blur(radius: 140)
+                .offset(y: -240)
         }
         .animation(DS.Anim.slow, value: engine.currentSessionType)
     }
@@ -78,17 +87,17 @@ struct TimerView: View {
     // MARK: - Top bar
 
     private var topBar: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: DS.S.xs) {
-                HStack(spacing: DS.S.sm) {
+        HStack {
+            VStack(alignment: .leading, spacing: DS.S.xxs) {
+                HStack(spacing: DS.S.xs) {
                     Image(systemName: phaseTheme.icon)
-                        .font(.system(size: 14))
+                        .font(.system(size: 13, weight: .semibold))
                     Text(phaseTheme.label)
                         .font(DS.Font.captionBold)
                 }
                 .foregroundColor(phaseTheme.color)
 
-                Text("第 \(engine.currentCycle) 轮 · \(engine.completedFocusCount) 番茄")
+                Text("\(engine.completedFocusCount) 番茄完成")
                     .font(DS.Font.micro)
                     .foregroundColor(DS.Color.textMuted)
             }
@@ -105,21 +114,38 @@ struct TimerView: View {
                 .pressable()
             }
         }
-        .padding(.horizontal, DS.S.lg)
+        .padding(.horizontal, DS.S.xl)
     }
 
-    // MARK: - Timer display (ring + number)
+    // MARK: - Cycle progress dots
 
-    private var timerDisplay: some View {
+    /// Visual cycle indicator: dots representing pomodoros before long break.
+    private var cycleDots: some View {
+        HStack(spacing: DS.S.sm) {
+            ForEach(0..<settings.pomodorosBeforeLongBreak, id: \.self) { index in
+                Circle()
+                    .fill(index < completedInCycle ? phaseTheme.color : DS.Color.textPrimary.opacity(0.12))
+                    .frame(width: 7, height: 7)
+                    .animation(DS.Anim.standard, value: engine.completedFocusCount)
+            }
+        }
+    }
+
+    private var completedInCycle: Int {
+        engine.completedFocusCount % settings.pomodorosBeforeLongBreak
+    }
+
+    // MARK: - Timer ring
+
+    private var timerRing: some View {
         TimelineView(.animation) { context in
-            let progress = engine.smoothProgress(at: context.date)
-            ringView(progress: progress)
+            ringView(progress: engine.smoothProgress(at: context.date))
         }
     }
 
     private func ringView(progress: Double) -> some View {
-        let ringSize: CGFloat = 260
-        let lineWidth: CGFloat = 6
+        let ringSize: CGFloat = 264
+        let lineWidth: CGFloat = 5
 
         return ZStack {
             // Track
@@ -137,8 +163,8 @@ struct TimerView: View {
                 .frame(width: ringSize, height: ringSize)
                 .rotationEffect(.degrees(-90))
 
-            // Center content
-            VStack(spacing: DS.S.sm) {
+            // Center
+            VStack(spacing: DS.S.xs) {
                 Text(timeString)
                     .font(DS.Font.timerDisplay)
                     .monospacedDigit()
@@ -153,7 +179,7 @@ struct TimerView: View {
     }
 
     private var timeString: String {
-        let s = engine.remainingSeconds
+        let s = max(0, engine.remainingSeconds)
         let m = s / 60
         let sec = s % 60
         return String(format: "%02d:%02d", m, sec)
@@ -176,36 +202,38 @@ struct TimerView: View {
         }
     }
 
-    // MARK: - Today card
+    // MARK: - Today bar
 
-    private var todayCard: some View {
+    private var todayBar: some View {
         let goal = settings.dailyGoalPomodoros
         let progress = engine.dailyGoalProgress
 
         return HStack(spacing: DS.S.sm) {
             Image(systemName: "flame.fill")
-                .font(.system(size: 12))
+                .font(.system(size: 11))
                 .foregroundColor(DS.Color.warning)
 
-            Text("今日 \(engine.todayPomodoros)/\(goal) 番茄")
-                .font(DS.Font.caption)
+            Text("\(engine.todayPomodoros)/\(goal)")
+                .font(DS.Font.captionBold)
                 .foregroundColor(DS.Color.textSecondary)
+                .monospacedDigit()
 
-            // Goal progress bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
                         .fill(DS.Color.textPrimary.opacity(0.08))
                     Capsule()
-                        .fill(DS.Color.focus)
-                        .frame(width: max(6, geo.size.width * progress))
+                        .fill(phaseTheme.color)
+                        .frame(width: max(4, geo.size.width * progress))
+                        .animation(DS.Anim.standard, value: progress)
                 }
             }
-            .frame(width: 110, height: 5)
+            .frame(width: 100, height: 4)
 
             Text(DateUtils.hoursMinutes(from: engine.todayFocusSeconds))
                 .font(DS.Font.micro)
                 .foregroundColor(DS.Color.textMuted)
+                .monospacedDigit()
         }
         .padding(.horizontal, DS.S.md)
         .padding(.vertical, DS.S.sm)
@@ -230,19 +258,18 @@ struct TimerView: View {
                         Text("\(task.completedPomodoros)/\(task.estimatedPomodoros)")
                             .font(DS.Font.micro)
                             .foregroundColor(DS.Color.textMuted)
+                            .monospacedDigit()
                     }
                     .padding(.horizontal, DS.S.md)
                     .padding(.vertical, DS.S.sm)
-                    .background(
-                        Capsule().fill(DS.Color.bgSecondary)
-                    )
+                    .background(Capsule().fill(DS.Color.bgSecondary))
                 }
                 .pressable()
             } else {
                 Button(action: { showTaskPicker = true }) {
-                    HStack(spacing: DS.S.xs) {
+                    HStack(spacing: DS.S.xxs) {
                         Image(systemName: "plus")
-                            .font(.system(size: 11))
+                            .font(.system(size: 10))
                         Text("关联任务")
                             .font(DS.Font.caption)
                     }
@@ -261,8 +288,7 @@ struct TimerView: View {
     // MARK: - Controls
 
     private var controls: some View {
-        HStack(spacing: DS.S.xl) {
-            // Secondary: reset
+        HStack(spacing: DS.S.xxxl) {
             Button(action: {
                 HapticManager.shared.light()
                 engine.reset()
@@ -272,13 +298,10 @@ struct TimerView: View {
                     .font(.system(size: 16))
                     .foregroundColor(DS.Color.textSecondary)
                     .frame(width: 52, height: 52)
-                    .background(
-                        Circle().fill(DS.Color.bgSecondary)
-                    )
+                    .background(Circle().fill(DS.Color.bgSecondary))
             }
             .pressable()
 
-            // Primary: play / pause
             Button(action: {
                 HapticManager.shared.medium()
                 mainButtonAction()
@@ -287,13 +310,10 @@ struct TimerView: View {
                     .font(.system(size: 24, weight: .medium))
                     .foregroundColor(DS.Color.bgPrimary)
                     .frame(width: 72, height: 72)
-                    .background(
-                        Circle().fill(phaseTheme.color)
-                    )
+                    .background(Circle().fill(phaseTheme.color))
             }
             .pressable()
 
-            // Secondary: skip
             Button(action: {
                 HapticManager.shared.light()
                 engine.skip()
@@ -302,9 +322,7 @@ struct TimerView: View {
                     .font(.system(size: 16))
                     .foregroundColor(DS.Color.textSecondary)
                     .frame(width: 52, height: 52)
-                    .background(
-                        Circle().fill(DS.Color.bgSecondary)
-                    )
+                    .background(Circle().fill(DS.Color.bgSecondary))
             }
             .pressable()
         }
@@ -331,7 +349,6 @@ struct TimerView: View {
         case .breakReady:
             engine.startBreak()
         case .finished:
-            // Start a fresh cycle
             engine.reset()
             engine.startFocus()
             if settings.whiteNoiseEnabled { soundPlayer.playWhiteNoise() }
@@ -349,9 +366,9 @@ struct TimerView: View {
     private func handleStateChange(_ newState: EngineState) {
         switch newState {
         case .focusing:
-            // Only start white noise + shield when entering focus from a non-running
-            // state, not when resuming from pause (which is handled in mainButtonAction).
-            if settings.whiteNoiseEnabled && !soundPlayer.isPlaying { soundPlayer.playWhiteNoise() }
+            if settings.whiteNoiseEnabled && !soundPlayer.isPlaying {
+                soundPlayer.playWhiteNoise()
+            }
             if settings.appShieldEnabled { FocusShieldManager.shared.activateShield() }
         case .shortBreak, .longBreak:
             soundPlayer.stopWhiteNoise()
@@ -373,34 +390,33 @@ struct TimerView: View {
 
     private func triggerCelebration() {
         withAnimation(DS.Anim.bouncy) { showCelebration = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.8) {
             withAnimation(DS.Anim.standard) { showCelebration = false }
         }
     }
 }
 
-// MARK: - Celebration overlay
+// MARK: - Celebration
 
-/// Minimal "daily goal reached" celebration: a soft dark scrim + checkmark card.
 private struct CelebrationOverlay: View {
-    let todayPomodoros: Int
-    let todayMinutes: Int
+    let pomodoros: Int
+    let minutes: Int
 
     var body: some View {
         ZStack {
-            DS.Color.bgPrimary.opacity(0.75)
+            DS.Color.bgPrimary.opacity(0.8)
                 .ignoresSafeArea()
 
-            VStack(spacing: DS.S.lg) {
+            VStack(spacing: DS.S.xl) {
                 ZStack {
                     Circle()
-                        .fill(DS.Color.focus.opacity(0.15))
-                        .frame(width: 96, height: 96)
+                        .fill(DS.Color.focus.opacity(0.12))
+                        .frame(width: 100, height: 100)
                     Circle()
                         .stroke(DS.Color.focus, lineWidth: 2)
-                        .frame(width: 96, height: 96)
+                        .frame(width: 100, height: 100)
                     Image(systemName: "checkmark")
-                        .font(.system(size: 40, weight: .semibold))
+                        .font(.system(size: 42, weight: .semibold))
                         .foregroundColor(DS.Color.focus)
                 }
 
@@ -408,12 +424,13 @@ private struct CelebrationOverlay: View {
                     Text("今日目标达成！")
                         .font(DS.Font.title2)
                         .foregroundColor(DS.Color.textPrimary)
-                    Text("\(todayPomodoros) 个番茄 · \(DateUtils.hoursMinutes(from: todayMinutes * 60))")
+                    Text("\(pomodoros) 个番茄 · \(DateUtils.hoursMinutes(from: minutes * 60))")
                         .font(DS.Font.caption)
                         .foregroundColor(DS.Color.textMuted)
+                        .monospacedDigit()
                 }
             }
-            .padding(DS.S.xxl)
+            .padding(DS.S.xxxl)
             .background(
                 RoundedRectangle(cornerRadius: DS.R.xl)
                     .fill(DS.Color.bgSecondary)
@@ -422,7 +439,7 @@ private struct CelebrationOverlay: View {
     }
 }
 
-// MARK: - Task picker sheet
+// MARK: - Task picker
 
 private struct TaskPickerSheet: View {
     @Binding var selectedTask: TaskItem?
@@ -455,10 +472,11 @@ private struct TaskPickerSheet: View {
                                     Text("\(task.completedPomodoros)/\(task.estimatedPomodoros)")
                                         .font(DS.Font.micro)
                                         .foregroundColor(DS.Color.textMuted)
+                                        .monospacedDigit()
                                     if selectedTask?.id == task.id {
                                         Image(systemName: "checkmark")
                                             .font(.system(size: 12))
-                                            .foregroundColor(phaseAccent)
+                                            .foregroundColor(DS.Color.accent)
                                     }
                                 }
                             }
@@ -480,9 +498,5 @@ private struct TaskPickerSheet: View {
                 tasks = PersistenceController.shared.fetchTasks()
             }
         }
-            }
-
-    private var phaseAccent: SwiftUI.Color {
-        DS.Color.accent
     }
 }
