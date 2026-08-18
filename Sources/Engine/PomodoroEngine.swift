@@ -63,6 +63,7 @@ public final class PomodoroEngine: ObservableObject {
         state = .focusing
         timerService.start()
         startLiveActivity()
+        NotificationService.shared.schedulePhaseComplete(after: totalSeconds, type: .focus)
     }
 
     public func startBreak() {
@@ -75,6 +76,8 @@ public final class PomodoroEngine: ObservableObject {
         state = isLongBreak ? .longBreak : .shortBreak
         timerService.start()
         startLiveActivity()
+        let breakType: SessionType = isLongBreak ? .longBreak : .shortBreak
+        NotificationService.shared.schedulePhaseComplete(after: totalSeconds, type: breakType)
     }
 
     public func pause() {
@@ -89,6 +92,7 @@ public final class PomodoroEngine: ObservableObject {
         state = .paused(sessionType)
         timerService.stop()
         updateLiveActivity(endDate: nil)
+        NotificationService.shared.cancelAll()
     }
 
     public func resume() {
@@ -103,17 +107,21 @@ public final class PomodoroEngine: ObservableObject {
         }
         timerService.start()
         updateLiveActivity(endDate: Date().addingTimeInterval(TimeInterval(remainingSeconds)))
+        // Re-schedule the notification for the remaining time
+        NotificationService.shared.schedulePhaseComplete(after: remainingSeconds, type: prev)
     }
 
     public func skip() {
         endLiveActivity()
         timerService.stop()
+        NotificationService.shared.cancelAll()
         advancePhase()
     }
 
     public func reset() {
         endLiveActivity()
         timerService.stop()
+        NotificationService.shared.cancelAll()
         state = .idle
         remainingSeconds = 0
         totalSeconds = 0
