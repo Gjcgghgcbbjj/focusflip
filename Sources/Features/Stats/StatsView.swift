@@ -23,6 +23,7 @@ struct StatsView: View {
     @State private var totalPomodoros: Int = 0
     @State private var currentStreak: Int = 0
     @State private var heatmapData: [HeatDay] = []
+    @State private var sessionBreakdown: (focus: Int, shortBreak: Int, longBreak: Int) = (0, 0, 0)
 
     var body: some View {
         NavigationView {
@@ -253,11 +254,7 @@ struct StatsView: View {
     // MARK: - Breakdown
 
     private var breakdownCard: some View {
-        let allSessions = PersistenceController.shared.fetchAllSessions()
-        let focus = allSessions.filter { $0.sessionType == .focus }.count
-        let shortB = allSessions.filter { $0.sessionType == .shortBreak }.count
-        let longB = allSessions.filter { $0.sessionType == .longBreak }.count
-        let total = max(1, focus + shortB + longB)
+        let total = max(1, sessionBreakdown.focus + sessionBreakdown.shortBreak + sessionBreakdown.longBreak)
 
         return VStack(alignment: .leading, spacing: DS.S.md) {
             Text("会话分布")
@@ -265,9 +262,9 @@ struct StatsView: View {
                 .foregroundColor(DS.Color.textSecondary)
 
             HStack(spacing: DS.S.sm) {
-                breakdownBar(type: .focus, count: focus, total: total)
-                breakdownBar(type: .shortBreak, count: shortB, total: total)
-                breakdownBar(type: .longBreak, count: longB, total: total)
+                breakdownBar(type: .focus, count: sessionBreakdown.focus, total: total)
+                breakdownBar(type: .shortBreak, count: sessionBreakdown.shortBreak, total: total)
+                breakdownBar(type: .longBreak, count: sessionBreakdown.longBreak, total: total)
             }
         }
         .card()
@@ -370,6 +367,11 @@ struct StatsView: View {
         totalFocusSeconds = all.filter { $0.sessionType == .focus }
             .reduce(0) { $0 + Int($1.durationSeconds) }
         totalPomodoros = all.filter { $0.sessionType == .focus }.count
+        sessionBreakdown = (
+            focus: all.filter { $0.sessionType == .focus }.count,
+            shortBreak: all.filter { $0.sessionType == .shortBreak }.count,
+            longBreak: all.filter { $0.sessionType == .longBreak }.count
+        )
         currentStreak = calculateStreak()
     }
 
@@ -422,8 +424,15 @@ struct StatsView: View {
 
     private func calculateStreak() -> Int {
         let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let todayHasFocus = PersistenceController.shared
+            .fetchSessions(for: today)
+            .contains { $0.sessionType == .focus }
+
+        // If today already has a focus session, count from today.
+        // If not, count from yesterday (streak is "at risk" but not broken yet).
         var streak = 0
-        var date = cal.startOfDay(for: Date())
+        var date = todayHasFocus ? today : cal.date(byAdding: .day, value: -1, to: today)!
         while true {
             let sessions = PersistenceController.shared.fetchSessions(for: date)
             if sessions.contains(where: { $0.sessionType == .focus }) {

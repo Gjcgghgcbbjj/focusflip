@@ -349,7 +349,9 @@ struct TimerView: View {
     private func handleStateChange(_ newState: EngineState) {
         switch newState {
         case .focusing:
-            if settings.whiteNoiseEnabled { soundPlayer.playWhiteNoise() }
+            // Only start white noise + shield when entering focus from a non-running
+            // state, not when resuming from pause (which is handled in mainButtonAction).
+            if settings.whiteNoiseEnabled && !soundPlayer.isPlaying { soundPlayer.playWhiteNoise() }
             if settings.appShieldEnabled { FocusShieldManager.shared.activateShield() }
         case .shortBreak, .longBreak:
             soundPlayer.stopWhiteNoise()

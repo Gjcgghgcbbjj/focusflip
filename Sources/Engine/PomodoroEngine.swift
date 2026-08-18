@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// The pomodoro state machine: drives focus → shortBreak → focus → ... → longBreak cycles.
 ///
@@ -126,9 +129,19 @@ public final class PomodoroEngine: ObservableObject {
         let focus = sessions.filter { $0.sessionType == .focus }
         todayPomodoros = focus.count
         todayFocusSeconds = focus.reduce(0) { $0 + Int($1.durationSeconds) }
+        // Tell the widget to refresh its timeline so the home screen stats update.
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 
     // MARK: - Tick handling
+
+    /// Elapsed seconds in the current phase (for accurate partial-session recording).
+    private var phaseElapsedSeconds: Int {
+        guard let start = phaseStartDate else { return 0 }
+        return min(totalSeconds, Int(Date().timeIntervalSince(start)))
+    }
 
     private func handleTick() {
         guard state == .focusing || state == .shortBreak || state == .longBreak else { return }
@@ -144,11 +157,14 @@ public final class PomodoroEngine: ObservableObject {
     // MARK: - Phase transitions
 
     private func advancePhase() {
+        // Record the ACTUAL elapsed time, not the full planned duration.
+        // This matters when the user skips early — we don't want to inflate stats.
+        let actualElapsed = phaseElapsedSeconds
         switch state {
         case .focusing:
             completedFocusCount += 1
             PersistenceController.shared.recordSession(
-                type: .focus, duration: totalSeconds, taskId: currentTaskId)
+                type: .focus, duration: actualElapsed, taskId: currentTaskId)
             refreshTodayStats()
 
             onPhaseComplete?(.focus)
@@ -171,7 +187,7 @@ public final class PomodoroEngine: ObservableObject {
 
         case .shortBreak, .longBreak:
             let type: SessionType = (state == .shortBreak ? .shortBreak : .longBreak)
-            PersistenceController.shared.recordSession(type: type, duration: totalSeconds)
+            PersistenceController.shared.recordSession(type: type, duration: actualElapsed)
             onPhaseComplete?(type)
 
             if state == .longBreak {
@@ -248,7 +264,7 @@ public final class PomodoroEngine: ObservableObject {
     public func smoothRemainingSeconds(at date: Date = Date()) -> Double {
         guard let start = phaseStartDate else { return Double(remainingSeconds) }
         let elapsed = date.timeIntervalSince(start)
-        return Double(remainingSeconds) - (elapsed - Double(totalSeconds - remainingSeconds))
+        return max(0, Double(totalSeconds) - elapsed)
     }
 
     /// 0.0–1.0 progress toward the daily pomodoro goal.

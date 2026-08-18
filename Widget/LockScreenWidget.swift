@@ -44,11 +44,24 @@ struct PomodoroLiveActivity: Widget {
                 Image(systemName: sessionIcon(context.state.sessionType))
                     .foregroundColor(sessionColor(context.state.sessionType))
             } compactTrailing: {
-                Text(formatTime(context.state.remainingSeconds))
-                    .font(.caption.monospacedDigit())
+                // Use Text(timerInterval:) so the compact trailing auto-updates
+                // without TimelineView (which isn't available in compact regions).
+                if let end = context.state.phaseEndDate {
+                    Text(timerInterval: Date()...end, countsDown: true)
+                        .font(.caption.monospacedDigit())
+                        .frame(maxWidth: 50)
+                } else {
+                    Text(formatTime(context.state.remainingSeconds))
+                        .font(.caption.monospacedDigit())
+                }
             } minimal: {
-                Text("\(context.state.remainingSeconds / 60)")
-                    .font(.caption.monospacedDigit())
+                if let end = context.state.phaseEndDate {
+                    Text(timerInterval: Date()...end, countsDown: true)
+                        .font(.caption2.monospacedDigit())
+                } else {
+                    Text("\(context.state.remainingSeconds / 60)")
+                        .font(.caption2.monospacedDigit())
+                }
             }
         }
     }

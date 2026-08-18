@@ -42,7 +42,9 @@ struct FocusStatsProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<FocusStatsEntry>) -> Void) {
         let entry = currentEntry()
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: Date())!
+        // Refresh every 5 minutes so today's stats stay reasonably current.
+        // The app also calls WidgetCenter.reloadAllTimelines() after each session.
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 5, to: Date())!
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
         completion(timeline)
     }
