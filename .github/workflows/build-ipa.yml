@@ -16,7 +16,7 @@ permissions:
 env:
   APP_NAME: FocusFlip
   BUNDLE_ID: com.focusflip.app
-  APP_VERSION: "1.1.1"
+  APP_VERSION: "2.0.0"
 
 jobs:
   build:
