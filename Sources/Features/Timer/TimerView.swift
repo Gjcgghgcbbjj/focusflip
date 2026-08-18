@@ -139,13 +139,17 @@ struct TimerView: View {
 
     private var timerRing: some View {
         TimelineView(.animation) { context in
-            ringView(progress: engine.smoothProgress(at: context.date))
+            ringView(at: context.date)
         }
     }
 
-    private func ringView(progress: Double) -> some View {
+    private func ringView(at date: Date) -> some View {
         let ringSize: CGFloat = 264
         let lineWidth: CGFloat = 5
+        let progress = engine.smoothProgress(at: date)
+        let remaining = engine.isRunning
+            ? engine.smoothRemainingSeconds(at: date)
+            : Double(engine.remainingSeconds)
 
         return ZStack {
             // Track
@@ -165,7 +169,7 @@ struct TimerView: View {
 
             // Center
             VStack(spacing: DS.S.xs) {
-                Text(timeString)
+                Text(formatTime(remaining))
                     .font(DS.Font.timerDisplay)
                     .monospacedDigit()
                     .foregroundColor(DS.Color.textPrimary)
@@ -178,8 +182,9 @@ struct TimerView: View {
         }
     }
 
-    private var timeString: String {
-        let s = max(0, engine.remainingSeconds)
+    private func formatTime(_ remaining: Double) -> String {
+        // Ceil so a countdown shows e.g. 2:30 until the last full second passes.
+        let s = max(0, Int(remaining.rounded(.up)))
         let m = s / 60
         let sec = s % 60
         return String(format: "%02d:%02d", m, sec)

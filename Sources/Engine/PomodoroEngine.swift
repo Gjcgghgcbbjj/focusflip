@@ -89,17 +89,19 @@ public final class PomodoroEngine: ObservableObject {
         case .longBreak:  sessionType = .longBreak
         default:          return
         }
+        // Freeze the exact remaining time before stopping the clock.
+        remainingSeconds = currentRemainingSeconds()
         state = .paused(sessionType)
         timerService.stop()
+        phaseStartDate = nil
         updateLiveActivity(endDate: nil)
         NotificationService.shared.cancelAll()
     }
 
     public func resume() {
         guard case .paused(let prev) = state else { return }
-        // Adjust phase start to account for elapsed time
-        let elapsed = totalSeconds - remainingSeconds
-        phaseStartDate = Date().addingTimeInterval(TimeInterval(-elapsed))
+        // Restart the phase clock from the frozen remaining seconds.
+        phaseStartDate = Date()
         switch prev {
         case .focus:       state = .focusing
         case .shortBreak:  state = .shortBreak
@@ -151,10 +153,20 @@ public final class PomodoroEngine: ObservableObject {
         return min(totalSeconds, Int(Date().timeIntervalSince(start)))
     }
 
+    /// Source-of-truth remaining seconds, derived from the wall clock and
+    /// phaseStartDate — never drifted by timer inaccuracy.
+    /// When paused (phaseStartDate == nil), returns the frozen snapshot.
+    private func currentRemainingSeconds() -> Int {
+        guard let start = phaseStartDate else { return remainingSeconds }
+        let elapsed = Int(Date().timeIntervalSince(start))
+        return max(0, totalSeconds - elapsed)
+    }
+
     private func handleTick() {
         guard state == .focusing || state == .shortBreak || state == .longBreak else { return }
 
-        remainingSeconds = max(0, remainingSeconds - 1)
+        // Derive the exact remaining time from the clock, not by decrementing.
+        remainingSeconds = currentRemainingSeconds()
 
         if remainingSeconds <= 0 {
             timerService.stop()
