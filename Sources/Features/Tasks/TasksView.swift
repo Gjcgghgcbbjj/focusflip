@@ -15,29 +15,51 @@ struct TasksView: View {
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                LazyVStack(spacing: DS.S.sm) {
-                    if tasks.isEmpty {
-                        emptyState
-                            .padding(.top, DS.S.xxxl)
-                    } else {
-                        ForEach(tasks) { task in
-                            TaskCard(task: task)
-                                .onTapGesture { editingTask = task }
-                                .contextMenu {
-                                    Button(action: { editingTask = task }) {
-                                        Label("编辑", systemImage: "pencil")
-                                    }
-                                    Button(role: .destructive, action: { delete(task) }) {
-                                        Label("删除", systemImage: "trash")
-                                    }
+            List {
+                if tasks.isEmpty {
+                    emptyState
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                } else {
+                    ForEach(tasks) { task in
+                        TaskCard(task: task)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .contentShape(Rectangle())
+                            .onTapGesture { editingTask = task }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    delete(task)
+                                } label: {
+                                    Label("删除", systemImage: "trash")
                                 }
-                        }
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    toggleComplete(task)
+                                } label: {
+                                    Label(task.completed ? "未完成" : "完成",
+                                          systemImage: task.completed ? "circle" : "checkmark.circle.fill")
+                                }
+                                .tint(task.completed ? DS.Color.textMuted : DS.Color.success)
+                            }
+                            .contextMenu {
+                                Button(action: { editingTask = task }) {
+                                    Label("编辑", systemImage: "pencil")
+                                }
+                                Button(action: { toggleComplete(task) }) {
+                                    Label(task.completed ? "标记未完成" : "标记完成",
+                                          systemImage: task.completed ? "circle" : "checkmark.circle")
+                                }
+                                Button(role: .destructive, action: { delete(task) }) {
+                                    Label("删除", systemImage: "trash")
+                                }
+                            }
                     }
                 }
-                .padding(.horizontal, DS.S.md)
-                .padding(.bottom, DS.S.xxxl)
             }
+            .listStyle(.plain)
+            .hideScrollBackground()
             .background(DS.Color.bgPrimary.ignoresSafeArea())
             .navigationTitle("任务")
             .toolbar {
@@ -93,6 +115,13 @@ struct TasksView: View {
         let ctx = PersistenceController.shared.viewContext
         ctx.delete(task)
         PersistenceController.shared.save()
+        reload()
+    }
+
+    private func toggleComplete(_ task: TaskItem) {
+        task.completed.toggle()
+        PersistenceController.shared.save()
+        HapticManager.shared.selection()
         reload()
     }
 }
