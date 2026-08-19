@@ -26,9 +26,7 @@ public struct DateUtils {
 
     /// Last 7 days labels for chart
     public static func last7Days() -> [Date] {
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        return (0..<7).reversed().map { cal.date(byAdding: .day, value: -$0, to: today)! }
+        lastNDays(7)
     }
 
     /// Last n days (oldest → newest), each at startOfDay.

@@ -1,42 +1,59 @@
 import UIKit
 
 /// Wraps UIImpactFeedbackGenerator / UINotificationFeedbackGenerator for haptics.
+/// Follows Apple's recommendation: prepare() before triggering for low-latency.
 public final class HapticManager {
 
     public static let shared = HapticManager()
 
-    private init() {}
+    private let impactLight = UIImpactFeedbackGenerator(style: .light)
+    private let impactMedium = UIImpactFeedbackGenerator(style: .medium)
+    private let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
+    private let notification = UINotificationFeedbackGenerator()
+    private let selection = UISelectionFeedbackGenerator()
+
+    private init() {
+        // Warm up generators once at launch
+        impactLight.prepare()
+        impactMedium.prepare()
+        impactHeavy.prepare()
+        notification.prepare()
+        selection.prepare()
+    }
 
     public func light() {
         guard AppSettings.shared.hapticsEnabled else { return }
-        let gen = UIImpactFeedbackGenerator(style: .light)
-        gen.impactOccurred()
+        impactLight.impactOccurred()
+        impactLight.prepare()
     }
 
     public func medium() {
         guard AppSettings.shared.hapticsEnabled else { return }
-        let gen = UIImpactFeedbackGenerator(style: .medium)
-        gen.impactOccurred()
+        impactMedium.impactOccurred()
+        impactMedium.prepare()
     }
 
     public func heavy() {
         guard AppSettings.shared.hapticsEnabled else { return }
-        let gen = UIImpactFeedbackGenerator(style: .heavy)
-        gen.impactOccurred()
+        impactHeavy.impactOccurred()
+        impactHeavy.prepare()
     }
 
     public func success() {
         guard AppSettings.shared.hapticsEnabled else { return }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        notification.notificationOccurred(.success)
+        notification.prepare()
     }
 
     public func warning() {
         guard AppSettings.shared.hapticsEnabled else { return }
-        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        notification.notificationOccurred(.warning)
+        notification.prepare()
     }
 
     public func selection() {
         guard AppSettings.shared.hapticsEnabled else { return }
-        UISelectionFeedbackGenerator().selectionChanged()
+        selection.selectionChanged()
+        selection.prepare()
     }
 }
