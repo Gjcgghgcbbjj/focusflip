@@ -64,13 +64,12 @@ public final class AppSettings: ObservableObject {
         autoStartFocus      = d.object(forKey: "autoStartFocus") as? Bool ?? false
         flipClockStyle      = d.object(forKey: "flipClockStyle") as? String ?? "classic"
         themeColorHex       = d.object(forKey: "themeColorHex") as? String ?? "#FF4D4A"
+        dailyGoalPomodoros  = d.object(forKey: "dailyGoalPomodoros") as? Int ?? 8
 
         // 保证 themeColorHex 在合法列表内（老版本默认值 #FF6B6B 不在列表）
-        if !Self.themeColors.contains(where: { $0.hex == themeColorHex }) {
-            themeColorHex = Self.themeColors[0].hex
+        if !Self.themeColors.contains(where: { $0.hex == self.themeColorHex }) {
+            self.themeColorHex = Self.themeColors[0].hex
         }
-
-        dailyGoalPomodoros  = d.object(forKey: "dailyGoalPomodoros") as? Int ?? 8
     }
 
     private func save() {
