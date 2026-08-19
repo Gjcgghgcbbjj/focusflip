@@ -1,14 +1,14 @@
 # FocusFlip 交接文档（给下一个 AI / 开发者）
 
-> 最后更新：2026-08-18
+> 最后更新：2026-08-19
 > 仓库：https://github.com/Gjcgghgcbbjj/focusflip （公开）
 > 构建方式：GitHub Actions（macos-15 + 动态选择 Xcode + xcodegen，双 target）
 
 ---
 
-## 一、项目现状（v2.0.0）
+## 一、项目现状（v2.0.2）
 
-**v2.0.0 — 全量 UI 重写，对标 Be Focused / Focus Keeper / Flow**
+**v2.0.2 — 逐功能精修（计时/统计/任务/设置/触感）**
 
 已完成：
 - ✅ 全新设计体系（DesignSystem v2.0）：近黑底 + 语义阶段色 + 自适应深浅色
@@ -18,6 +18,18 @@
 - ✅ 全新任务界面：清单卡片 + 左色条 + 进度条 + 空状态
 - ✅ Widget + Live Activity 重写：Dynamic Island 全区域 Text(timerInterval) 自走倒计时
 - ✅ 核心逻辑修复：跳过记录实际时长 / 通知调度 / streak 从昨天算 / Widget 5min 刷新
+
+**v2.0.1 计时器准确性重构：**
+- ✅ 剩余时间从墙钟（phaseStartDate）派生，杜绝 tick 漂移
+- ✅ 暂停精确冻结剩余秒，恢复无累积误差
+- ✅ 环与数字从同一 context.date 派生，完全同步；数字 ceil 倒计时
+
+**v2.0.2 逐功能精修：**
+- ✅ 统计：消除 view body 重复查库（monthFocusSeconds 等改缓存）、bestStreak 展示、日图偶数小时 label
+- ✅ 任务：List + 左滑完成/取消完成 + 右滑删除 + 手动标记（可逆）
+- ✅ 设置：白噪音/完成音试听按钮、专注色选择器（6 色）、预设判断补全
+- ✅ 触感：HapticManager prepare+复用 5 个 generator（低延迟稳定）
+- ✅ iOS15 降级页对齐 bestStreak
 - ✅ CI 全绿（编译 + 模拟器冒烟测试）
 - ✅ v2.0.0 Release 自动发布
 
