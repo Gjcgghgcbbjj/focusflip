@@ -24,6 +24,7 @@ struct SettingsView: View {
                 goalSection
                 soundSection
                 behaviorSection
+                appearanceSection
                 shieldSection
                 dataSection
                 aboutSection
@@ -80,12 +81,16 @@ struct SettingsView: View {
         switch preset {
         case .classic:
             return settings.focusDuration == 25*60 && settings.shortBreakDuration == 5*60
+                && settings.longBreakDuration == 15*60 && settings.pomodorosBeforeLongBreak == 4
         case .long:
             return settings.focusDuration == 50*60 && settings.shortBreakDuration == 10*60
+                && settings.longBreakDuration == 30*60 && settings.pomodorosBeforeLongBreak == 3
         case .short:
             return settings.focusDuration == 15*60 && settings.shortBreakDuration == 3*60
+                && settings.longBreakDuration == 10*60 && settings.pomodorosBeforeLongBreak == 4
         case .ninety:
-            return settings.focusDuration == 90*60
+            return settings.focusDuration == 90*60 && settings.shortBreakDuration == 20*60
+                && settings.longBreakDuration == 30*60 && settings.pomodorosBeforeLongBreak == 2
         }
     }
 
@@ -136,6 +141,20 @@ struct SettingsView: View {
                     Text("风扇").tag("fan")
                 }
 
+                // Preview: play the selected white noise briefly
+                Button {
+                    SoundPlayer.shared.playWhiteNoise()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        SoundPlayer.shared.stopWhiteNoise()
+                    }
+                } label: {
+                    HStack {
+                        Label("试听", systemImage: "play.circle")
+                            .foregroundColor(DS.Color.accent)
+                        Spacer()
+                    }
+                }
+
                 VStack(alignment: .leading, spacing: DS.S.xs) {
                     HStack {
                         Text("音量")
@@ -160,6 +179,16 @@ struct SettingsView: View {
                     Text("电子音").tag("digital")
                     Text("轻柔音").tag("gentle")
                 }
+
+                Button {
+                    SoundPlayer.shared.playCompletionSound()
+                } label: {
+                    HStack {
+                        Label("试听", systemImage: "play.circle")
+                            .foregroundColor(DS.Color.accent)
+                        Spacer()
+                    }
+                }
             }
         }
     }
@@ -176,6 +205,34 @@ struct SettingsView: View {
                       isOn: $settings.hapticsEnabled)
             ToggleRow(title: "通知提醒", icon: "bell.badge",
                       isOn: $settings.notificationsEnabled)
+        }
+    }
+
+    // MARK: - Appearance
+
+    private var appearanceSection: some View {
+        Section("外观") {
+            HStack {
+                Text("专注色")
+                    .font(DS.Font.body)
+                Spacer()
+                HStack(spacing: DS.S.xs) {
+                    ForEach(AppSettings.themeColors, id: \.hex) { option in
+                        Circle()
+                            .fill(Color(hex: option.hex))
+                            .frame(width: 26, height: 26)
+                            .overlay(
+                                Circle()
+                                    .stroke(DS.Color.textPrimary,
+                                            lineWidth: settings.themeColorHex == option.hex ? 2 : 0)
+                            )
+                            .onTapGesture {
+                                settings.themeColorHex = option.hex
+                                HapticManager.shared.selection()
+                            }
+                    }
+                }
+            }
         }
     }
 

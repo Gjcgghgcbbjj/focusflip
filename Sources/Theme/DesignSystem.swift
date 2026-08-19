@@ -49,15 +49,23 @@ struct DS {
         static let textMuted = adaptive(dark: "#5C5C64", light: "#A0A0A8")
 
         // Semantic phase colors (对标 Be Focused: 红=专注 绿=短休 紫=长休)
-        static let focus = adaptive(dark: "#FF4D4A", light: "#FF3B30")       // 专注-红
+        // focus 色可从设置中自定义（themeColorHex），其余固定语义色。
+        static var focus: SwiftUI.Color {
+            let hex = AppSettings.shared.themeColorHex
+            // 保证六位 hex
+            guard hex.count == 7, hex.hasPrefix("#") else {
+                return adaptive(dark: "#FF4D4A", light: "#FF3B30")
+            }
+            return SwiftUI.Color(UIColor(hex: hex))
+        }
         static let shortBreak = adaptive(dark: "#32D74B", light: "#34C759")  // 短休-绿
         static let longBreak = adaptive(dark: "#BF5AF2", light: "#AF52DE")  // 长休-紫
 
         // UI accents
-        static let accent = focus  // 默认跟随专注色
+        static var accent: SwiftUI.Color { focus }  // 跟随专注色（可自定义）
         static let warning = adaptive(dark: "#FFD60A", light: "#FF9500")
         static let success = shortBreak
-        static let danger = focus
+        static var danger: SwiftUI.Color { focus }
 
         // Separators
         static let separator = adaptive(dark: "#FFFFFF0D", light: "#0000000D")

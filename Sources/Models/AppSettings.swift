@@ -63,7 +63,12 @@ public final class AppSettings: ObservableObject {
         autoStartBreaks     = d.object(forKey: "autoStartBreaks") as? Bool ?? false
         autoStartFocus      = d.object(forKey: "autoStartFocus") as? Bool ?? false
         flipClockStyle      = d.object(forKey: "flipClockStyle") as? String ?? "classic"
-        themeColorHex       = d.object(forKey: "themeColorHex") as? String ?? "#FF6B6B"
+        themeColorHex       = d.object(forKey: "themeColorHex") as? String ?? "#FF4D4A"
+
+        // 保证 themeColorHex 在合法列表内（老版本默认值 #FF6B6B 不在列表）
+        if !Self.themeColors.contains(where: { $0.hex == themeColorHex }) {
+            themeColorHex = Self.themeColors[0].hex
+        }
 
         dailyGoalPomodoros  = d.object(forKey: "dailyGoalPomodoros") as? Int ?? 8
     }
@@ -90,6 +95,16 @@ public final class AppSettings: ObservableObject {
     }
 
     // MARK: - Presets
+
+    /// Available focus accent colors (hex). The first is the default.
+    public static let themeColors: [(name: String, hex: String)] = [
+        ("红", "#FF4D4A"),
+        ("橙", "#FF9F0A"),
+        ("绿", "#32D74B"),
+        ("蓝", "#0A84FF"),
+        ("紫", "#BF5AF2"),
+        ("粉", "#FF2D55"),
+    ]
 
     public enum Preset: String, CaseIterable {
         case classic    = "经典 25/5/15"
