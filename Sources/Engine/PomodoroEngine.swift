@@ -186,7 +186,8 @@ public final class PomodoroEngine: ObservableObject {
         case .focusing:
             completedFocusCount += 1
             PersistenceController.shared.recordSession(
-                type: .focus, duration: actualElapsed, taskId: currentTaskId)
+                type: .focus, duration: actualElapsed, taskId: currentTaskId,
+                startDate: phaseStartDate)
             refreshTodayStats()
 
             onPhaseComplete?(.focus)
@@ -209,7 +210,8 @@ public final class PomodoroEngine: ObservableObject {
 
         case .shortBreak, .longBreak:
             let type: SessionType = (state == .shortBreak ? .shortBreak : .longBreak)
-            PersistenceController.shared.recordSession(type: type, duration: actualElapsed)
+            PersistenceController.shared.recordSession(type: type, duration: actualElapsed,
+                                                       startDate: phaseStartDate)
             onPhaseComplete?(type)
 
             if state == .longBreak {

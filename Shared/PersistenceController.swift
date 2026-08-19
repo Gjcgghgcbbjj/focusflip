@@ -134,11 +134,12 @@ public final class PersistenceController {
 
     // MARK: - Record a session
 
-    public func recordSession(type: SessionType, duration: Int, taskId: UUID? = nil) {
+    public func recordSession(type: SessionType, duration: Int, taskId: UUID? = nil,
+                              startDate: Date? = nil) {
         let ctx = container.viewContext
         let session = FocusSession(context: ctx)
         session.id = UUID()
-        session.startDate = Date().addingTimeInterval(TimeInterval(-duration))
+        session.startDate = startDate ?? Date().addingTimeInterval(TimeInterval(-duration))
         session.endDate = Date()
         session.durationSeconds = Int32(duration)
         session.typeRaw = type.rawValue
