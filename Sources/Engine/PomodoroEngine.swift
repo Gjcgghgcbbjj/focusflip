@@ -63,7 +63,8 @@ public final class PomodoroEngine: ObservableObject {
         state = .focusing
         timerService.start()
         startLiveActivity()
-        NotificationService.shared.schedulePhaseComplete(after: totalSeconds, type: .focus)
+        NotificationService.shared.schedulePhaseComplete(after: totalSeconds, type: .focus,
+                                        taskTitle: currentTaskTitle)
     }
 
     public func startBreak() {
@@ -110,7 +111,8 @@ public final class PomodoroEngine: ObservableObject {
         timerService.start()
         updateLiveActivity(endDate: Date().addingTimeInterval(TimeInterval(remainingSeconds)))
         // Re-schedule the notification for the remaining time
-        NotificationService.shared.schedulePhaseComplete(after: remainingSeconds, type: prev)
+        NotificationService.shared.schedulePhaseComplete(after: remainingSeconds, type: prev,
+                                        taskTitle: prev == .focus ? currentTaskTitle : nil)
     }
 
     public func skip() {
@@ -122,7 +124,7 @@ public final class PomodoroEngine: ObservableObject {
 
     public func reset() {
         endLiveActivity()
-        timerService.stop()
+        timerService.deactivateBackground()   // stop ticks + keep-alive + release session
         NotificationService.shared.cancelAll()
         state = .idle
         remainingSeconds = 0

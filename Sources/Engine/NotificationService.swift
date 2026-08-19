@@ -17,14 +17,25 @@ public final class NotificationService {
         }
     }
 
-    public func schedulePhaseComplete(after seconds: Int, type: SessionType) {
+    public func schedulePhaseComplete(after seconds: Int, type: SessionType, taskTitle: String? = nil) {
         guard AppSettings.shared.notificationsEnabled else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = type == .focus ? "专注完成 🎉" : "休息结束 ⏰"
-        content.body = type == .focus
-            ? "你完成了一个番茄钟，去休息一下吧！"
-            : "休息结束，继续专注！"
+        switch type {
+        case .focus:
+            content.title = "专注完成 🎉"
+            if let task = taskTitle, !task.isEmpty {
+                content.body = "「\(task)」完成了一个番茄，去休息一下吧！"
+            } else {
+                content.body = "你完成了一个番茄钟，去休息一下吧！"
+            }
+        case .shortBreak:
+            content.title = "短休息结束 ⏰"
+            content.body = "休息结束，继续专注！"
+        case .longBreak:
+            content.title = "长休息结束 ⏰"
+            content.body = "充好电了，迎接下一轮专注！"
+        }
         content.sound = .default
         content.categoryIdentifier = "PHASE_COMPLETE"
 

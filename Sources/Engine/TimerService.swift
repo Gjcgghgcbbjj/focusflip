@@ -24,7 +24,7 @@ public final class TimerService: ObservableObject {
     // MARK: - Timer lifecycle
 
     public func start() {
-        stop()
+        stopKeepAliveOnly()
         configureAudioSession()
         activateKeepAlive()
 
@@ -39,14 +39,18 @@ public final class TimerService: ObservableObject {
         timer = t
     }
 
+    /// Stop the tick timer AND the silent keep-alive player.
+    /// Keeps the audio session active (white noise may still be playing).
     public func stop() {
         timer?.cancel()
         timer = nil
+        stopKeepAliveOnly()
     }
 
+    /// Full teardown: stop everything and release the audio session.
     public func deactivateBackground() {
         stop()
-        deactivateKeepAlive()
+        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
     }
 
     // MARK: - AVAudioSession keep-alive
@@ -60,6 +64,14 @@ public final class TimerService: ObservableObject {
         } catch {
             NSLog("[FocusFlip] AVAudioSession config error: \(error.localizedDescription)")
         }
+    }
+
+    /// Stop only the silent keep-alive player, leaving the audio session
+    /// active (so white noise / completion sounds keep working).
+    private func stopKeepAliveOnly() {
+        silentPlayer?.stop()
+        silentPlayer = nil
+        isKeepAliveActive = false
     }
 
     /// Play a silent audio loop to keep the app alive in background.
@@ -86,13 +98,6 @@ public final class TimerService: ObservableObject {
         } catch {
             NSLog("[FocusFlip] Silent player error: \(error.localizedDescription)")
         }
-    }
-
-    private func deactivateKeepAlive() {
-        silentPlayer?.stop()
-        silentPlayer = nil
-        isKeepAliveActive = false
-        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
     }
 
     // MARK: - WAV header builder (for silent audio)
