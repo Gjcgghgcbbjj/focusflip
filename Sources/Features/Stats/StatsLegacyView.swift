@@ -9,6 +9,7 @@ struct StatsLegacyView: View {
     @State private var totalFocusSeconds: Int = 0
     @State private var totalPomodoros: Int = 0
     @State private var currentStreak: Int = 0
+    @State private var bestStreak: Int = 0
 
     var body: some View {
         NavigationView {
@@ -40,8 +41,8 @@ struct StatsLegacyView: View {
                 .foregroundColor(DS.Color.textPrimary)
             HStack(spacing: DS.S.xl) {
                 miniStat(value: "\(todayPomodoros)", label: "番茄")
-                miniStat(value: "\(todaySessions.count)", label: "会话")
                 miniStat(value: "\(currentStreak)", label: "连续天")
+                miniStat(value: "\(bestStreak)", label: "最长记录")
             }
         }
         .frame(maxWidth: .infinity)
@@ -183,12 +184,18 @@ struct StatsLegacyView: View {
             .reduce(0) { $0 + Int($1.durationSeconds) }
         totalPomodoros = all.filter { $0.sessionType == .focus }.count
         currentStreak = calculateStreak()
+        bestStreak = calculateBestStreak()
     }
 
     private func calculateStreak() -> Int {
         let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let todayHasFocus = PersistenceController.shared
+            .fetchSessions(for: today)
+            .contains { $0.sessionType == .focus }
+
         var streak = 0
-        var date = cal.startOfDay(for: Date())
+        var date = todayHasFocus ? today : cal.date(byAdding: .day, value: -1, to: today)!
         while true {
             let sessions = PersistenceController.shared.fetchSessions(for: date)
             if sessions.contains(where: { $0.sessionType == .focus }) {
@@ -199,5 +206,30 @@ struct StatsLegacyView: View {
             }
         }
         return streak
+    }
+
+    private func calculateBestStreak() -> Int {
+        let all = PersistenceController.shared.fetchAllSessions()
+            .filter { $0.sessionType == .focus }
+            .sorted { $0.startDate < $1.startDate }
+
+        guard !all.isEmpty else { return 0 }
+        let cal = Calendar.current
+        var best = 1
+        var current = 1
+        var prevDate = cal.startOfDay(for: all[0].startDate)
+
+        for session in all.dropFirst() {
+            let day = cal.startOfDay(for: session.startDate)
+            let diff = cal.dateComponents([.day], from: prevDate, to: day).day ?? 0
+            if diff == 1 {
+                current += 1
+                best = max(best, current)
+            } else if diff > 1 {
+                current = 1
+            }
+            prevDate = day
+        }
+        return best
     }
 }

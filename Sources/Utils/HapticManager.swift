@@ -10,7 +10,7 @@ public final class HapticManager {
     private let impactMedium = UIImpactFeedbackGenerator(style: .medium)
     private let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
     private let notification = UINotificationFeedbackGenerator()
-    private let selection = UISelectionFeedbackGenerator()
+    private let selectionGen = UISelectionFeedbackGenerator()
 
     private init() {
         // Warm up generators once at launch
@@ -18,7 +18,7 @@ public final class HapticManager {
         impactMedium.prepare()
         impactHeavy.prepare()
         notification.prepare()
-        selection.prepare()
+        selectionGen.prepare()
     }
 
     public func light() {
@@ -53,7 +53,7 @@ public final class HapticManager {
 
     public func selection() {
         guard AppSettings.shared.hapticsEnabled else { return }
-        selection.selectionChanged()
-        selection.prepare()
+        selectionGen.selectionChanged()
+        selectionGen.prepare()
     }
 }
