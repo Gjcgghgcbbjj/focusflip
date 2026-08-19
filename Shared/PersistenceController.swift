@@ -263,6 +263,7 @@ public final class PersistenceController {
         }
 
         save()
+        refreshWidgets()
     }
 
     /// Delete every session and task (destructive — callers must confirm).
@@ -276,5 +277,13 @@ public final class PersistenceController {
         try? ctx.execute(NSBatchDeleteRequest(fetchRequest: reqT))
         try? ctx.save()
         ctx.reset()
+        refreshWidgets()
+    }
+
+    /// Tell the home-screen widget to reload after data changes.
+    private func refreshWidgets() {
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 }
