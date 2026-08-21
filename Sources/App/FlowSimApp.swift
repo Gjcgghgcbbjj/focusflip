@@ -11,9 +11,7 @@ struct FlowSimApp: App {
         WindowGroup {
             TabView {
                 HomeView()
-                    .tabItem { Label("计时", systemImage: "timer") }
-                FreeTimerView()
-                    .tabItem { Label("秒表", systemImage: "stopwatch") }
+                    .tabItem { Label("专注", systemImage: "timer") }
                 TodoView()
                     .tabItem { Label("任务", systemImage: "checklist") }
                 StatsView()

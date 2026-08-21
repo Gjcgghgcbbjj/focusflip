@@ -9,9 +9,7 @@ struct HomeView: View {
     @State private var showTaskPicker = false
     @State private var showTune = false
     @State private var showGiveUpConfirm = false
-    @State private var showSound = false
-    @State private var showCountdown = false
-    @State private var countdowns: [CountdownEntity] = []
+    @State private var homeMode = 0          // 0 番茄 / 1 自由
 
     // MARK: 底色（Flow 核心：色随内容）
 
@@ -33,36 +31,33 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            Palette.sceneGradient(baseColor)
-                .ignoresSafeArea()
-                .animation(.easeInOut(duration: 0.6), value: phaseKey)
+            if homeMode == 0 {
+                Palette.sceneGradient(baseColor)
+                    .ignoresSafeArea()
+                    .animation(.easeInOut(duration: 0.6), value: phaseKey)
+            } else {
+                Color.clear
+            }
 
             VStack(spacing: 0) {
-                countdownStrip
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 4)
-                content
-                    .overlay(alignment: .topTrailing) {
-                        soundButton
-                            .padding(.trailing, 20)
+                if homeMode == 0 {
+                    content
+                } else {
+                    ZStack {
+                        Color(.systemGroupedBackground)
+                            .ignoresSafeArea()
+                        FreeTimerPane()
                             .padding(.top, 6)
                     }
+                }
             }
         }
-        .onAppear {
-            engine.refreshToday()
-            countdowns = Store.shared.countdowns()
-        }
-        .onChange(of: showCountdown) { open in
-            if !open { countdowns = Store.shared.countdowns() }
-        }
+        .onAppear { engine.refreshToday() }
         .onChange(of: engine.isRunning) { running in
             UIApplication.shared.isIdleTimerDisabled = running && prefs.keepAwake
         }
         .sheet(isPresented: $showTaskPicker) { TaskPickerSheet() }
         .sheet(isPresented: $showTune) { DurationTuneSheet() }
-        .sheet(isPresented: $showSound) { SoundSheet() }
-        .sheet(isPresented: $showCountdown) { CountdownSheet() }
         .confirmationDialog("放弃这次专注？", isPresented: $showGiveUpConfirm,
                             titleVisibility: .visible) {
             Button("放弃", role: .destructive) { engine.giveUp() }
@@ -74,8 +69,11 @@ struct HomeView: View {
 
     private var content: some View {
         VStack(spacing: 0) {
+            modeSwitch
+                .padding(.top, 10)
+
             taskHeader
-                .padding(.top, 8)
+                .padding(.top, 12)
 
             Spacer(minLength: 12)
 
@@ -100,82 +98,33 @@ struct HomeView: View {
         }
     }
 
-    // MARK: 声音入口
+    // MARK: 番茄/自由 模式切换
 
-    private var soundButton: some View {
-        Button {
-            Haptic.tick()
-            showSound = true
-        } label: {
-            Image(systemName: prefs.soundType == "none" ? "speaker.slash" : "speaker.wave.2")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
-                .frame(width: 34, height: 34)
-                .background(Circle().fill(Color.white.opacity(0.16)))
+    private var modeSwitch: some View {
+        HStack(spacing: 4) {
+            segButton("番茄", 0)
+            segButton("自由", 1)
         }
-        .buttonStyle(PressStyle())
+        .padding(3)
+        .background(Capsule().fill(
+            homeMode == 0 ? Color.white.opacity(0.14) : Color.secondary.opacity(0.12)))
+        .animation(.easeInOut(duration: 0.25), value: homeMode)
     }
 
-    // MARK: 日期倒计时条（常驻入口：没有目标时也能点进添加）
-
-    private var nearestCountdown: CountdownEntity? {
-        countdowns.first { CountdownSheet.daysLeft($0.targetDate) >= 0 }
-    }
-
-    @ViewBuilder
-    private var countdownStrip: some View {
-        if let cd = nearestCountdown {
-            countdownBanner(cd)
-        } else if !countdowns.isEmpty {
-            ghostRow("日期倒计时 · 全部已过期")
-        } else {
-            ghostRow("＋ 添加日期倒计时")
-        }
-    }
-
-    private func ghostRow(_ text: String) -> some View {
-        Button {
-            Haptic.tick(); showCountdown = true
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.75))
-                Text(text)
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.75))
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.45))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 1))
-        }
-        .buttonStyle(PressStyle())
-    }
-
-    private func countdownBanner(_ c: CountdownEntity) -> some View {
-        let days = CountdownSheet.daysLeft(c.targetDate)
+    private func segButton(_ t: String, _ i: Int) -> some View {
+        let selected = homeMode == i
         return Button {
-            Haptic.tick(); showCountdown = true
+            withAnimation(.easeInOut(duration: 0.25)) { homeMode = i }
+            Haptic.tick()
         } label: {
-            HStack(spacing: 8) {
-                Circle().fill(Color(hex: c.colorHex)).frame(width: 7, height: 7)
-                Text(c.title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(0.95))
-                    .lineLimit(1)
-                Spacer()
-                Text(days == 0 ? "就是今天" : "剩 \(days) 天")
-                    .font(.system(size: 12, weight: .bold))
-                    .monospacedDigit()
-                    .foregroundColor(days <= 7 ? Color(hex: "#FFD60A") : .white)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(Capsule().fill(Color.white.opacity(0.16)))
+            Text(t)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(selected ? Palette.deepVariant(baseColor)
+                                          : .white.opacity(0.85))
+                .padding(.horizontal, 20)
+                .frame(height: 30)
+                .background(Capsule().fill(selected ? AnyShapeStyle(Color.white)
+                                                    : AnyShapeStyle(Color.clear)))
         }
         .buttonStyle(PressStyle())
     }

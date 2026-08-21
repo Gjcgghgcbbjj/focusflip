@@ -17,16 +17,8 @@ struct TaskPickerSheet: View {
 
                 ForEach(tasks) { t in
                     row(id: t.id, name: t.name, colorHex: t.colorHex)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                if engine.currentTaskID == t.id { engine.select(taskID: nil) }
-                                Store.shared.deleteTask(t)
-                                reload()
-                            } label: { Label("删除", systemImage: "trash") }
-                        }
                 }
 
-                addField
             }
             .listStyle(.plain)
             .navigationTitle("选择任务")
@@ -35,6 +27,12 @@ struct TaskPickerSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") { dismiss() }
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Text("新建与管理请到「任务」标签页")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .padding(.bottom, 8)
             }
             .onAppear(perform: reload)
         }
@@ -58,28 +56,6 @@ struct TaskPickerSheet: View {
                 }
             }
         }
-    }
-
-    private var addField: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "plus.circle.fill")
-                .foregroundColor(.secondary)
-            TextField("新建任务", text: $newTaskName)
-                .onSubmit(addTask)
-            Button("添加") { addTask() }
-                .disabled(newTaskName.isEmpty)
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func addTask() {
-        let name = newTaskName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        let t = Store.shared.addTask(name: name)
-        newTaskName = ""
-        reload()
-        Haptic.tick()
-        _ = t
     }
 
     private func reload() { tasks = Store.shared.tasks() }

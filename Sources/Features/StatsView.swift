@@ -31,6 +31,9 @@ struct StatsView: View {
                                    note: String?)] = []
     @State private var noteTarget: SessionEntity?
     @State private var noteText = ""
+    @State private var countdowns: [CountdownEntity] = []
+    @State private var showCountdownMgr = false
+    @State private var showAllTimeline = false
 
     private let accent = Color(hex: "#5865F2")
 
@@ -38,6 +41,8 @@ struct StatsView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 14) {
+                    countdownCarousel
+
                     Picker("范围", selection: $range) {
                         ForEach(RangeKind.allCases) { k in
                             Text(k.label).tag(k)
@@ -61,7 +66,13 @@ struct StatsView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("统计")
-            .onAppear(perform: reload)
+            .onAppear {
+                reload()
+                countdowns = Store.shared.countdowns()
+            }
+            .onChange(of: showCountdownMgr) { open in
+                if !open { countdowns = Store.shared.countdowns() }
+            }
         }
     }
 
@@ -310,7 +321,8 @@ struct StatsView: View {
     // MARK: 今日时间线（记录类）
 
     private var timelineCard: some View {
-        ChartCard(title: "今日时间线", subtitle: "点一条可写一句话备注") {
+        ChartCard(title: "今日时间线", subtitle: "点一条可写一句话备注",
+                  actionTitle: "全部", action: { showAllTimeline = true }) {
             VStack(spacing: 0) {
                 ForEach(timeline.indices, id: \.self) { i in
                     let e = timeline[i]
@@ -517,16 +529,32 @@ struct StatsView: View {
 private struct ChartCard<Content: View>: View {
     let title: String
     let subtitle: String
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 15, weight: .bold))
-                Text(subtitle)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .bold))
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                if let t = actionTitle, let act = action {
+                    Button(action: act) {
+                        HStack(spacing: 2) {
+                            Text(t)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(hex: "#5865F2"))
+                    }
+                }
             }
             content
         }
@@ -585,5 +613,183 @@ struct NoteSheet: View {
             }
             .onAppear { text = session.note ?? "" }
         }
+    }
+}
+
+
+// MARK: - 日期倒计时轮播（归位到统计页顶）
+
+extension StatsView {
+
+    private var countdownCarousel: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(countdowns.filter { CountdownSheet.daysLeft($0.targetDate) >= 0 }) { c in
+                        CountdownCardView(c: c)
+                            .onTapGesture {
+                                Haptic.tick()
+                                showCountdownMgr = true
+                            }
+                    }
+
+                    Button {
+                        Haptic.tick()
+                        showCountdownMgr = true
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 20, weight: .medium))
+                            Text("添加")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(.secondary)
+                        .frame(width: 88, height: 108)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(Color.secondary.opacity(0.30),
+                                        style: StrokeStyle(lineWidth: 1.2, dash: [5]))
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+        .sheet(isPresented: $showCountdownMgr) { CountdownSheet() }
+    }
+}
+
+/// 单张倒计时卡（任务色渐变）
+struct CountdownCardView: View {
+    let c: CountdownEntity
+
+    private var days: Int { CountdownSheet.daysLeft(c.targetDate) }
+
+    var body: some View {
+        let base = Color(hex: c.colorHex)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(c.title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+
+            Spacer()
+
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text("\(days)")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                Text(days == 0 ? "今天" : "天")
+                    .font(.system(size: 11))
+                    .opacity(0.85)
+            }
+            .foregroundColor(days <= 7 && days >= 0 ? Color(hex: "#FFE08A") : .white)
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.28))
+                    let span = max(1, c.targetDate.timeIntervalSince(c.createdAt) / 86400)
+                    let used = min(1, max(0,
+                        Date().timeIntervalSince(c.createdAt) / (span * 86400)))
+                    Capsule().fill(Color.white)
+                        .frame(width: geo.size.width * CGFloat(max(0.04, used)))
+                }
+            }
+            .frame(height: 4)
+            .padding(.top, 6)
+        }
+        .padding(14)
+        .frame(width: 150, height: 112, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(LinearGradient(colors: [base.opacity(0.95), Palette.deepVariant(base)],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+        )
+        .shadow(color: base.opacity(0.30), radius: 9, y: 5)
+    }
+}
+
+// MARK: - 全部时间线（近 7 天分组）
+
+struct TimelineAllSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var groups: [(day: String, items: [SessionEntity])] = []
+    @State private var noteTarget: SessionEntity?
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(groups.indices, id: \.self) { gi in
+                    Section(groups[gi].day) {
+                        ForEach(groups[gi].items, id: \.id) { se in
+                            allRow(se)
+                        }
+                    }
+                }
+                if groups.isEmpty {
+                    Text("最近七天还没有记录").foregroundColor(.secondary)
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("专注记录")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { dismiss() }
+                }
+            }
+            .onAppear(perform: load)
+            .sheet(item: $noteTarget) { se in
+                NoteSheet(session: se) { load() }
+            }
+        }
+    }
+
+    private func allRow(_ se: SessionEntity) -> some View {
+        let t = se.taskId.flatMap { Store.shared.task(id: $0) }
+        let f = DateFormatter(); f.dateFormat = "HH:mm"
+        return HStack(spacing: 10) {
+            Text(f.string(from: se.startDate))
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundColor(.secondary)
+            Circle().fill(Color(hex: t?.colorHex ?? "#8E8E93"))
+                .frame(width: 7, height: 7)
+            Text(t?.name ?? "未关联任务")
+                .font(.system(size: 14))
+                .lineLimit(1)
+            Spacer()
+            Text("\(Int(se.durationSeconds) / 60)′")
+                .font(.system(size: 11, weight: .bold).monospacedDigit())
+                .foregroundColor(Color(hex: "#5865F2"))
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Capsule().fill(Color(hex: "#5865F2").opacity(0.10)))
+            if let n = se.note, !n.isEmpty {
+                Image(systemName: "text.quote")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { noteTarget = se }
+    }
+
+    private func load() {
+        let cal = Calendar.current
+        let start = cal.date(byAdding: .day, value: -6, to: cal.startOfDay(for: Date()))!
+        let req: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
+        req.predicate = NSPredicate(format: "startDate >= %@", start as NSDate)
+        req.sortDescriptors = [NSSortDescriptor(key: "startDate", ascending: false)]
+        let sessions = (try? Store.shared.context.fetch(req)) ?? []
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日 EEEE"
+        var dict: [String: [SessionEntity]] = [:]
+        var order: [String] = []
+        for s in sessions {
+            let key = f.string(from: s.startDate)
+            if dict[key] == nil { order.append(key) }
+            dict[key, default: []].append(s)
+        }
+        groups = order.map { ($0, dict[$0]!) }
     }
 }

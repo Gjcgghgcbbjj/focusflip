@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 自由计时器 —— 秒表 / 任意倒计时（不进番茄流程）
-struct FreeTimerView: View {
+/// 自由计时面板 —— 嵌入专注页「自由」模式
+struct FreeTimerPane: View {
 
     private enum Mode: Int, CaseIterable, Identifiable {
         case stopwatch = 0, countdown
@@ -26,26 +26,22 @@ struct FreeTimerView: View {
     private let chipMinutes = [3, 5, 10, 15, 20, 30, 45, 60]
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                Picker("模式", selection: $mode.animation()) {
-                    ForEach(Mode.allCases) { m in Text(m.label).tag(m) }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-
-                Spacer()
-
-                switch mode {
-                case .stopwatch: stopwatchBody
-                case .countdown: countdownBody
-                }
-
-                Spacer()
+        VStack(spacing: 0) {
+            Picker("模式", selection: $mode.animation()) {
+                ForEach(Mode.allCases) { m in Text(m.label).tag(m) }
             }
-            .navigationTitle("自由计时")
-            .navigationBarTitleDisplayMode(.inline)
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 28)
+            .padding(.top, 10)
+
+            Spacer()
+
+            switch mode {
+            case .stopwatch: stopwatchBody
+            case .countdown: countdownBody
+            }
+
+            Spacer()
         }
     }
 

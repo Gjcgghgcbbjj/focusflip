@@ -1,38 +1,61 @@
 import SwiftUI
 import CoreData
 
-/// TODO 任务列表（精致版）
+/// 任务 —— Things 式优雅版：大标题、彩色勾选圈、可折叠已完成
 struct TodoView: View {
 
     @ObservedObject private var engine = FocusEngine.shared
-    private let accent = Color(hex: "#5865F2")
 
     @State private var tasks: [TaskEntity] = []
     @State private var newText = ""
     @State private var editing: TaskEntity?
+    @State private var showDone = false
 
     private var active: [TaskEntity] { tasks.filter { !$0.isDone } }
     private var done: [TaskEntity] { tasks.filter { $0.isDone } }
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                progressHeader
-                list
+            List {
+                metaHeader
+
+                if active.isEmpty && done.isEmpty {
+                    grandEmpty
+                }
+
+                if !active.isEmpty {
+                    Section {
+                        addFieldRow
+                        ForEach(active) { row($0) }
+                    }
+                }
+
+                if !done.isEmpty {
+                    Section {
+                        doneToggle
+                        if showDone {
+                            ForEach(done) { row($0) }
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                }
             }
-            .background(Color(.systemGroupedBackground))
+            .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 44)
             .navigationTitle("任务")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if !done.isEmpty {
-                        Button {
+                        Button("清空") {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                done.forEach { Store.shared.deleteTask($0) }
+                            }
                             Haptic.tick()
-                            done.forEach { Store.shared.deleteTask($0) }
                             reload()
-                        } label: {
-                            Text("清空完成").font(.system(size: 13))
                         }
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
                     }
                 }
             }
@@ -44,178 +67,123 @@ struct TodoView: View {
         }
     }
 
-    // MARK: 进度头卡
+    // MARK: 头部元信息（日期 + 进度）
 
-    private var progressHeader: some View {
+    private var metaHeader: some View {
         let total = tasks.count
-        let dn = done.count
-        let frac = total > 0 ? Double(dn) / Double(total) : 0
-
-        return VStack(spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("\(dn)")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(accent)
-                Text("/ \(total) 已完成")
-                    .font(.system(size: 13))
+        let frac = total > 0 ? Double(done.count) / Double(total) : 0
+        return Section {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(Self.dateLine)
+                    .font(.system(size: 11, weight: .semibold))
+                    .kerning(1.2)
                     .foregroundColor(.secondary)
-                Spacer()
-                Text("\(Int(frac * 100))%")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(frac >= 1 && total > 0 ? Color(hex: "#2FA84F") : accent)
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(accent.opacity(0.12))
-                    Capsule().fill(frac >= 1 ? AnyShapeStyle(Color(hex: "#2FA84F"))
-                                             : AnyShapeStyle(accent))
-                        .frame(width: max(0, geo.size.width * CGFloat(frac)))
-                        .animation(.easeInOut(duration: 0.35), value: frac)
-                }
-            }
-            .frame(height: 6)
-        }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
-    }
 
-    // MARK: 列表
-
-    private var list: some View {
-        List {
-            if active.isEmpty && done.isEmpty {
-                Section {
-                    VStack(spacing: 10) {
-                        Image(systemName: "tray")
-                            .font(.system(size: 30))
-                            .foregroundColor(.secondary.opacity(0.4))
-                        Text("添加第一个任务，它会成为计时的配色来源")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(active.isEmpty && !tasks.isEmpty ? "全部完成"
+                         : "\(active.count) 项待办")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                    Spacer()
+                    if total > 0 {
+                        Text("\(Int(frac * 100))%")
+                            .font(.system(size: 13, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundColor(frac >= 1 ? Color(hex: "#2FA84F")
+                                                       : Color(hex: "#5865F2"))
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 26)
                 }
-                Section { addFieldRow }
-            } else if active.isEmpty {
-                Section {
-                    Text("全部完成 🎉")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.secondary.opacity(0.12))
+                        Capsule()
+                            .fill(frac >= 1 ? AnyShapeStyle(Color(hex: "#2FA84F"))
+                                            : AnyShapeStyle(Color(hex: "#5865F2")))
+                            .frame(width: max(0, geo.size.width * CGFloat(frac)))
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8),
+                                       value: frac)
+                    }
                 }
-                Section { addFieldRow }
+                .frame(height: 4)
             }
-            if !active.isEmpty {
-                Section("进行中 · \(active.count)") {
-                    addFieldRow
-                    ForEach(active) { row($0) }
-                }
-            }
-            if !done.isEmpty {
-                Section("已完成 · \(done.count)") {
-                    ForEach(done) { row($0) }
-                }
-            }
+            .padding(.vertical, 8)
+            .listRowSeparator(.hidden)
         }
-        .listStyle(.insetGrouped)
     }
 
-    private var addFieldRow: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "plus.circle.fill")
-                .font(.system(size: 17))
-                .foregroundColor(accent)
-            TextField("新建任务，回车快速添加", text: $newText)
-                .onSubmit(add)
-            if !newText.isEmpty {
-                Button("添加") { add() }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(accent)
-            }
-        }
-        .padding(.vertical, 2)
+    private var dateLine: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日 EEEE"
+        return f.string(from: Date()).uppercased()
     }
-
-    private func add() {
-        let name = newText.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        Store.shared.addTask(name: name)
-        newText = ""; reload(); Haptic.tick()
-    }
-
-    private func reload() { tasks = Store.shared.tasks() }
 
     // MARK: 行
 
     private func row(_ t: TaskEntity) -> some View {
         let isActive = engine.currentTaskID == t.id
-        return HStack(spacing: 12) {
+        return HStack(spacing: 13) {
+            // 彩色勾选圈（颜色即任务）
             Button {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
+                    Store.shared.setDone(t, !t.isDone)
+                }
                 Haptic.tick()
-                Store.shared.setDone(t, !t.isDone)
                 reload()
             } label: {
                 ZStack {
                     Circle()
-                        .stroke(t.isDone ? Color(hex: "#2FA84F") : accent.opacity(0.45),
-                                lineWidth: 1.8)
-                        .frame(width: 23, height: 23)
+                        .stroke(t.isDone ? Color(hex: t.colorHex)
+                                         : Color(hex: t.colorHex).opacity(0.55),
+                                lineWidth: 2)
+                        .frame(width: 24, height: 24)
                     if t.isDone {
-                        Circle().fill(Color(hex: "#2FA84F")).frame(width: 19, height: 19)
+                        Circle().fill(Color(hex: t.colorHex))
+                            .frame(width: 24, height: 24)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.white)
                     }
                 }
             }
             .buttonStyle(.plain)
 
-            Circle().fill(Color(hex: t.colorHex)).frame(width: 8, height: 8)
+            Text(t.name)
+                .font(.system(size: 16,
+                              weight: t.isDone ? .regular : .medium))
+                .strikethrough(t.isDone, color: .secondary)
+                .foregroundColor(t.isDone ? .secondary : .primary)
+                .lineLimit(1)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(t.name)
-                    .font(.system(size: 15, weight: t.isDone ? .regular : .medium))
-                    .strikethrough(t.isDone, color: .secondary)
-                    .foregroundColor(t.isDone ? .secondary : .primary)
-                    .lineLimit(1)
-                if let total = Self.totalText(t.id) {
-                    Text("累计 \(total)")
-                        .font(.system(size: 10).monospacedDigit())
-                        .foregroundColor(.secondary.opacity(0.75))
-                }
+            if isActive {
+                Circle()
+                    .fill(Color(hex: t.colorHex))
+                    .frame(width: 7, height: 7)
+                    .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                    .shadow(color: Color(hex: t.colorHex).opacity(0.6), radius: 4)
+                Image(systemName: "timer")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(hex: "#5865F2"))
             }
 
             Spacer(minLength: 8)
 
-            if isActive {
-                Label("计时中", systemImage: "timer")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(accent)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(accent.opacity(0.12)))
+            if let total = Self.totalText(t.id) {
+                Text(total)
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundColor(.secondary.opacity(0.65))
             }
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary.opacity(0.4))
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 5)
         .contentShape(Rectangle())
         .onTapGesture { editing = t }
+        .listRowSeparator(.hidden)
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
+                    Store.shared.setDone(t, !t.isDone)
+                }
                 Haptic.tick()
-                Store.shared.setDone(t, !t.isDone)
                 reload()
             } label: {
                 Label(t.isDone ? "撤销" : "完成",
@@ -225,18 +193,100 @@ struct TodoView: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
+                withAnimation { Store.shared.deleteTask(t) }
                 if engine.currentTaskID == t.id { engine.select(taskID: nil) }
-                Store.shared.deleteTask(t); reload()
+                reload()
             } label: { Label("删除", systemImage: "trash") }
 
             if !t.isDone {
                 Button {
-                    Haptic.tick(); engine.select(taskID: t.id); reload()
+                    Haptic.tick()
+                    engine.select(taskID: t.id)
+                    reload()
                 } label: { Label("设为当前", systemImage: "timer") }
-                .tint(accent)
+                .tint(Color(hex: "#5865F2"))
             }
         }
     }
+
+    // MARK: 已完成折叠头
+
+    private var doneToggle: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.28)) { showDone.toggle() }
+            Haptic.tick()
+        } label: {
+            HStack(spacing: 6) {
+                Text("已完成 · \(done.count)")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .rotationEffect(.degrees(showDone ? 0 : -90))
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+        .listRowSeparator(.hidden)
+    }
+
+    // MARK: 快速添加
+
+    private var addFieldRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 17))
+                .foregroundColor(Color(hex: "#5865F2").opacity(0.8))
+            TextField("新任务", text: $newText)
+                .font(.system(size: 15))
+                .onSubmit(add)
+            if !newText.isEmpty {
+                Button("添加") { add() }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(hex: "#5865F2"))
+            }
+        }
+        .padding(.vertical, 4)
+        .listRowSeparator(.hidden)
+    }
+
+    private func add() {
+        let name = newText.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            Store.shared.addTask(name: name)
+        }
+        newText = ""; Haptic.tick(); reload()
+    }
+
+    // MARK: 大气空态
+
+    private var grandEmpty: some View {
+        Section {
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .stroke(Color(hex: "#5865F2").opacity(0.18), lineWidth: 2)
+                        .frame(width: 74, height: 74)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 26, weight: .light))
+                        .foregroundColor(Color(hex: "#5865F2").opacity(0.55))
+                }
+                .padding(.top, 18)
+                Text("今天想专注点什么？")
+                    .font(.system(size: 16, weight: .medium))
+                Text("添加的任务会成为计时界面的颜色")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 20)
+            .listRowSeparator(.hidden)
+        }
+    }
+
+    private func reload() { tasks = Store.shared.tasks() }
 
     static func totalText(_ id: UUID?) -> String? {
         guard let id else { return nil }
@@ -250,7 +300,7 @@ struct TodoView: View {
     }
 }
 
-/// 任务编辑（名称/颜色/状态/删除）
+/// 任务编辑（沿用）
 struct TaskEditSheet: View {
     let task: TaskEntity
     let onDone: () -> Void
