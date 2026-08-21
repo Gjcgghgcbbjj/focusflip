@@ -31,8 +31,6 @@ struct StatsView: View {
                                    note: String?)] = []
     @State private var noteTarget: SessionEntity?
     @State private var noteText = ""
-    @State private var countdowns: [CountdownEntity] = []
-    @State private var showCountdownMgr = false
     @State private var showAllTimeline = false
 
     private let accent = Color(hex: "#5865F2")
@@ -41,8 +39,6 @@ struct StatsView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 14) {
-                    countdownCarousel
-
                     Picker("范围", selection: $range) {
                         ForEach(RangeKind.allCases) { k in
                             Text(k.label).tag(k)
@@ -66,13 +62,7 @@ struct StatsView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("统计")
-            .onAppear {
-                reload()
-                countdowns = Store.shared.countdowns()
-            }
-            .onChange(of: showCountdownMgr) { open in
-                if !open { countdowns = Store.shared.countdowns() }
-            }
+            .onAppear(perform: reload)
         }
     }
 
@@ -616,98 +606,6 @@ struct NoteSheet: View {
     }
 }
 
-
-// MARK: - 日期倒计时轮播（归位到统计页顶）
-
-extension StatsView {
-
-    private var countdownCarousel: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(countdowns.filter { CountdownSheet.daysLeft($0.targetDate) >= 0 }) { c in
-                        CountdownCardView(c: c)
-                            .onTapGesture {
-                                Haptic.tick()
-                                showCountdownMgr = true
-                            }
-                    }
-
-                    Button {
-                        Haptic.tick()
-                        showCountdownMgr = true
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 20, weight: .medium))
-                            Text("添加")
-                                .font(.system(size: 11))
-                        }
-                        .foregroundColor(.secondary)
-                        .frame(width: 88, height: 108)
-                        .background(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.secondary.opacity(0.30),
-                                        style: StrokeStyle(lineWidth: 1.2, dash: [5]))
-                        )
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-        }
-        .sheet(isPresented: $showCountdownMgr) { CountdownSheet() }
-    }
-}
-
-/// 单张倒计时卡（任务色渐变）
-struct CountdownCardView: View {
-    let c: CountdownEntity
-
-    private var days: Int { CountdownSheet.daysLeft(c.targetDate) }
-
-    var body: some View {
-        let base = Color(hex: c.colorHex)
-        return VStack(alignment: .leading, spacing: 4) {
-            Text(c.title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white)
-                .lineLimit(1)
-
-            Spacer()
-
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text("\(days)")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                Text(days == 0 ? "今天" : "天")
-                    .font(.system(size: 11))
-                    .opacity(0.85)
-            }
-            .foregroundColor(days <= 7 && days >= 0 ? Color(hex: "#FFE08A") : .white)
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.28))
-                    let span = max(1, c.targetDate.timeIntervalSince(c.createdAt) / 86400)
-                    let used = min(1, max(0,
-                        Date().timeIntervalSince(c.createdAt) / (span * 86400)))
-                    Capsule().fill(Color.white)
-                        .frame(width: geo.size.width * CGFloat(max(0.04, used)))
-                }
-            }
-            .frame(height: 4)
-            .padding(.top, 6)
-        }
-        .padding(14)
-        .frame(width: 150, height: 112, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(LinearGradient(colors: [base.opacity(0.95), Palette.deepVariant(base)],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-        )
-        .shadow(color: base.opacity(0.30), radius: 9, y: 5)
-    }
-}
 
 // MARK: - 全部时间线（近 7 天分组）
 

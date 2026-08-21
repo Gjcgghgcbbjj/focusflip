@@ -40,14 +40,24 @@ struct HomeView: View {
             }
 
             VStack(spacing: 0) {
+                modeSwitch
+                    .padding(.top, 10)
+
                 if homeMode == 0 {
                     content
+                        .padding(.top, 8)
                 } else {
                     ZStack {
                         Color(.systemGroupedBackground)
                             .ignoresSafeArea()
-                        FreeTimerPane()
-                            .padding(.top, 6)
+                        VStack(spacing: 0) {
+                            Text("自 由 计 时")
+                                .font(.system(size: 11, weight: .semibold))
+                                .kerning(2)
+                                .foregroundColor(.secondary)
+                                .padding(.top, 14)
+                            FreeTimerPane()
+                        }
                     }
                 }
             }
@@ -69,11 +79,8 @@ struct HomeView: View {
 
     private var content: some View {
         VStack(spacing: 0) {
-            modeSwitch
-                .padding(.top, 10)
-
             taskHeader
-                .padding(.top, 12)
+                .padding(.top, 14)
 
             Spacer(minLength: 12)
 
@@ -106,8 +113,8 @@ struct HomeView: View {
             segButton("自由", 1)
         }
         .padding(3)
-        .background(Capsule().fill(
-            homeMode == 0 ? Color.white.opacity(0.14) : Color.secondary.opacity(0.12)))
+        .background(Capsule().fill(Color.black.opacity(0.22)))
+        .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
         .animation(.easeInOut(duration: 0.25), value: homeMode)
     }
 
@@ -119,8 +126,8 @@ struct HomeView: View {
         } label: {
             Text(t)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(selected ? Palette.deepVariant(baseColor)
-                                          : .white.opacity(0.85))
+                .foregroundColor(selected ? Palette.deepVariant(baseColor) : .white)
+                .shadow(color: .black.opacity(0.30), radius: 2, y: 1)
                 .padding(.horizontal, 20)
                 .frame(height: 30)
                 .background(Capsule().fill(selected ? AnyShapeStyle(Color.white)

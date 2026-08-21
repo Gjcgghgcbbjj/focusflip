@@ -16,6 +16,8 @@ struct FlowSimApp: App {
                     .tabItem { Label("任务", systemImage: "checklist") }
                 StatsView()
                     .tabItem { Label("统计", systemImage: "chart.bar") }
+                TargetView()
+                    .tabItem { Label("目标", systemImage: "flag") }
                 SettingsView()
                     .tabItem { Label("设置", systemImage: "gearshape") }
             }

@@ -33,7 +33,7 @@ enum Palette {
         var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(base).getHue(&h, saturation: &s, brightness: &b, alpha: &a)
         let top = Color(hue: h, saturation: min(0.72, s * 0.90),
-                        brightness: min(1, b * 1.14 + 0.10))
+                        brightness: min(1, b * 1.04 + 0.02))
         let bottom = Color(hue: h, saturation: min(1, s * 1.04),
                            brightness: max(0.18, b * 0.56))
         return LinearGradient(colors: [top, bottom],

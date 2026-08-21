@@ -19,13 +19,16 @@ struct TodoView: View {
             List {
                 metaHeader
 
+                Section {
+                    addFieldRow
+                }
+
                 if active.isEmpty && done.isEmpty {
                     grandEmpty
                 }
 
                 if !active.isEmpty {
                     Section {
-                        addFieldRow
                         ForEach(active) { row($0) }
                     }
                 }
@@ -276,7 +279,7 @@ struct TodoView: View {
                 .padding(.top, 18)
                 Text("今天想专注点什么？")
                     .font(.system(size: 16, weight: .medium))
-                Text("添加的任务会成为计时界面的颜色")
+                Text("上方输入框直接添加")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
