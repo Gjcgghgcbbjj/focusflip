@@ -1,21 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!--!
-  FocusFlip entitlements.
-  NOTE: TrollStore automatically injects platform-application and related
-  entitlements when installing. We only keep the minimal set here.
-  Any invalid/unknown keys would cause the app to crash on launch,
-  so DO NOT add speculative private entitlement keys.
--->
+<!-- TrollStore injects platform entitlements at install. Keep minimal. -->
 <plist version="1.0">
-<dict>
-    <!-- ActivityKit (Live Activity) — valid, real entitlement -->
-    <key>com.apple.developer.activitykit.launch-activities</key>
-    <true/>
-    <!-- App Group (shared with the widget extension) — valid, real entitlement -->
-    <key>com.apple.security.application-groups</key>
-    <array>
-        <string>group.com.focusflip.app</string>
-    </array>
-</dict>
+<dict/>
 </plist>
