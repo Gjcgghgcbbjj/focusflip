@@ -54,7 +54,9 @@ struct FocusFlipApp: App {
 
         switch url.host ?? "" {
         case "start":
+            router.selectedTab = .timer
             engine.startFocus()
+            if settings.whiteNoiseEnabled { SoundPlayer.shared.playWhiteNoise() }
         case "pause":
             engine.pause()
         case "resume":
@@ -63,6 +65,9 @@ struct FocusFlipApp: App {
             engine.skip()
         case "reset":
             engine.reset()
+            SoundPlayer.shared.stopWhiteNoise()
+        case "timer":
+            router.selectedTab = .timer
         case "tasks":
             router.selectedTab = .tasks
         case "stats":
