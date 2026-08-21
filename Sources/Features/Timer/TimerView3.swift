@@ -782,6 +782,5 @@ struct DurationTuneSheet: View {
                 }
             }
         }
-        .preferredColorScheme(colorScheme)
     }
 }
