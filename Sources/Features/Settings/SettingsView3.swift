@@ -106,13 +106,15 @@ struct SettingsView3: View {
                     Text("棕噪音").tag("brown")
                 }
                 Button {
-                    sound.playWhiteNoise()
+                    sound.playWhiteNoise(force: true)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                        sound.stopWhiteNoise()
+                        sound.stopPreviewIfNeeded()
                     }
                 } label: {
                     Label("试听", systemImage: "play.circle")
                 }
+                .onChange(of: settings.whiteNoiseType) { _ in sound.refreshIfPlaying() }
+                .onChange(of: settings.whiteNoiseLayerType) { _ in sound.refreshIfPlaying() }
                 VStack(alignment: .leading, spacing: DS3.S.xs) {
                     HStack {
                         Text("音量")
@@ -122,6 +124,7 @@ struct SettingsView3: View {
                             .foregroundColor(DS3.Color.textDim)
                     }
                     Slider(value: $settings.whiteNoiseVolume, in: 0...1)
+                        .onChange(of: settings.whiteNoiseVolume) { _ in sound.applyLiveChanges() }
                 }
             }
 
@@ -290,6 +293,9 @@ struct SettingsView3: View {
 
     private func importResult(_ result: Result<URL, Error>) {
         guard case .success(let url) = result else { return }
+        // fileImporter 返回安全作用域 URL，必须显式持有访问权
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         do {
             try PersistenceController.shared.importJSON(from: url)
             HapticManager.shared.success()

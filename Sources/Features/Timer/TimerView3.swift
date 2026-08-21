@@ -44,7 +44,7 @@ struct TimerView3: View {
                 todayStrip
                 taskChip
                     .padding(.top, DS3.S.sm)
-                if isIdleState {
+                if showPlanning {
                     durationChips
                         .padding(.top, DS3.S.sm)
                 }
@@ -364,6 +364,14 @@ struct TimerView3: View {
     private var isIdleState: Bool {
         if case .idle = engine.state { return true }
         return false
+    }
+
+    /// 规划态（可改下一次时长）：空闲 / 等待开始专注 / 等待开始休息
+    private var showPlanning: Bool {
+        switch engine.state {
+        case .idle, .focusReady, .breakReady: return true
+        default: return false
+        }
     }
 
     private var showBreakSuggestion: Bool {

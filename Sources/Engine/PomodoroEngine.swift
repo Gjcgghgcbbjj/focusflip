@@ -325,7 +325,10 @@ public final class PomodoroEngine: ObservableObject {
     /// Use this in UI TimelineView for smooth ring animation.
     public func smoothProgress(at date: Date = Date()) -> Double {
         if isFreeFocus {
-            guard let start = phaseStartDate else { return 0 }
+            guard let start = phaseStartDate else {
+                // 暂停中：用冻结的已专注秒数恢复环面
+                return min(1, Double(remainingSeconds) / 3600)
+            }
             // 以一小时为视觉参照，填满后保持满环
             return min(1, date.timeIntervalSince(start) / 3600)
         }
@@ -338,7 +341,7 @@ public final class PomodoroEngine: ObservableObject {
     /// Sub-second accurate remaining time as a Double, for smooth UI if needed.
     public func smoothRemainingSeconds(at date: Date = Date()) -> Double {
         if isFreeFocus {
-            guard let start = phaseStartDate else { return 0 }
+            guard let start = phaseStartDate else { return Double(remainingSeconds) }
             return max(0, date.timeIntervalSince(start))   // 已专注时长
         }
         guard let start = phaseStartDate else { return Double(remainingSeconds) }

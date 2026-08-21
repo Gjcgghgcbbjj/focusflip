@@ -22,8 +22,10 @@ public final class SoundPlayer: ObservableObject {
 
     // MARK: - White noise control
 
-    public func playWhiteNoise() {
-        guard settings.whiteNoiseEnabled else { return }
+    /// @param force 绕过总开关（供设置页“试听”使用）
+    public func playWhiteNoise(force: Bool = false) {
+        guard settings.whiteNoiseEnabled || force else { return }
+        let wasPlaying = isPlaying
         stopWhiteNoise()
 
         do {
@@ -52,9 +54,35 @@ public final class SoundPlayer: ObservableObject {
             }
 
             isPlaying = noisePlayer != nil || layerPlayer != nil
+
+            // 试听场景下播完自动收尾（若之前没在播放）
+            if force && !wasPlaying {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+                    self?.stopPreviewIfNeeded()
+                }
+            }
         } catch {
             NSLog("[FocusFlip] White noise play error: \(error.localizedDescription)")
         }
+    }
+
+    /// 试听结束的收尾：只有当前是"预览态"(总开关关闭却临时在响)才停
+    public func stopPreviewIfNeeded() {
+        if !settings.whiteNoiseEnabled {
+            stopWhiteNoise()
+        }
+    }
+
+    /// 音量变化实时应用
+    public func applyLiveChanges() {
+        noisePlayer?.volume = settings.whiteNoiseVolume
+        layerPlayer?.volume = settings.whiteNoiseVolume * 0.6
+    }
+
+    /// 类型/叠加变化时重建播放链（保持播放状态）
+    public func refreshIfPlaying() {
+        guard isPlaying else { return }
+        playWhiteNoise()
     }
 
     public func pauseWhiteNoise() {

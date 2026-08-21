@@ -10,9 +10,15 @@ public final class NotificationService {
     private init() {}
 
     public func requestPermission() {
+        // 只在首次询问时同步结果；之后系统授权状态不得覆盖用户的 App 内开关
+        let askedKey = "notifPermissionAsked"
+        let firstAsk = !UserDefaults.standard.bool(forKey: askedKey)
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
             DispatchQueue.main.async {
-                AppSettings.shared.notificationsEnabled = granted
+                if firstAsk {
+                    AppSettings.shared.notificationsEnabled = granted
+                    UserDefaults.standard.set(true, forKey: askedKey)
+                }
             }
         }
     }
