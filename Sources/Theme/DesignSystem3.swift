@@ -147,18 +147,30 @@ struct PhaseTheme3 {
         .ignoresSafeArea()
     }
 
-    /// 全屏沉浸场景：三段深色场 + 双光斑漂移（潮汐式）。
-    /// 用 TimelineView 驱动位移——确定性动画，必然生效。
-    static func sceneBackground(for type: SessionType) -> some View {
+    /// 全屏沉浸场景（浅/深两套）：
+    /// 深 = 黑基底+相位色场+亮光斑；浅 = 暖白基底+淡彩晕染。
+    /// TimelineView 确定性驱动光斑漂移。
+    static func sceneBackground(for type: SessionType,
+                                scheme: SwiftUI.ColorScheme) -> some View {
         let c = theme(for: type).color
         return ZStack {
-            SwiftUI.Color.black.ignoresSafeArea()
-            LinearGradient(stops: [
-                .init(color: c.opacity(0.34), location: 0),
-                .init(color: c.opacity(0.12), location: 0.45),
-                .init(color: SwiftUI.Color.black, location: 1),
-            ], startPoint: .top, endPoint: .bottom)
-            .ignoresSafeArea()
+            if scheme == .dark {
+                SwiftUI.Color.black.ignoresSafeArea()
+                LinearGradient(stops: [
+                    .init(color: c.opacity(0.34), location: 0),
+                    .init(color: c.opacity(0.12), location: 0.45),
+                    .init(color: SwiftUI.Color.black, location: 1),
+                ], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+            } else {
+                SwiftUI.Color.white.ignoresSafeArea()
+                LinearGradient(stops: [
+                    .init(color: c.opacity(0.22), location: 0),
+                    .init(color: c.opacity(0.08), location: 0.45),
+                    .init(color: SwiftUI.Color(white: 0.96), location: 1),
+                ], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+            }
 
             TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
                 let t = ctx.date.timeIntervalSinceReferenceDate
@@ -166,16 +178,20 @@ struct PhaseTheme3 {
                                  y: cos(t / 11 * 2 * .pi) * 26)
                 let p2 = CGPoint(x: cos(t / 13 * 2 * .pi) * -38,
                                  y: sin(t / 8 * 2 * .pi) * 30)
+                let o1: Double = scheme == .dark ? 0.38 : 0.16
+                let o2: Double = scheme == .dark ? 0.20 : 0.09
                 ZStack {
-                    sceneBlob(c, opacity: 0.38, size: 430)
+                    sceneBlob(c, opacity: o1, size: 430)
                         .offset(x: p1.x - 70, y: p1.y - 240)
-                    sceneBlob(c, opacity: 0.20, size: 320)
+                    sceneBlob(c, opacity: o2, size: 320)
                         .offset(x: p2.x + 110, y: p2.y - 60)
                 }
             }
 
             LinearGradient(colors: [SwiftUI.Color.clear,
-                                    SwiftUI.Color.black.opacity(0.45)],
+                                    scheme == .dark
+                                        ? SwiftUI.Color.black.opacity(0.45)
+                                        : SwiftUI.Color.white.opacity(0.40)],
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
         }
@@ -190,6 +206,35 @@ struct PhaseTheme3 {
                                  center: .center, startRadius: 0, endRadius: size / 2))
             .blur(radius: 42)
             .frame(width: size, height: size)
+    }
+}
+
+// MARK: - 场景调色板（浅/深两套完整设计）
+
+extension DS3 {
+    struct ScenePalette {
+        let text: SwiftUI.Color
+        let dim: SwiftUI.Color
+        let hairline: SwiftUI.Color
+        let surface: SwiftUI.Color
+        let iconOnAccent: SwiftUI.Color
+        let isDark: Bool
+
+        static func scene(_ scheme: SwiftUI.ColorScheme) -> ScenePalette {
+            scheme == .dark
+                ? .init(text: SwiftUI.Color.white,
+                        dim: SwiftUI.Color(hex: "#9A9AA2"),
+                        hairline: SwiftUI.Color.white.opacity(0.18),
+                        surface: SwiftUI.Color(hex: "#1C1C1E"),
+                        iconOnAccent: SwiftUI.Color(hex: "#0B0B0B"),
+                        isDark: true)
+                : .init(text: SwiftUI.Color(hex: "#17171A"),
+                        dim: SwiftUI.Color(hex: "#70707A"),
+                        hairline: SwiftUI.Color.black.opacity(0.12),
+                        surface: SwiftUI.Color.white,
+                        iconOnAccent: SwiftUI.Color.white,
+                        isDark: false)
+        }
     }
 }
 
