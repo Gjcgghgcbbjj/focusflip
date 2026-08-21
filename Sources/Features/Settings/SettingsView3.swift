@@ -12,6 +12,7 @@ struct SettingsView3: View {
     @State private var showImporter = false
     @State private var showClearConfirm = false
     @State private var showShieldPicker = false
+    @State private var showExporter = false
 
     var body: some View {
         NavigationView {
@@ -32,6 +33,9 @@ struct SettingsView3: View {
             .tint(DS3.Color.accent)
             .sheet(isPresented: $showShare) {
                 if let url = exportURL { ShareSheet(items: [url]) }
+            }
+            .sheet(isPresented: $showExporter) {
+                if let url = exportURL { DocumentExporter(url: url) }
             }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { importResult($0) }
             .confirmationDialog("确认清除所有数据？此操作不可撤销。",
@@ -161,6 +165,8 @@ struct SettingsView3: View {
         Section("行为") {
             Toggle("自动开始休息", isOn: $settings.autoStartBreaks)
             Toggle("自动开始专注", isOn: $settings.autoStartFocus)
+            Toggle("专注时屏幕常亮", isOn: $settings.keepScreenAwake)
+            Toggle("沉浸模式（专注时全屏）", isOn: $settings.immersiveMode)
             Toggle("震动反馈", isOn: $settings.hapticsEnabled)
             Toggle("通知提醒", isOn: $settings.notificationsEnabled)
         }
@@ -213,12 +219,20 @@ struct SettingsView3: View {
     // MARK: Data
 
     private var data: some View {
-        Section("数据") {
+        Section {
             Button {
                 exportURL = try? PersistenceController.shared.exportToURL()
                 if exportURL != nil { showShare = true }
             } label: {
                 Label("导出数据", systemImage: "square.and.arrow.up")
+            }
+            Button {
+                if exportURL == nil {
+                    exportURL = try? PersistenceController.shared.exportToURL()
+                }
+                if exportURL != nil { showExporter = true }
+            } label: {
+                Label("备份到文件 App…", systemImage: "externaldrive")
             }
             Button {
                 showImporter = true
@@ -230,6 +244,10 @@ struct SettingsView3: View {
             } label: {
                 Label("清除全部数据", systemImage: "trash")
             }
+        } header: {
+            Text("数据")
+        } footer: {
+            Text("进入后台时自动备份到沙盒（保留最近 7 天）\(PersistenceController.shared.lastBackupLabel.map { "，最近：\($0)" } ?? "，尚未备份")。删除 App 会清空沙盒，重要数据请定期「备份到文件 App」。")
         }
     }
 
@@ -348,4 +366,17 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
+
+// MARK: - Files exporter (save backup into Files / iCloud Drive)
+
+struct DocumentExporter: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        UIDocumentPickerViewController(forExporting: [url], asCopy: true)
+    }
+
+    func updateUIViewController(_ vc: UIDocumentPickerViewController, context: Context) {}
 }

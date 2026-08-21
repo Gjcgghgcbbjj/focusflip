@@ -30,11 +30,20 @@ final class StatsModel3: ObservableObject {
     @Published var rangeSeconds = 0
     @Published var heatmap: [HeatCell] = []
     @Published var breakdown = (focus: 0, short: 0, long: 0)
+    @Published var taskStats: [TaskStat] = []
 
     struct Bar: Identifiable {
         let id = UUID()
         let label: String
         let minutes: Int
+    }
+
+    struct TaskStat: Identifiable {
+        let id = UUID()
+        let name: String
+        let colorHex: String
+        let pomodoros: Int
+        let seconds: Int
     }
 
     struct HeatCell: Identifiable {
@@ -71,6 +80,23 @@ final class StatsModel3: ObservableObject {
         let monthFocus = focusAll.filter { $0.startDate >= monthStart }
         monthSeconds = monthFocus.reduce(0) { $0 + Int($1.durationSeconds) }
         monthPomodoros = monthFocus.count
+
+        // 任务维度统计（按 taskId 聚合全部专注会话）
+        var byId: [UUID: TaskItem] = [:]
+        PersistenceController.shared.fetchTasks().forEach { byId[$0.id] = $0 }
+        var acc: [UUID: (p: Int, s: Int)] = [:]
+        focusAll.forEach { session in
+            if let tid = session.taskId {
+                let cur = acc[tid] ?? (0, 0)
+                acc[tid] = (cur.p + 1, cur.s + Int(session.durationSeconds))
+            }
+        }
+        taskStats = acc.compactMap { key, val -> TaskStat? in
+            guard let t = byId[key] else { return nil }
+            return TaskStat(name: t.title, colorHex: t.colorHex,
+                            pomodoros: val.p, seconds: val.s)
+        }
+        .sorted { $0.seconds > $1.seconds }
 
         currentStreak = calcStreak()
         bestStreak = calcBestStreak(focusAll)
@@ -187,6 +213,7 @@ private struct StatsModern3: View {
                     chartCard
                     heatCard
                     grid
+                    if !model.taskStats.isEmpty { taskDistribution(model) }
                     breakdownCard
                 }
                 .padding(.horizontal, DS3.S.md)
@@ -338,6 +365,36 @@ private struct StatsModern3: View {
             Spacer()
         }
         .card3(inset: DS3.S.md)
+    }
+
+    private func taskDistribution(_ model: StatsModel3) -> some View {
+        let maxSeconds = max(1, model.taskStats.first?.seconds ?? 1)
+        return VStack(alignment: .leading, spacing: DS3.S.sm) {
+            Text("任务时间分布").font(DS3.Font.sub.weight(.semibold)).foregroundColor(DS3.Color.textDim)
+            ForEach(model.taskStats.prefix(6)) { stat in
+                VStack(spacing: DS3.S.xs) {
+                    HStack(spacing: DS3.S.sm) {
+                        Circle().fill(Color(hex: stat.colorHex)).frame(width: 7, height: 7)
+                        Text(stat.name).font(DS3.Font.sub).foregroundColor(DS3.Color.text).lineLimit(1)
+                        Spacer()
+                        Text(DateUtils.hoursMinutes(from: stat.seconds))
+                            .font(DS3.Font.caption).monospacedDigit()
+                            .foregroundColor(DS3.Color.textDim)
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(DS3.Color.hairline.opacity(0.4))
+                            Capsule()
+                                .fill(Color(hex: stat.colorHex))
+                                .frame(width: geo.size.width * CGFloat(stat.seconds) / CGFloat(maxSeconds))
+                        }
+                    }
+                    .frame(height: 5)
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .card3()
     }
 
     private var breakdownCard: some View {

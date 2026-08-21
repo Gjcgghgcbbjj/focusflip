@@ -7,6 +7,20 @@ struct TasksView3: View {
     @State private var tasks: [TaskItem] = []
     @State private var showingAdd = false
     @State private var editing: TaskItem?
+    @State private var filter: Filter = .all
+
+    enum Filter: String, CaseIterable, Identifiable {
+        case all = "全部", active = "进行中", done = "已完成"
+        var id: String { rawValue }
+    }
+
+    private var filteredTasks: [TaskItem] {
+        switch filter {
+        case .all: return tasks
+        case .active: return tasks.filter { !$0.completed }
+        case .done: return tasks.filter { $0.completed }
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -20,6 +34,16 @@ struct TasksView3: View {
             .background(DS3.Color.bg.ignoresSafeArea())
             .navigationTitle("任务")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Menu {
+                        Picker("筛选", selection: $filter) {
+                            ForEach(Filter.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                            .foregroundColor(filter == .all ? DS3.Color.textDim : DS3.Color.accent)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showingAdd = true } label: {
                         Image(systemName: "plus")
@@ -34,9 +58,11 @@ struct TasksView3: View {
         }
     }
 
+    @State private var editing1: EditMode = .inactive
+
     private var list: some View {
         List {
-            ForEach(tasks) { task in
+            ForEach(filteredTasks) { task in
                 TaskRow3(task: task)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -59,9 +85,30 @@ struct TasksView3: View {
                         .tint(task.completed ? DS3.Color.textDim : DS3.Color.shortBreak)
                     }
             }
+            .onMove(perform: moveTask)
         }
         .listStyle(.plain)
         .hideScrollBackground3()
+        .environment(\.editMode, $editing1)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    HapticManager.shared.selection()
+                    editing1 = editing1 == .active ? .inactive : .active
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .foregroundColor(DS3.Color.textDim)
+                }
+            }
+        }
+    }
+
+    private func moveTask(from source: IndexSet, to destination: Int) {
+        var arr = filteredTasks
+        arr.move(fromOffsets: source, toOffset: destination)
+        for (i, t) in arr.enumerated() { t.sortOrder = Int32(i) }
+        PersistenceController.shared.save()
+        reload()
     }
 
     private var empty: some View {
@@ -85,7 +132,10 @@ struct TasksView3: View {
         }
     }
 
-    private func reload() { tasks = PersistenceController.shared.fetchTasks() }
+    private func reload() {
+        tasks = PersistenceController.shared.fetchTasks()
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
 
     private func delete(_ task: TaskItem) {
         PersistenceController.shared.viewContext.delete(task)

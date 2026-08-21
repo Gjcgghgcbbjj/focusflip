@@ -115,6 +115,21 @@ public final class PomodoroEngine: ObservableObject {
                                         taskTitle: prev == .focus ? currentTaskTitle : nil)
     }
 
+    /// Extend the currently running phase by `seconds` (wall-clock derived).
+    /// Works while focusing or on a break; no-op otherwise.
+    public func extendCurrentPhase(by seconds: Int = 300) {
+        guard state == .focusing || state == .shortBreak || state == .longBreak else { return }
+        totalSeconds += seconds
+        remainingSeconds = currentRemainingSeconds()
+
+        let type = currentSessionType
+        NotificationService.shared.cancelAll()
+        NotificationService.shared.schedulePhaseComplete(
+            after: remainingSeconds, type: type,
+            taskTitle: type == .focus ? currentTaskTitle : nil)
+        updateLiveActivity(endDate: Date().addingTimeInterval(TimeInterval(remainingSeconds)))
+    }
+
     public func skip() {
         endLiveActivity()
         timerService.stop()

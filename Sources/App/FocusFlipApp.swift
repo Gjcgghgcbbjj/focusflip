@@ -8,6 +8,7 @@ struct FocusFlipApp: App {
     @ObservedObject private var engine = PomodoroEngine.shared
     @ObservedObject private var settings = AppSettings.shared
     @StateObject private var router = AppRouter.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Tab bar appearance (dynamic — adapts to light/dark)
@@ -44,6 +45,12 @@ struct FocusFlipApp: App {
                 }
                 .onOpenURL { url in
                     handleURL(url)
+                }
+                .onChange(of: scenePhase) { phase in
+                    if phase == .background {
+                        PersistenceController.shared.autoBackupIfNeeded()
+                        UIApplication.shared.isIdleTimerDisabled = false
+                    }
                 }
         }
     }
@@ -103,8 +110,11 @@ final class AppRouter: ObservableObject {
 struct ContentView: View {
 
     @EnvironmentObject private var router: AppRouter
+    @ObservedObject private var engine = PomodoroEngine.shared
+    @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
+        ZStack {
         TabView(selection: $router.selectedTab) {
             TimerView3()
                 .tabItem {
@@ -131,5 +141,11 @@ struct ContentView: View {
                 .tag(AppRouter.Tab.settings)
         }
         .tint(DS3.Color.accent)
+
+        if settings.immersiveMode && engine.isRunning {
+            ImmersiveFocusView()
+        }
+        }
+        .animation(DS3.Anim.smooth, value: engine.isRunning)
     }
 }

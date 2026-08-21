@@ -227,6 +227,58 @@ public final class PersistenceController {
 
     /// Import an exported JSON file. Upserts by id — existing records are kept,
     /// new ones are added, so importing is safe to repeat.
+    // MARK: - Auto backup (rolling 7 days, Documents/FocusFlipBackups)
+
+    /// Writes a JSON snapshot into Documents/FocusFlipBackups (keeps newest 7).
+    /// Called when the app goes to background; skips if already backed up today.
+    public func autoBackupIfNeeded() {
+        let d = UserDefaults.standard
+        let key = "lastAutoBackupDay"
+        let today = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+        if let last = d.object(forKey: key) as? Double, last == today { return }
+
+        do {
+            let data = try exportJSON()
+            let dir = Self.backupDirectory()
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+            let stamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
+            try data.write(to: dir.appendingPathComponent("FocusFlip-\(stamp).json"), options: .atomic)
+
+            // Prune to newest 7 files
+            let files = (try? FileManager.default.contentsOfDirectory(
+                at: dir, includingPropertiesForKeys: [.contentModificationDateKey]))?
+                .filter { $0.pathExtension == "json" }
+                .sorted {
+                    (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+                        ?? .distantPast
+                    >
+                    (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+                        ?? .distantPast
+                } ?? []
+            if files.count > 7 {
+                for old in files.dropFirst(7) { try? FileManager.default.removeItem(at: old) }
+            }
+
+            d.set(today, forKey: key)
+        } catch {
+            NSLog("[FocusFlip] Auto backup failed: \(error.localizedDescription)")
+        }
+    }
+
+    public static func backupDirectory() -> URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("FocusFlipBackups", isDirectory: true)
+    }
+
+    public var lastBackupLabel: String? {
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: Self.backupDirectory(), includingPropertiesForKeys: nil),
+              let newest = files.filter({ $0.pathExtension == "json" })
+            .sorted(by: { $0.lastPathComponent > $1.lastPathComponent }).first else { return nil }
+        return newest.lastPathComponent
+    }
+
     public func importJSON(from url: URL) throws {
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()

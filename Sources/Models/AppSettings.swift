@@ -39,6 +39,8 @@ public final class AppSettings: ObservableObject {
     @Published public var autoStartFocus: Bool        { didSet { save() } }
     @Published public var flipClockStyle: String      { didSet { save() } }
     @Published public var themeColorHex: String        { didSet { save() } }
+    @Published public var keepScreenAwake: Bool        { didSet { save() } }
+    @Published public var immersiveMode: Bool          { didSet { save() } }
 
     // MARK: - Daily goal
     @Published public var dailyGoalPomodoros: Int      { didSet { save() } }
@@ -71,6 +73,8 @@ public final class AppSettings: ObservableObject {
         flipClockStyle      = d.object(forKey: "flipClockStyle") as? String ?? "classic"
         themeColorHex       = d.object(forKey: "themeColorHex") as? String ?? "#FF4D4A"
         dailyGoalPomodoros  = d.object(forKey: "dailyGoalPomodoros") as? Int ?? 8
+        keepScreenAwake     = d.object(forKey: "keepScreenAwake") as? Bool ?? true
+        immersiveMode       = d.object(forKey: "immersiveMode") as? Bool ?? true
 
         // 保证 themeColorHex 在合法列表内（老版本默认值 #FF6B6B 不在列表）
         if !Self.themeColors.contains(where: { $0.hex == self.themeColorHex }) {
@@ -97,6 +101,8 @@ public final class AppSettings: ObservableObject {
         defaults.set(flipClockStyle, forKey: "flipClockStyle")
         defaults.set(themeColorHex, forKey: "themeColorHex")
         defaults.set(dailyGoalPomodoros, forKey: "dailyGoalPomodoros")
+        defaults.set(keepScreenAwake, forKey: "keepScreenAwake")
+        defaults.set(immersiveMode, forKey: "immersiveMode")
     }
 
     // MARK: - Presets

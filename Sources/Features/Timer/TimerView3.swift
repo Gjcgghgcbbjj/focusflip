@@ -36,6 +36,19 @@ struct TimerView3: View {
                 todayStrip
                 taskChip
                     .padding(.top, DS3.S.sm)
+                if engine.isRunning {
+                    Button(action: extendPhase) {
+                        Label("加 5 分钟", systemImage: "plus")
+                            .font(DS3.Font.caption.weight(.medium))
+                            .foregroundColor(theme.color)
+                            .padding(.horizontal, DS3.S.md)
+                            .padding(.vertical, DS3.S.xs + 2)
+                            .background(Capsule().fill(theme.color.opacity(0.12)))
+                    }
+                    .pressable3()
+                    .padding(.top, DS3.S.sm)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                }
                 controls
                     .padding(.top, DS3.S.lg)
                     .padding(.bottom, DS3.S.xxl)
@@ -44,7 +57,12 @@ struct TimerView3: View {
         .onAppear {
             NotificationService.shared.requestPermission()
             engine.refreshTodayStats()
+            applyKeepAwake()
         }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+        .onChange(of: engine.isRunning) { _ in applyKeepAwake() }
         .onReceive(engine.$state) { onState($0) }
         .overlay { celebrationOverlay }
         .sheet(isPresented: $showTaskPicker) {
@@ -224,6 +242,16 @@ struct TimerView3: View {
         }
     }
 
+    private func applyKeepAwake() {
+        UIApplication.shared.isIdleTimerDisabled =
+            engine.isRunning && settings.keepScreenAwake
+    }
+
+    private func extendPhase() {
+        HapticManager.shared.light()
+        engine.extendCurrentPhase(by: 300)
+    }
+
     private var isFinished: Bool {
         if case .finished = engine.state { return true }
         return false
@@ -319,7 +347,7 @@ struct TimerView3: View {
 
 // MARK: - Ring
 
-private struct RingView3: View {
+struct RingView3: View {
     let progress: Double
     let remaining: Double
     let color: SwiftUI.Color
@@ -418,5 +446,82 @@ private struct TaskPickerSheet3: View {
             }
             .onAppear { tasks = PersistenceController.shared.fetchTasks() }
         }
+    }
+}
+
+// MARK: - Immersive focus overlay
+//
+// 专注运行时盖住整个 TabView：黑底 + 圆环 + 最小控制。
+// 暂停/结束即自动消失，回到普通界面。
+
+struct ImmersiveFocusView: View {
+    @ObservedObject private var engine = PomodoroEngine.shared
+
+    var body: some View {
+        ZStack {
+            DS3.Color.bg.ignoresSafeArea()
+
+            VStack(spacing: DS3.S.xl) {
+                Spacer()
+
+                TimelineView(.animation) { ctx in
+                    GeometryReader { geo in
+                        let side = min(geo.size.width, geo.size.height)
+                        RingView3(
+                            progress: engine.smoothProgress(at: ctx.date),
+                            remaining: engine.smoothRemainingSeconds(at: ctx.date),
+                            color: PhaseTheme3.theme(for: engine.currentSessionType).color,
+                            isPaused: false,
+                            side: side
+                        )
+                        .frame(width: side, height: side)
+                        .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                    }
+                    .frame(height: 340)
+                }
+
+                Spacer()
+
+                HStack(spacing: DS3.S.xl) {
+                    Button {
+                        HapticManager.shared.light()
+                        engine.extendCurrentPhase(by: 300)
+                    } label: {
+                        Text("+5")
+                            .font(DS3.Font.headline.monospacedDigit())
+                            .foregroundColor(DS3.Color.textDim)
+                            .frame(width: 54, height: 54)
+                            .background(Circle().fill(DS3.Color.surface))
+                    }
+                    .pressable3()
+
+                    Button {
+                        HapticManager.shared.medium()
+                        engine.pause()
+                    } label: {
+                        Image(systemName: "pause.fill")
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundColor(DS3.Color.bg)
+                            .frame(width: 72, height: 72)
+                            .background(Circle().fill(PhaseTheme3.theme(for: engine.currentSessionType).color))
+                    }
+                    .pressable3()
+
+                    Button {
+                        HapticManager.shared.light()
+                        engine.skip()
+                    } label: {
+                        Image(systemName: "forward.fill")
+                            .font(.system(size: 17))
+                            .foregroundColor(DS3.Color.textDim)
+                            .frame(width: 54, height: 54)
+                            .background(Circle().fill(DS3.Color.surface))
+                    }
+                    .pressable3()
+                }
+                .padding(.bottom, DS3.S.xxl + DS3.S.lg)
+            }
+        }
+        .transition(.opacity)
     }
 }
