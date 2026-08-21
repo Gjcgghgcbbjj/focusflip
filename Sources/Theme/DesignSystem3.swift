@@ -238,6 +238,26 @@ extension DS3 {
     }
 }
 
+// MARK: - 亮度感知内容色
+
+extension SwiftUI.Color {
+    /// 相对亮度（WCAG）
+    var luminance: Double {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
+        func lin(_ v: CGFloat) -> Double {
+            let d = Double(v)
+            return d <= 0.03928 ? d / 12.92 : pow((d + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    }
+
+    /// 在这个颜色上面放内容，自动选黑还是白
+    func bestOn() -> SwiftUI.Color {
+        luminance > 0.45 ? .black : .white
+    }
+}
+
 // MARK: - 小构件
 
 /// 彩色图标砖（iOS 设置/Ice Cubes 风格）

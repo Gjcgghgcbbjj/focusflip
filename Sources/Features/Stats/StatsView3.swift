@@ -435,7 +435,9 @@ private struct StatsModern3: View {
                                 if !cell.isPlaceholder {
                                     Text("\(cell.day)")
                                         .font(.system(size: 9))
-                                        .foregroundColor(cell.pomodoros > 2 ? .white : DS3.Color.textDim)
+                                        .foregroundColor(cell.pomodoros > 2
+                                                         ? heatColor(cell.pomodoros).bestOn()
+                                                         : DS3.Color.textDim)
                                 }
                             }
                         )

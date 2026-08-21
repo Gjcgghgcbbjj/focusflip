@@ -125,7 +125,7 @@ private struct HabitRow: View {
                     Circle().fill(Color(hex: habit.colorHex)).padding(5)
                     Image(systemName: "checkmark")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(hex: habit.colorHex).bestOn())
                 }
             }
             .frame(width: 40, height: 40)

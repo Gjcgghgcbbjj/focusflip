@@ -280,7 +280,7 @@ struct TimerView3: View {
             } label: {
                 Image(systemName: primaryIcon)
                     .font(.system(size: 26, weight: .medium))
-                    .foregroundColor(isFinished ? pal.text : pal.iconOnAccent)
+                    .foregroundColor(isFinished ? pal.text : theme.color.bestOn())
                     .frame(width: 78, height: 78)
                     .background(
                         Circle().fill(isFinished ? AnyShapeStyle(.ultraThinMaterial)
@@ -350,7 +350,7 @@ struct TimerView3: View {
             Text("\(m)")
                 .font(DS3.Font.sub.weight(selected ? .semibold : .regular))
                 .monospacedDigit()
-                .foregroundColor(selected ? pal.iconOnAccent : pal.dim)
+                .foregroundColor(selected ? theme.color.bestOn() : pal.dim)
                 .padding(.horizontal, DS3.S.md)
                 .frame(height: 32)
                 .background(
@@ -687,7 +687,7 @@ struct ImmersiveFocusView: View {
                     } label: {
                         Image(systemName: "pause.fill")
                             .font(.system(size: 24, weight: .medium))
-                            .foregroundColor(pal.iconOnAccent)
+                            .foregroundColor(PhaseTheme3.theme(for: engine.currentSessionType).color.bestOn())
                             .frame(width: 72, height: 72)
                             .background(Circle().fill(PhaseTheme3.theme(for: engine.currentSessionType).color))
                             .glow(PhaseTheme3.theme(for: engine.currentSessionType).color, radius: 16, opacity: 0.45)
