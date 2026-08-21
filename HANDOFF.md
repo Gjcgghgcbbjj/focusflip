@@ -6,7 +6,20 @@
 
 ---
 
-## 一、项目现状（v3.1.0 — 个人自用体验包）
+## 一、项目现状（v3.2.0 — 横向拓展九件套）
+
+**v3.2.0 新增：**
+- 习惯打卡：HabitItem/HabitCheck 实体（程序化模型追加，自动轻量迁移）+ 连击/本周进度 + 独立 tab
+- 自由专注：engine.startFreeFocus()，正计时无时长；isFreeFocus 标志贯穿 currentRemainingSeconds/smooth*/handleTick（不自动结束）；环以 1 小时为参照
+- 桌面翻页时钟：ClockView3 全屏常亮，计时页头部月亮图标进入
+- 年度热力图：YearHeatmapView（53 周周一网格，纯 SwiftUI iOS15 可用）
+- 统计分享卡片：ShareCardView3 → ImageRenderer 渲染成图分享
+- 打断原因：skip(interruptReason:) 落库 FocusSession.interruptReason，统计聚合展示
+- 白噪音混音：主音效+叠加音效双 AVAudioPlayer（叠加 60% 音量）；新增白/粉/棕噪音（python 离线合成 20s 无缝循环）
+- 休息活动引导：休息中轮换建议卡（设置可关 breakSuggestionEnabled）
+- CSV 导出：exportCSV() 会话明细
+
+**v3.1.0 — 个人自用体验包**
 
 **v3.1.0 新增（定位：个人自用，不做留存类功能）：**
 - 屏幕常亮：专注运行时 isIdleTimerDisabled（设置-行为可关）
@@ -58,7 +71,7 @@
 - 版本三处同步：project.yml MARKETING_VERSION + FocusFlip.plist（版本+build）+ workflow APP_VERSION
 - 发布：commit → tag vX.Y.Z → push tag → CI 自动 build + release
 - 下载 URL：`https://github.com/Gjcgghgcbbjj/focusflip/releases/download/vX.Y.Z/FocusFlip-X.Y.Z.ipa`
-- 当前：v3.1.0 (build 8)
+- 当前：v3.2.0 (build 9)
 
 ### 待真机验证
 
