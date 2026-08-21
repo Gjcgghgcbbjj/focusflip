@@ -122,6 +122,9 @@ final class FocusEngine: ObservableObject {
         startedAt = Date()
         state = .running(phase)
         keepAlive.start()
+        if prefs.soundAutoPlay && prefs.soundType != "none" {
+            SoundPlayer.shared.startAmbient(type: prefs.soundType, volume: prefs.soundVolume)
+        }
         Notifications.schedule(in: seconds, phase: phase,
                                taskName: currentTaskName.isEmpty ? nil : currentTaskName)
     }
@@ -161,11 +164,13 @@ final class FocusEngine: ObservableObject {
 
     private func completePhase() {
         finishCurrent(completed: true)
+        SoundPlayer.shared.playTone(Prefs.shared.toneType)
         advanceToNext(afterCompleted: true)
     }
 
     private func finishCurrent(completed: Bool) {
         keepAlive.stop()
+        SoundPlayer.shared.stopAmbient()
         Notifications.cancelAll()
         let elapsed = min(totalSeconds, max(0, totalSeconds - remaining()))
         guard let p = phase, elapsed > 0 else { return }
