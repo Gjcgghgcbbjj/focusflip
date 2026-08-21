@@ -135,32 +135,7 @@ struct DS {
     }
 }
 
-// MARK: - Hex color init
-
-extension UIColor {
-    convenience init(hex: String) {
-        let cleaned = hex.replacingOccurrences(of: "#", with: "")
-        var int: UInt64 = 0
-        Scanner(string: cleaned).scanHexInt64(&int)
-        let r, g, b, a: UInt64
-        switch cleaned.count {
-        case 6:  // RGB
-            (r, g, b, a) = ((int >> 16) & 0xFF, (int >> 8) & 0xFF, int & 0xFF, 255)
-        case 8:  // RGBA
-            (r, g, b, a) = ((int >> 24) & 0xFF, (int >> 16) & 0xFF, (int >> 8) & 0xFF, int & 0xFF)
-        default:
-            (r, g, b, a) = (0, 0, 0, 255)
-        }
-        self.init(red: CGFloat(r) / 255, green: CGFloat(g) / 255,
-                  blue: CGFloat(b) / 255, alpha: CGFloat(a) / 255)
-    }
-}
-
-extension SwiftUI.Color {
-    init(hex: String) {
-        self.init(UIColor(hex: hex))
-    }
-}
+// Hex init extensions moved to DesignSystem3.swift (single definition).
 
 // MARK: - Phase Theme
 //

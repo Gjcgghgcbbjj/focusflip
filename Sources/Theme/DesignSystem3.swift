@@ -133,8 +133,8 @@ struct PhaseTheme3 {
 
 extension View {
     /// Surface card used across screens.
-    func card3(padding: CGFloat = DS3.S.md) -> some View {
-        padding(padding)
+    func card3(inset: CGFloat = DS3.S.md) -> some View {
+        padding(inset)
             .background(RoundedRectangle(cornerRadius: DS3.R.md).fill(DS3.Color.surface))
     }
 
