@@ -96,19 +96,22 @@ struct FreeTimerView: View {
             }
 
             if !laps.isEmpty {
-                List(laps.indices.reversed(), id: \.self) { i in
-                    HStack {
-                        Text("Lap \(i + 1)").font(.system(size: 13)).foregroundColor(.secondary)
-                        Spacer()
-                        Text(Self.format(laps[i]))
-                            .font(.system(size: 14).monospacedDigit())
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach(laps.indices.reversed(), id: \.self) { i in
+                            HStack {
+                                Text("Lap \(i + 1)")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(Self.format(laps[i]))
+                                    .font(.system(size: 14).monospacedDigit())
+                            }
+                            .padding(.horizontal, 6)
+                        }
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
                 }
-                .listStyle(.plain)
-                .frame(maxHeight: 200)
-                .scrollContentBackground(.hidden)
+                .frame(maxHeight: 190)
             }
         }
         .padding(.horizontal, 24)

@@ -178,15 +178,16 @@ final class Store {
         let e = NSEntityDescription()
         e.name = "TaskEntity"
         e.managedObjectClassName = NSStringFromClass(TaskEntity.self)
+        let done = attr("isDone", .booleanAttributeType, false)
+        done.defaultValue = false
         e.properties = [
             attr("id", .UUIDAttributeType, false),
             attr("name", .stringAttributeType, false),
             attr("colorHex", .stringAttributeType, false),
             attr("sortOrder", .integer32AttributeType, false),
             attr("createdAt", .dateAttributeType, false),
-            attr("isDone", .booleanAttributeType, false),
+            done,
         ]
-        e.properties.last?.defaultValue = false
         return e
     }
 
