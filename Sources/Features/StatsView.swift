@@ -446,7 +446,7 @@ private struct RoundedCapsule: Shape {
         var p = Path()
         p.addRoundedRect(in: CGRect(x: 0, y: rect.height - h,
                                     width: rect.width, height: h),
-                         cornerSizes: CGSize(width: r, height: r),
+                         cornerSize: CGSize(width: r, height: r),
                          style: .continuous)
         return p
     }
