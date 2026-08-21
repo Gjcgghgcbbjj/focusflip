@@ -61,8 +61,21 @@ struct CountdownSheet: View {
             Circle().fill(Color(hex: c.colorHex)).frame(width: 9, height: 9)
             VStack(alignment: .leading, spacing: 2) {
                 Text(c.title).font(.system(size: 15))
+            }
+            VStack(spacing: 5) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color(hex: c.colorHex).opacity(0.15))
+                        let span = max(1, c.targetDate.timeIntervalSince(c.createdAt) / 86400)
+                        let used = min(1, max(0,
+                            (Date().timeIntervalSince(c.createdAt)) / (span * 86400)))
+                        Capsule().fill(Color(hex: c.colorHex))
+                            .frame(width: geo.size.width * CGFloat(days >= 0 ? used : 1))
+                    }
+                }
+                .frame(height: 4)
                 Text(Self.dateText(c.targetDate))
-                    .font(.system(size: 11))
+                    .font(.system(size: 9))
                     .foregroundColor(.secondary)
             }
             Spacer()

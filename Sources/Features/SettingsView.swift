@@ -4,6 +4,7 @@ struct SettingsView: View {
 
     @ObservedObject private var prefs = Prefs.shared
     @ObservedObject private var engine = FocusEngine.shared
+    @State private var showCountdown = false
 
     var body: some View {
         NavigationView {
@@ -33,6 +34,21 @@ struct SettingsView: View {
                 } header: { Text("概览") }
 
                 Section {
+                    Button {
+                        showCountdown = true
+                    } label: {
+                        HStack {
+                            Text("日期倒计时")
+                            Spacer()
+                            Image(systemName: "calendar.badge.clock")
+                                .foregroundColor(.secondary)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.secondary.opacity(0.5))
+                        }
+                    }
+                    .sheet(isPresented: $showCountdown) { CountdownSheet() }
+
                     HStack { Text("版本"); Spacer()
                         Text(appVersion).foregroundColor(.secondary) }
                 } header: { Text("关于") } footer: {

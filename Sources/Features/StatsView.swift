@@ -339,19 +339,30 @@ struct StatsView: View {
                                     .font(.system(size: 13, weight: .medium))
                                     .lineLimit(1)
                                 Text("\(e.mins)′")
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.system(size: 10, weight: .bold))
                                     .monospacedDigit()
                                     .foregroundColor(accent)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(accent.opacity(0.10)))
                                 if !e.done {
-                                    Image(systemName: "arrow.triangle.2.circlepath")
-                                        .font(.system(size: 10))
+                                    Text("中断")
+                                        .font(.system(size: 9))
                                         .foregroundColor(.secondary)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(Color.secondary.opacity(0.12)))
                                 }
                             }
                             if let note = e.note, !note.isEmpty {
-                                Text(note)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
+                                HStack(alignment: .top, spacing: 4) {
+                                    Image(systemName: "text.quote")
+                                        .font(.system(size: 9))
+                                        .foregroundColor(.secondary.opacity(0.6))
+                                    Text(note)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                         Spacer(minLength: 0)

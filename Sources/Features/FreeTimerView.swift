@@ -74,10 +74,12 @@ struct FreeTimerView: View {
                     }
                 } label: {
                     Image(systemName: swRunning ? "pause.fill" : "play.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(Color(hex: "#5865F2"))
-                        .frame(width: 72, height: 72)
-                        .background(Circle().fill(Color(hex: "#5865F2").opacity(0.14)))
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 76, height: 76)
+                        .background(Circle().fill(Color(hex: "#5865F2")))
+                        .shadow(color: Color(hex: "#5865F2").opacity(0.35),
+                                radius: 14, y: 6)
                 }
 
                 Button {
@@ -88,10 +90,13 @@ struct FreeTimerView: View {
                 } label: {
                     Image(systemName: swRunning ? "flag.fill"
                           : (swElapsed > 0 ? "arrow.counterclockwise" : "play.fill"))
-                        .font(.system(size: 20))
+                        .font(.system(size: 19, weight: .medium))
                         .foregroundColor(swElapsed > 0 || swRunning ? Color(hex: "#E5573F") : Color(hex: "#5865F2"))
                         .frame(width: 56, height: 56)
-                        .background(Circle().stroke(Color(hex: "#5865F2").opacity(0.25), lineWidth: 1.5))
+                        .background(Circle()
+                            .stroke((swElapsed > 0 || swRunning
+                                     ? Color(hex: "#E5573F") : Color(hex: "#5865F2"))
+                                    .opacity(0.30), lineWidth: 1.5))
                 }
             }
 
@@ -107,7 +112,11 @@ struct FreeTimerView: View {
                                 Text(Self.format(laps[i]))
                                     .font(.system(size: 14).monospacedDigit())
                             }
-                            .padding(.horizontal, 6)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color(.secondarySystemGroupedBackground)))
                         }
                     }
                 }
@@ -182,6 +191,7 @@ struct FreeTimerView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 38).frame(height: 52)
                         .background(Capsule().fill(Color(hex: "#5865F2")))
+                        .shadow(color: Color(hex: "#5865F2").opacity(0.35), radius: 14, y: 6)
                 }
 
                 if cdRunningOrPaused || cdFinished {
