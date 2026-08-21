@@ -129,6 +129,23 @@ struct PhaseTheme3 {
     }
 }
 
+// MARK: - UIKit bridge (for UIAppearance)
+
+extension DS3 {
+    enum UIColorToken {
+        static let bg = UIColor { tc in
+            tc.userInterfaceStyle == .dark ? UIColor(hex: "#000000") : UIColor(hex: "#FFFFFF")
+        }
+        static let surface = UIColor { tc in
+            tc.userInterfaceStyle == .dark ? UIColor(hex: "#1C1C1E") : UIColor(hex: "#F2F2F7")
+        }
+        static let text = UIColor { tc in
+            tc.userInterfaceStyle == .dark ? UIColor(hex: "#FFFFFF") : UIColor(hex: "#000000")
+        }
+        static let textDim = UIColor(hex: "#8E8E93")
+    }
+}
+
 // MARK: - View helpers
 
 extension View {

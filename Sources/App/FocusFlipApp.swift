@@ -13,21 +13,22 @@ struct FocusFlipApp: App {
         // Tab bar appearance (dynamic — adapts to light/dark)
         let tabAppearance = UITabBarAppearance()
         tabAppearance.configureWithOpaqueBackground()
-        tabAppearance.backgroundColor = DS.UIColorToken.bgPrimary
+        tabAppearance.backgroundColor = DS3.UIColorToken.bg
         tabAppearance.shadowColor = .clear
         UITabBar.appearance().standardAppearance = tabAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+        UITabBar.appearance().unselectedItemTintColor = DS3.UIColorToken.textDim
 
         // Nav bar appearance
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithOpaqueBackground()
-        navAppearance.backgroundColor = DS.UIColorToken.bgPrimary
+        navAppearance.backgroundColor = DS3.UIColorToken.bg
         navAppearance.shadowColor = .clear
         navAppearance.titleTextAttributes = [
-            .foregroundColor: DS.UIColorToken.textPrimary
+            .foregroundColor: DS3.UIColorToken.text
         ]
         navAppearance.largeTitleTextAttributes = [
-            .foregroundColor: DS.UIColorToken.textPrimary
+            .foregroundColor: DS3.UIColorToken.text
         ]
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
@@ -111,32 +112,24 @@ struct ContentView: View {
                 }
                 .tag(AppRouter.Tab.timer)
 
-            TasksView()
+            TasksView3()
                 .tabItem {
                     Label("任务", systemImage: "checklist")
                 }
                 .tag(AppRouter.Tab.tasks)
 
-            if #available(iOS 16.0, *) {
-                StatsView()
-                    .tabItem {
-                        Label("统计", systemImage: "chart.bar.fill")
-                    }
-                    .tag(AppRouter.Tab.stats)
-            } else {
-                StatsLegacyView()
-                    .tabItem {
-                        Label("统计", systemImage: "chart.bar.fill")
-                    }
-                    .tag(AppRouter.Tab.stats)
-            }
+            StatsView3()
+                .tabItem {
+                    Label("统计", systemImage: "chart.bar.fill")
+                }
+                .tag(AppRouter.Tab.stats)
 
-            SettingsView()
+            SettingsView3()
                 .tabItem {
                     Label("设置", systemImage: "gearshape")
                 }
                 .tag(AppRouter.Tab.settings)
         }
-        .tint(DS.Color.accent)
+        .tint(DS3.Color.accent)
     }
 }

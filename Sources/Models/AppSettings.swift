@@ -117,13 +117,45 @@ public final class AppSettings: ObservableObject {
         case short      = "极速 15/3/10"
         case ninety     = "90分钟深度"
 
-        public func apply(to s: AppSettings) {
+        // 结构化数值（供设置页判断当前激活的预设）
+        public var focus: Int {
             switch self {
-            case .classic: s.focusDuration = 25*60; s.shortBreakDuration = 5*60;  s.longBreakDuration = 15*60; s.pomodorosBeforeLongBreak = 4
-            case .long:    s.focusDuration = 50*60; s.shortBreakDuration = 10*60; s.longBreakDuration = 30*60; s.pomodorosBeforeLongBreak = 3
-            case .short:   s.focusDuration = 15*60; s.shortBreakDuration = 3*60;  s.longBreakDuration = 10*60; s.pomodorosBeforeLongBreak = 4
-            case .ninety:  s.focusDuration = 90*60; s.shortBreakDuration = 20*60; s.longBreakDuration = 30*60; s.pomodorosBeforeLongBreak = 2
+            case .classic: return 25*60
+            case .long: return 50*60
+            case .short: return 15*60
+            case .ninety: return 90*60
             }
+        }
+        public var short: Int {
+            switch self {
+            case .classic: return 5*60
+            case .long: return 10*60
+            case .short: return 3*60
+            case .ninety: return 20*60
+            }
+        }
+        public var long: Int {
+            switch self {
+            case .classic: return 15*60
+            case .long: return 30*60
+            case .short: return 10*60
+            case .ninety: return 30*60
+            }
+        }
+        public var longEvery: Int {
+            switch self {
+            case .classic: return 4
+            case .long: return 3
+            case .short: return 4
+            case .ninety: return 2
+            }
+        }
+
+        public func apply(to s: AppSettings) {
+            s.focusDuration = focus
+            s.shortBreakDuration = short
+            s.longBreakDuration = long
+            s.pomodorosBeforeLongBreak = longEvery
         }
     }
 }
