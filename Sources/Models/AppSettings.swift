@@ -1,11 +1,17 @@
 import Foundation
 import Combine
+import UIKit
 
 /// User-configurable settings, persisted via UserDefaults.
 /// Observable so SwiftUI views react to changes.
 public final class AppSettings: ObservableObject {
 
     public static let shared = AppSettings()
+
+    /// Accent color resolved from themeColorHex (for DesignSystem3).
+    public var accentColor: UIColor {
+        UIColor(hex: themeColorHex)
+    }
 
     // MARK: - Pomodoro durations (seconds)
     @Published public var focusDuration: Int     { didSet { save() } }

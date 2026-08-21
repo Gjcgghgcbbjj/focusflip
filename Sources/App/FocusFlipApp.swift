@@ -105,7 +105,7 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
-            TimerView()
+            TimerView3()
                 .tabItem {
                     Label("计时", systemImage: "timer")
                 }
