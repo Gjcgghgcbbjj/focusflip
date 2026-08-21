@@ -140,49 +140,48 @@ struct PhaseTheme3 {
         .ignoresSafeArea()
     }
 
-    /// 极光背景：两枚相位色光斑缓慢漂移（潮汐式"活的场景"感）。
-    static func auroraBackground(for type: SessionType) -> some View {
+    /// 全屏沉浸场景：三段深色场 + 双光斑漂移（潮汐式）。
+    /// 用 TimelineView 驱动位移——确定性动画，必然生效。
+    static func sceneBackground(for type: SessionType) -> some View {
         let c = theme(for: type).color
         return ZStack {
-            SwiftUI.Color.black.ignoresSafeArea()
-            CircleBlob(color: c, baseOpacity: 0.22, size: 420,
-                       offset: CGSize(width: -60, height: -180),
-                       drift: CGSize(width: 50, height: 30), period: 9)
-            CircleBlob(color: c, baseOpacity: 0.10, size: 300,
-                       offset: CGSize(width: 120, height: 40),
-                       drift: CGSize(width: -40, height: 36), period: 12)
-            LinearGradient(colors: [SwiftUI.Color.clear, SwiftUI.Color.black.opacity(0.55)],
+            LinearGradient(stops: [
+                .init(color: c.opacity(0.34), location: 0),
+                .init(color: c.opacity(0.12), location: 0.45),
+                .init(color: SwiftUI.Color.black, location: 1),
+            ], startPoint: .top, endPoint: .bottom)
+            .ignoresSafeArea()
+
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                let t = ctx.date.timeIntervalSinceReferenceDate
+                let p1 = CGPoint(x: sin(t / 9 * 2 * .pi) * 46,
+                                 y: cos(t / 11 * 2 * .pi) * 26)
+                let p2 = CGPoint(x: cos(t / 13 * 2 * .pi) * -38,
+                                 y: sin(t / 8 * 2 * .pi) * 30)
+                ZStack {
+                    sceneBlob(c, opacity: 0.38, size: 430)
+                        .offset(x: p1.x - 70, y: p1.y - 240)
+                    sceneBlob(c, opacity: 0.20, size: 320)
+                        .offset(x: p2.x + 110, y: p2.y - 60)
+                }
+            }
+
+            LinearGradient(colors: [SwiftUI.Color.clear,
+                                    SwiftUI.Color.black.opacity(0.45)],
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
         }
         .ignoresSafeArea()
     }
-}
 
-/// 单个漂移光斑（内部组件）
-struct CircleBlob: View {
-    let color: SwiftUI.Color
-    let baseOpacity: Double
-    let size: CGFloat
-    let offset: CGSize
-    let drift: CGSize
-    let period: Double
-
-    @State private var on = false
-
-    var body: some View {
+    private static func sceneBlob(_ c: SwiftUI.Color, opacity: Double, size: CGFloat) -> some View {
         Circle()
-            .fill(RadialGradient(colors: [color.opacity(baseOpacity),
-                                          color.opacity(baseOpacity * 0.35),
+            .fill(RadialGradient(colors: [c.opacity(opacity),
+                                          c.opacity(opacity * 0.4),
                                           SwiftUI.Color.clear],
                                  center: .center, startRadius: 0, endRadius: size / 2))
-            .blur(radius: 46)
+            .blur(radius: 42)
             .frame(width: size, height: size)
-            .offset(x: offset.width + (on ? drift.width : 0),
-                    y: offset.height + (on ? drift.height : 0))
-            .animation(.easeInOut(duration: period).repeatForever(autoreverses: true),
-                       value: on)
-            .onAppear { on = true }
     }
 }
 

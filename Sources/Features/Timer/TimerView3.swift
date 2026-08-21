@@ -22,7 +22,7 @@ struct TimerView3: View {
     var body: some View {
         ZStack {
             DS3.Color.bg.ignoresSafeArea()
-            PhaseTheme3.auroraBackground(for: engine.currentSessionType)
+            PhaseTheme3.sceneBackground(for: engine.currentSessionType)
                 .animation(DS3.Anim.gentle, value: engine.currentSessionType)
 
             VStack(spacing: 0) {
@@ -441,11 +441,11 @@ struct RingView3: View {
     @State private var breathe = false
 
     var body: some View {
-        let lineWidth: CGFloat = max(6, side * 0.022)
+        let lineWidth: CGFloat = max(9, side * 0.032)
 
         ZStack {
             Circle()
-                .stroke(DS3.Color.hairline.opacity(0.35), lineWidth: lineWidth)
+                .stroke(DS3.Color.hairline.opacity(0.22), lineWidth: lineWidth)
                 .frame(width: side, height: side)
 
             // 进度环：角向渐变 + 外发光
@@ -466,8 +466,8 @@ struct RingView3: View {
                 let theta = ((-90 + progress * 360) * Double.pi) / 180
                 Circle()
                     .fill(SwiftUI.Color.white)
-                    .frame(width: lineWidth * 0.9, height: lineWidth * 0.9)
-                    .glow(color, radius: lineWidth * 1.1, opacity: 0.9)
+                    .frame(width: lineWidth * 1.15, height: lineWidth * 1.15)
+                    .glow(color, radius: lineWidth * 1.7, opacity: 0.95)
                     .position(x: side / 2 + (side / 2 - lineWidth / 2) * CGFloat(cos(theta)),
                               y: side / 2 + (side / 2 - lineWidth / 2) * CGFloat(sin(theta)))
             }
@@ -477,9 +477,11 @@ struct RingView3: View {
                     .font(side > 320 ? DS3.Font.timerHuge : DS3.Font.timerBig)
                     .monospacedDigit()
                     .kerning(-1)
-                    .foregroundColor(DS3.Color.text)
+                    .foregroundStyle(
+                        LinearGradient(colors: [.white, color.opacity(0.75)],
+                                       startPoint: .top, endPoint: .bottom))
                     .numericTransition3()
-                    .shadow(color: .black.opacity(0.6), radius: 8)
+                    .shadow(color: color.opacity(0.35), radius: 16)
                 Text(caption.isEmpty ? statusText : caption)
                     .font(DS3.Font.caption)
                     .kerning(1.5)
@@ -571,7 +573,7 @@ struct ImmersiveFocusView: View {
     var body: some View {
         ZStack {
             DS3.Color.bg.ignoresSafeArea()
-            PhaseTheme3.auroraBackground(for: engine.currentSessionType)
+            PhaseTheme3.sceneBackground(for: engine.currentSessionType)
 
             VStack(spacing: DS3.S.xl) {
                 Spacer()
