@@ -61,7 +61,8 @@ struct SkipPhaseIntent: AppIntent {
 
 @available(iOS 16.0, *)
 struct FocusFlipShortcuts: AppShortcutsProvider {
-    static var shortcuts: [AppShortcut] {
+    @AppShortcutsBuilder
+    static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: StartFocusIntent(),
                     phrases: ["\(.applicationName) 开始专注", "开始专注"],
                     shortTitle: "开始专注",
