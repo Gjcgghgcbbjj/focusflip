@@ -49,3 +49,16 @@ Sources/Features/SettingsView.swift 行为/时长/概览/关于
 2. 白噪音（复用 Sounds 资源 + SoundPlayer 模式从 v3 分支抄）
 3. Widget（锁屏/桌面小圆环）— 需要重新加回扩展 target
 4. Siri 快捷指令 / URL Scheme
+
+## v1.2.0 / v1.3.0 增量
+- 统计页重做: 渐变英雄卡(连续天数🔥/日均/最常投入) + 圆角柱图(均值虚线/今日高亮)
+  + 24小时时段热力条 + 任务占比环形图(Canvas)
+- 自由计时器 tab: 秒表(计次)+任意倒计时(chips/通知/提示音), 墙钟派生后台准
+- 任务 tab = TODO: 勾选完成/分区/滑动设为当前/改色; 行尾历史累计投入
+- 今日时间线卡: 会话时间轴 + 一句话备注(SessionEntity.note, 点条目编辑)
+- 日期倒计时: 主屏横幅显示最近目标, CountdownSheet 管理; <=30天红显
+- 模型增量: TaskEntity.isDone(default false)/SessionEntity.note(optional)/CountdownEntity
+- 真实环境音(BBC Rewind RemArc 个人许可): rain/ocean/forest/fan.m4a,
+  loudnorm -22LUFS + acrossfade 无缝循环 + AAC96k; 白粉棕保留合成
+- URL Scheme: focusflip://start|pause|resume|skip
+- 教训: heredoc 里写 re.sub 的 \d 会被双转义失效 → 版本补丁走 tmp/bump.py 文件方式
