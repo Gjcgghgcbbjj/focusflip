@@ -6,7 +6,16 @@
 
 ---
 
-## 一、项目现状（v3.0.0 — 全量重写）
+## 一、项目现状（v3.1.0 — 个人自用体验包）
+
+**v3.1.0 新增（定位：个人自用，不做留存类功能）：**
+- 屏幕常亮：专注运行时 isIdleTimerDisabled（设置-行为可关）
+- 沉浸模式：专注时 ImmersiveFocusView 全屏覆盖 TabView，暂停即退出
+- +5 分钟延长：engine.extendCurrentPhase(by:)，墙钟派生，通知/灵动岛同步
+- Siri 快捷指令：Sources/App/FocusFlipIntents.swift（AppIntents，iOS16+；注意协议属性名是 appShortcuts 且每条 phrase 必须含 \(.applicationName)；CI 里 appintentsnltrainingprocessor 的 SSU 报错非致命）
+- 自动备份：进后台 autoBackupIfNeeded() 滚动 7 天到 Documents/FocusFlipBackups；设置页可一键「备份到文件 App」（DocumentExporter → iCloud Drive）
+- 任务时间分布卡：StatsModel3.taskStats 按 taskId 聚合 Top6
+- 任务筛选（全部/进行中/已完成）+ 编辑模式拖拽排序（sortOrder 持久化）
 
 **v3.0.0 "Calm Focus" — 应用户要求彻底从零重写全部 UI**
 
@@ -49,7 +58,7 @@
 - 版本三处同步：project.yml MARKETING_VERSION + FocusFlip.plist（版本+build）+ workflow APP_VERSION
 - 发布：commit → tag vX.Y.Z → push tag → CI 自动 build + release
 - 下载 URL：`https://github.com/Gjcgghgcbbjj/focusflip/releases/download/vX.Y.Z/FocusFlip-X.Y.Z.ipa`
-- 当前：v3.0.0 (build 7)
+- 当前：v3.1.0 (build 8)
 
 ### 待真机验证
 
