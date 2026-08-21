@@ -577,27 +577,28 @@ struct YearHeatmapView: View {
         }
     }
 
-    @ViewBuilder
     private func monthLabel(forWeek w: Int) -> some View {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
-        guard let start = cal.date(byAdding: .weekOfYear, value: -52, to: today),
-              let gridStart = cal.date(byAdding: .day,
-                                       value: -((cal.component(.weekday, from: start) + 5) % 7),
-                                       to: start),
-              let weekStart = cal.date(byAdding: .day, value: w * 7, to: gridStart) else {
-            EmptyView(); return
+        let start = cal.date(byAdding: .weekOfYear, value: -52, to: today)
+        let gridStart = start.flatMap {
+            cal.date(byAdding: .day,
+                     value: -((cal.component(.weekday, from: $0) + 5) % 7), to: $0)
         }
-        let prevStart = cal.date(byAdding: .day, value: -7, to: weekStart)
-        let m = cal.component(.month, from: weekStart)
+        let weekStart = gridStart.flatMap { cal.date(byAdding: .day, value: w * 7, to: $0) }
+        let prevStart = weekStart.flatMap { cal.date(byAdding: .day, value: -7, to: $0) }
+        let m = weekStart.map { cal.component(.month, from: $0) } ?? 0
         let prevM = prevStart.map { cal.component(.month, from: $0) } ?? 0
-        if m != prevM && w > 0 {
-            Text("\(m)月")
-                .font(.system(size: 9))
-                .foregroundColor(DS3.Color.textDim)
-                .frame(width: cell + gap, alignment: .leading)
-        } else {
-            Color.clear.frame(width: cell + gap, height: 12)
+
+        return Group {
+            if w > 0 && m != prevM {
+                Text("\(m)月")
+                    .font(.system(size: 9))
+                    .foregroundColor(DS3.Color.textDim)
+                    .frame(width: cell + gap, alignment: .leading)
+            } else {
+                Color.clear.frame(width: cell + gap, height: 12)
+            }
         }
     }
 
@@ -626,7 +627,7 @@ struct YearHeatmapView: View {
 // MARK: - 分享卡片视图
 
 struct ShareCardView3: View {
-    @StateObject private var holder = CardModelHolder()
+    @StateObject private var holder: CardModelHolder
 
     init(model: StatsModel3) {
         _holder = StateObject(wrappedValue: CardModelHolder(model: model))
