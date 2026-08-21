@@ -109,7 +109,7 @@ struct DurationTuneSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }.fontWeight(.semibold)
+                    Button("完成") { dismiss() }.font(.system(size: 17, weight: .semibold))
                 }
             }
         }

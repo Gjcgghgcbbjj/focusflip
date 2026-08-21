@@ -10,6 +10,10 @@ final class TaskEntity: NSManagedObject, Identifiable {
     @NSManaged var colorHex: String
     @NSManaged var sortOrder: Int32
     @NSManaged var createdAt: Date
+
+    static func fetchRequest() -> NSFetchRequest<TaskEntity> {
+        NSFetchRequest<TaskEntity>(entityName: "TaskEntity")
+    }
 }
 
 @objc(SessionEntity)
@@ -21,6 +25,10 @@ final class SessionEntity: NSManagedObject, Identifiable {
     @NSManaged var durationSeconds: Int32
     @NSManaged var completed: Bool
     @NSManaged var taskId: UUID?
+
+    static func fetchRequest() -> NSFetchRequest<SessionEntity> {
+        NSFetchRequest<SessionEntity>(entityName: "SessionEntity")
+    }
 }
 
 // MARK: - 存储栈（全新独立存储，不继承旧数据）
