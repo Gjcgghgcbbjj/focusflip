@@ -19,7 +19,7 @@ struct SettingsView3: View {
                 presets
                 durations
                 goal
-                sound
+                soundSection
                 behavior
                 appearance
                 shield
@@ -106,7 +106,7 @@ struct SettingsView3: View {
 
     // MARK: Sound
 
-    private var sound: some View {
+    private var soundSection: some View {
         Section("声音") {
             Toggle("白噪音", isOn: $settings.whiteNoiseEnabled)
 
@@ -321,7 +321,7 @@ private struct ShieldPickerSheet3: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }.fontWeight(.semibold)
+                    Button("完成") { dismiss() }.font(.system(size: 17, weight: .semibold))
                 }
             }
             .onAppear { apps = FocusShieldManager.shared.listInstalledApps() }

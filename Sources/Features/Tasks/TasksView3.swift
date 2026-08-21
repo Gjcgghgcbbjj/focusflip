@@ -23,7 +23,7 @@ struct TasksView3: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showingAdd = true } label: {
                         Image(systemName: "plus")
-                            .font(.system(size: 17, weight: .medium))
+                            .font(.system(size: 19, weight: .medium))
                             .foregroundColor(DS3.Color.accent)
                     }
                 }
@@ -198,7 +198,7 @@ struct TaskEditSheet3: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
-                        .fontWeight(.semibold)
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(DS3.Color.accent)
                         .disabled(title.isEmpty)
                 }
