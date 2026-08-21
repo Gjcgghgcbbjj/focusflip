@@ -16,7 +16,7 @@ struct ClockView3: View {
             VStack(spacing: DS3.S.md) {
                 Spacer()
 
-                timeText
+                Text(timeText)
                     .font(.system(size: 96, weight: .thin, design: .rounded))
                     .monospacedDigit()
                     .foregroundColor(DS3.Color.text)

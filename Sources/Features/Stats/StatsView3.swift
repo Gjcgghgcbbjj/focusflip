@@ -262,6 +262,17 @@ final class StatsModel3: ObservableObject {
 private struct StatsModern3: View {
     @StateObject private var model = StatsModel3()
     @State private var range: StatsModel3.Range = .week
+    @State private var showShareCard = false
+    @State private var shareImage: UIImage?
+
+    // MARK: 分享卡片渲染（iOS16 ImageRenderer / iOS15 hosting 回退）
+
+    private func renderShareCard(_ m: StatsModel3) -> UIImage? {
+        // StatsModern3 整体已 iOS16 门控，直接用 ImageRenderer
+        let renderer = ImageRenderer(content: ShareCardView3(model: m))
+        renderer.scale = 3
+        return renderer.uiImage
+    }
 
     var body: some View {
         NavigationView {
@@ -621,9 +632,9 @@ struct ShareCardView3: View {
         _holder = StateObject(wrappedValue: CardModelHolder(model: model))
     }
 
-    @MainActor final class CardModelHolder: ObservableObject {
+    final class CardModelHolder: ObservableObject {
         let model: StatsModel3
-        init(model: StatsModel3 = StatsModel3()) { self.model = model }
+        init(model: StatsModel3) { self.model = model }
     }
 
     var body: some View {
