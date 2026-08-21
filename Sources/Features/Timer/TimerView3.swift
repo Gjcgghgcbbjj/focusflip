@@ -21,6 +21,7 @@ struct TimerView3: View {
     @State private var showCelebration = false
     @State private var showClock = false
     @State private var showInterruptDialog = false
+    @State private var showDurationSheet = false
 
     var body: some View {
         ZStack {
@@ -43,6 +44,10 @@ struct TimerView3: View {
                 todayStrip
                 taskChip
                     .padding(.top, DS3.S.sm)
+                if isIdleState {
+                    durationChips
+                        .padding(.top, DS3.S.sm)
+                }
                 if engine.isRunning && !engine.isFreeFocus {
                     Button(action: extendPhase) {
                         Label("加 5 分钟", systemImage: "plus")
@@ -97,6 +102,9 @@ struct TimerView3: View {
         }
         .fullScreenCover(isPresented: $showClock) {
             ClockView3()
+        }
+        .sheet(isPresented: $showDurationSheet) {
+            DurationTuneSheet()
         }
         .confirmationDialog("为什么中断这次专注？",
                             isPresented: $showInterruptDialog, titleVisibility: .visible) {
@@ -299,6 +307,58 @@ struct TimerView3: View {
             }
             .pressable3()
         }
+    }
+
+    private let chipMinutes = [15, 20, 25, 40, 50, 60]
+
+    private var currentFocusMinutes: Int { settings.focusDuration / 60 }
+
+    /// Flow 式时长快选：点选即生效，尾部 ··· 打开精调面板
+    private var durationChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS3.S.sm) {
+                ForEach(chipMinutes, id: \.self) { m in
+                    chipButton(m)
+                }
+                if !chipMinutes.contains(currentFocusMinutes) {
+                    chipButton(currentFocusMinutes)
+                }
+                Button {
+                    HapticManager.shared.light()
+                    showDurationSheet = true
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(pal.dim)
+                        .frame(width: 34, height: 32)
+                        .background(
+                            Capsule().stroke(pal.hairline, lineWidth: 1)
+                        )
+                }
+                .pressable3()
+            }
+            .padding(.horizontal, DS3.S.lg + DS3.S.md)
+        }
+    }
+
+    private func chipButton(_ m: Int) -> some View {
+        let selected = m == currentFocusMinutes
+        return Button {
+            HapticManager.shared.selection()
+            settings.focusDuration = m * 60
+        } label: {
+            Text("\(m)")
+                .font(DS3.Font.sub.weight(selected ? .semibold : .regular))
+                .monospacedDigit()
+                .foregroundColor(selected ? pal.iconOnAccent : pal.dim)
+                .padding(.horizontal, DS3.S.md)
+                .frame(height: 32)
+                .background(
+                    Capsule().fill(selected ? AnyShapeStyle(theme.color)
+                                            : AnyShapeStyle(pal.hairline.opacity(0.5)))
+                )
+        }
+        .pressable3()
     }
 
     private var isIdleState: Bool {
@@ -674,4 +734,54 @@ enum InterruptReason: Identifiable, CaseIterable {
     var id: String { label }
 
     static let all: [InterruptReason] = [.phone, .interrupted, .lowEnergy, .lostInterest]
+}
+
+
+// MARK: - 时长精调面板
+
+struct DurationTuneSheet: View {
+    @ObservedObject private var settings = AppSettings.shared
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("专注") {
+                    Stepper(value: $settings.focusDuration, in: 60...10800, step: 300) {
+                        HStack { Text("时长"); Spacer()
+                            Text("\(settings.focusDuration / 60) 分钟").monospacedDigit()
+                                .foregroundColor(DS3.Color.textDim) }
+                    }
+                }
+                Section("休息") {
+                    Stepper(value: $settings.shortBreakDuration, in: 60...3600, step: 60) {
+                        HStack { Text("小憩"); Spacer()
+                            Text("\(settings.shortBreakDuration / 60) 分钟").monospacedDigit()
+                                .foregroundColor(DS3.Color.textDim) }
+                    }
+                    Stepper(value: $settings.longBreakDuration, in: 60...7200, step: 60) {
+                        HStack { Text("长歇"); Spacer()
+                            Text("\(settings.longBreakDuration / 60) 分钟").monospacedDigit()
+                                .foregroundColor(DS3.Color.textDim) }
+                    }
+                    Stepper(value: $settings.pomodorosBeforeLongBreak, in: 2...8) {
+                        HStack { Text("长歇间隔"); Spacer()
+                            Text("每 \(settings.pomodorosBeforeLongBreak) 番茄").monospacedDigit()
+                                .foregroundColor(DS3.Color.textDim) }
+                    }
+                }
+            }
+            .hideScrollBackground3()
+            .navigationTitle("时长")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { dismiss() }
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(DS3.Color.accent)
+                }
+            }
+        }
+        .preferredColorScheme(colorScheme)
+    }
 }

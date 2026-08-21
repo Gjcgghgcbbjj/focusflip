@@ -17,7 +17,6 @@ struct SettingsView3: View {
     var body: some View {
         NavigationView {
             Form {
-                presets
                 durations
                 goal
                 soundSection
@@ -50,34 +49,6 @@ struct SettingsView3: View {
     }
 
     // MARK: Presets
-
-    private var presets: some View {
-        Section("预设方案") {
-            ForEach(AppSettings.Preset.allCases, id: \.rawValue) { p in
-                Button {
-                    HapticManager.shared.selection()
-                    p.apply(to: settings)
-                } label: {
-                    HStack {
-                        Text(p.rawValue).foregroundColor(DS3.Color.text)
-                        Spacer()
-                        if isActive(p) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(DS3.Color.accent)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func isActive(_ p: AppSettings.Preset) -> Bool {
-        settings.focusDuration == p.focus &&
-        settings.shortBreakDuration == p.short &&
-        settings.longBreakDuration == p.long &&
-        settings.pomodorosBeforeLongBreak == p.longEvery
-    }
 
     // MARK: Durations
 
