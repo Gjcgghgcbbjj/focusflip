@@ -15,7 +15,6 @@ struct TargetView: View {
                     }
                     ForEach(items) { c in
                         bigCard(c)
-                            .swipeActionsHint
                     }
                 }
                 .padding(.horizontal, 20)
@@ -104,8 +103,6 @@ struct TargetView: View {
             }
         }
     }
-
-    private var swipeActionsHint: some View { EmptyView() }
 
     // MARK: 空态
 
