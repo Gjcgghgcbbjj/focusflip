@@ -45,6 +45,11 @@ public final class PomodoroEngine: ObservableObject {
     // MARK: - Current task
     public var currentTaskId: UUID?
 
+    /// 自由专注（正计时、无预设时长）。开启后 remainingSeconds 表示已专注秒数。
+    public private(set) var isFreeFocus = false
+    /// 跳过未完成专注时的原因（随会话落库）
+    private var pendingInterruptReason: String?
+
     private init() {
         // React to timer ticks
         timerService.$tick
@@ -81,6 +86,17 @@ public final class PomodoroEngine: ObservableObject {
         NotificationService.shared.schedulePhaseComplete(after: totalSeconds, type: breakType)
     }
 
+    /// 自由专注：正计时，无通知无预估，手动结束即记录。
+    public func startFreeFocus() {
+        isFreeFocus = true
+        totalSeconds = 0
+        remainingSeconds = 0
+        phaseStartDate = Date()
+        state = .focusing
+        timerService.start()
+        // 无固定时长：不排通知、不起灵动岛倒计时
+    }
+
     public func pause() {
         guard state == .focusing || state == .shortBreak || state == .longBreak else { return }
         let sessionType: SessionType
@@ -109,6 +125,7 @@ public final class PomodoroEngine: ObservableObject {
         case .longBreak:   state = .longBreak
         }
         timerService.start()
+        guard !isFreeFocus else { return }
         updateLiveActivity(endDate: Date().addingTimeInterval(TimeInterval(remainingSeconds)))
         // Re-schedule the notification for the remaining time
         NotificationService.shared.schedulePhaseComplete(after: remainingSeconds, type: prev,
@@ -131,6 +148,13 @@ public final class PomodoroEngine: ObservableObject {
     }
 
     public func skip() {
+        skip(interruptReason: nil)
+    }
+
+    public func skip(interruptReason reason: String?) {
+        if state == .focusing {
+            pendingInterruptReason = reason
+        }
         endLiveActivity()
         timerService.stop()
         NotificationService.shared.cancelAll()
@@ -147,6 +171,8 @@ public final class PomodoroEngine: ObservableObject {
         completedFocusCount = 0
         currentCycle = 1
         phaseStartDate = nil
+        isFreeFocus = false
+        pendingInterruptReason = nil
         refreshTodayStats()
     }
 
@@ -167,7 +193,8 @@ public final class PomodoroEngine: ObservableObject {
     /// Elapsed seconds in the current phase (for accurate partial-session recording).
     private var phaseElapsedSeconds: Int {
         guard let start = phaseStartDate else { return 0 }
-        return min(totalSeconds, Int(Date().timeIntervalSince(start)))
+        let elapsed = Int(Date().timeIntervalSince(start))
+        return isFreeFocus ? max(0, elapsed) : min(totalSeconds, elapsed)
     }
 
     /// Source-of-truth remaining seconds, derived from the wall clock and
@@ -176,6 +203,7 @@ public final class PomodoroEngine: ObservableObject {
     private func currentRemainingSeconds() -> Int {
         guard let start = phaseStartDate else { return remainingSeconds }
         let elapsed = Int(Date().timeIntervalSince(start))
+        if isFreeFocus { return max(0, elapsed) }   // 正计时：显示已专注秒数
         return max(0, totalSeconds - elapsed)
     }
 
@@ -184,6 +212,8 @@ public final class PomodoroEngine: ObservableObject {
 
         // Derive the exact remaining time from the clock, not by decrementing.
         remainingSeconds = currentRemainingSeconds()
+
+        guard !isFreeFocus else { return }   // 自由专注只走秒，不自动结束
 
         if remainingSeconds <= 0 {
             timerService.stop()
@@ -202,7 +232,8 @@ public final class PomodoroEngine: ObservableObject {
             completedFocusCount += 1
             PersistenceController.shared.recordSession(
                 type: .focus, duration: actualElapsed, taskId: currentTaskId,
-                startDate: phaseStartDate)
+                startDate: phaseStartDate, interruptReason: pendingInterruptReason)
+            pendingInterruptReason = nil
             refreshTodayStats()
 
             onPhaseComplete?(.focus)
@@ -293,6 +324,11 @@ public final class PomodoroEngine: ObservableObject {
     /// Continuous progress (0.0–1.0) computed from real elapsed time.
     /// Use this in UI TimelineView for smooth ring animation.
     public func smoothProgress(at date: Date = Date()) -> Double {
+        if isFreeFocus {
+            guard let start = phaseStartDate else { return 0 }
+            // 以一小时为视觉参照，填满后保持满环
+            return min(1, date.timeIntervalSince(start) / 3600)
+        }
         guard totalSeconds > 0, let start = phaseStartDate else { return progress }
         let elapsed = date.timeIntervalSince(start)
         let clamped = min(Double(totalSeconds), max(0, elapsed))
@@ -301,6 +337,10 @@ public final class PomodoroEngine: ObservableObject {
 
     /// Sub-second accurate remaining time as a Double, for smooth UI if needed.
     public func smoothRemainingSeconds(at date: Date = Date()) -> Double {
+        if isFreeFocus {
+            guard let start = phaseStartDate else { return 0 }
+            return max(0, date.timeIntervalSince(start))   // 已专注时长
+        }
         guard let start = phaseStartDate else { return Double(remainingSeconds) }
         let elapsed = date.timeIntervalSince(start)
         return max(0, Double(totalSeconds) - elapsed)

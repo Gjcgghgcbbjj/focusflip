@@ -22,6 +22,8 @@ public final class AppSettings: ObservableObject {
     // MARK: - Sound
     @Published public var whiteNoiseEnabled: Bool  { didSet { save() } }
     @Published public var whiteNoiseType: String   { didSet { save() } }
+    @Published public var whiteNoiseLayerType: String { didSet { save() } }
+    @Published public var breakSuggestionEnabled: Bool { didSet { save() } }
     @Published public var whiteNoiseVolume: Float  { didSet { save() } }
     @Published public var completionSoundEnabled: Bool { didSet { save() } }
     @Published public var completionSoundType: String  { didSet { save() } }
@@ -58,6 +60,8 @@ public final class AppSettings: ObservableObject {
 
         whiteNoiseEnabled   = d.object(forKey: "whiteNoiseEnabled") as? Bool ?? false
         whiteNoiseType     = d.object(forKey: "whiteNoiseType") as? String ?? "rain"
+        whiteNoiseLayerType = d.object(forKey: "whiteNoiseLayerType") as? String ?? "none"
+        breakSuggestionEnabled = d.object(forKey: "breakSuggestionEnabled") as? Bool ?? true
         whiteNoiseVolume   = d.object(forKey: "whiteNoiseVolume") as? Float ?? 0.5
         completionSoundEnabled = d.object(forKey: "completionSoundEnabled") as? Bool ?? true
         completionSoundType    = d.object(forKey: "completionSoundType") as? String ?? "bell"
@@ -89,6 +93,8 @@ public final class AppSettings: ObservableObject {
         defaults.set(pomodorosBeforeLongBreak, forKey: "pomodorosBeforeLongBreak")
         defaults.set(whiteNoiseEnabled, forKey: "whiteNoiseEnabled")
         defaults.set(whiteNoiseType, forKey: "whiteNoiseType")
+        defaults.set(whiteNoiseLayerType, forKey: "whiteNoiseLayerType")
+        defaults.set(breakSuggestionEnabled, forKey: "breakSuggestionEnabled")
         defaults.set(whiteNoiseVolume, forKey: "whiteNoiseVolume")
         defaults.set(completionSoundEnabled, forKey: "completionSoundEnabled")
         defaults.set(completionSoundType, forKey: "completionSoundType")

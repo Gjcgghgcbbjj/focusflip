@@ -14,6 +14,7 @@ public final class SoundPlayer: ObservableObject {
     @Published public private(set) var isPlaying: Bool = false
 
     private var noisePlayer: AVAudioPlayer?
+    private var layerPlayer: AVAudioPlayer?
 
     private var settings = AppSettings.shared
 
@@ -25,19 +26,32 @@ public final class SoundPlayer: ObservableObject {
         guard settings.whiteNoiseEnabled else { return }
         stopWhiteNoise()
 
-        guard let url = soundURL(for: settings.whiteNoiseType) else {
-            NSLog("[FocusFlip] White noise file not found: \(settings.whiteNoiseType)")
-            return
-        }
-
         do {
-            let player = try AVAudioPlayer(contentsOf: url)
-            player.numberOfLoops = -1
-            player.volume = settings.whiteNoiseVolume
-            player.prepareToPlay()
-            player.play()
-            noisePlayer = player
-            isPlaying = true
+            // 主音效
+            if let url = soundURL(for: settings.whiteNoiseType) {
+                let player = try AVAudioPlayer(contentsOf: url)
+                player.numberOfLoops = -1
+                player.volume = settings.whiteNoiseVolume
+                player.prepareToPlay()
+                player.play()
+                noisePlayer = player
+            } else {
+                NSLog("[FocusFlip] White noise file not found: \(settings.whiteNoiseType)")
+            }
+
+            // 叠加音效（可选，音量为主音效的 60%）
+            let layer = settings.whiteNoiseLayerType
+            if layer != "none", layer != settings.whiteNoiseType,
+               let url = soundURL(for: layer) {
+                let player = try AVAudioPlayer(contentsOf: url)
+                player.numberOfLoops = -1
+                player.volume = settings.whiteNoiseVolume * 0.6
+                player.prepareToPlay()
+                player.play()
+                layerPlayer = player
+            }
+
+            isPlaying = noisePlayer != nil || layerPlayer != nil
         } catch {
             NSLog("[FocusFlip] White noise play error: \(error.localizedDescription)")
         }
@@ -45,17 +59,21 @@ public final class SoundPlayer: ObservableObject {
 
     public func pauseWhiteNoise() {
         noisePlayer?.pause()
+        layerPlayer?.pause()
         isPlaying = false
     }
 
     public func resumeWhiteNoise() {
         noisePlayer?.play()
+        layerPlayer?.play()
         isPlaying = true
     }
 
     public func stopWhiteNoise() {
         noisePlayer?.stop()
         noisePlayer = nil
+        layerPlayer?.stop()
+        layerPlayer = nil
         isPlaying = false
     }
 

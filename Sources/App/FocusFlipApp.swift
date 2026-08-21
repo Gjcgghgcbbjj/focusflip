@@ -76,6 +76,8 @@ struct FocusFlipApp: App {
             SoundPlayer.shared.stopWhiteNoise()
         case "timer":
             router.selectedTab = .timer
+        case "habits":
+            router.selectedTab = .habits
         case "tasks":
             router.selectedTab = .tasks
         case "stats":
@@ -98,6 +100,7 @@ final class AppRouter: ObservableObject {
     enum Tab: Int {
         case timer
         case tasks
+        case habits
         case stats
         case settings
     }
@@ -127,6 +130,12 @@ struct ContentView: View {
                     Label("任务", systemImage: "checklist")
                 }
                 .tag(AppRouter.Tab.tasks)
+
+            HabitsView3()
+                .tabItem {
+                    Label("习惯", systemImage: "checkmark.seal")
+                }
+                .tag(AppRouter.Tab.habits)
 
             StatsView3()
                 .tabItem {

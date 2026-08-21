@@ -31,11 +31,26 @@ final class StatsModel3: ObservableObject {
     @Published var heatmap: [HeatCell] = []
     @Published var breakdown = (focus: 0, short: 0, long: 0)
     @Published var taskStats: [TaskStat] = []
+    @Published var yearWeeks: [[YearCell]] = []
+    @Published var interruptReasons: [ReasonCount] = []
 
     struct Bar: Identifiable {
         let id = UUID()
         let label: String
         let minutes: Int
+    }
+
+    struct YearCell: Identifiable {
+        let id = UUID()
+        let day: Int            // pomodoro count
+        let isFuture: Bool
+        let isEmpty: Bool       // leading/trailing padding
+    }
+
+    struct ReasonCount: Identifiable {
+        let id = UUID()
+        let label: String
+        let count: Int
     }
 
     struct TaskStat: Identifiable {
@@ -101,6 +116,8 @@ final class StatsModel3: ObservableObject {
         currentStreak = calcStreak()
         bestStreak = calcBestStreak(focusAll)
         heatmap = buildHeatmap()
+        buildYearHeatmap(focusAll)
+        buildInterruptReasons(focusAll)
 
         switch range {
         case .day:
@@ -165,6 +182,48 @@ final class StatsModel3: ObservableObject {
         return cells
     }
 
+    private func buildYearHeatmap(_ focusAll: [FocusSession]) {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        // 从 52 周前的周一开始
+        guard let start = cal.date(byAdding: .weekOfYear, value: -52, to: today),
+              let gridStart = cal.date(byAdding: .day,
+                                       value: -((cal.component(.weekday, from: start) + 5) % 7),
+                                       to: start) else { return }
+
+        var counts: [Date: Int] = [:]
+        for session in focusAll where session.startDate >= gridStart {
+            counts[cal.startOfDay(for: session.startDate), default: 0] += 1
+        }
+
+        var weeks: [[YearCell]] = []
+        var current: [YearCell] = []
+        var day = gridStart
+        while day <= today {
+            current.append(YearCell(day: counts[day] ?? 0, isFuture: false, isEmpty: false))
+            if current.count == 7 {
+                weeks.append(current); current = []
+            }
+            day = cal.date(byAdding: .day, value: 1, to: day)!
+        }
+        if !current.isEmpty {
+            while current.count < 7 {
+                current.append(YearCell(day: 0, isFuture: true, isEmpty: true))
+            }
+            weeks.append(current)
+        }
+        yearWeeks = weeks
+    }
+
+    private func buildInterruptReasons(_ focusAll: [FocusSession]) {
+        let req = focusAll.compactMap { $0.interruptReason }
+        var dict: [String: Int] = [:]
+        req.forEach { dict[$0, default: 0] += 1 }
+        interruptReasons = dict
+            .map { ReasonCount(label: $0.key, count: $0.value) }
+            .sorted { $0.count > $1.count }
+    }
+
     private func calcStreak() -> Int {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
@@ -215,6 +274,8 @@ private struct StatsModern3: View {
                     grid
                     if !model.taskStats.isEmpty { taskDistribution(model) }
                     breakdownCard
+                    yearHeatmapCard
+                    if !model.interruptReasons.isEmpty { interruptCard }
                 }
                 .padding(.horizontal, DS3.S.md)
                 .padding(.bottom, DS3.S.xxl)
@@ -222,6 +283,20 @@ private struct StatsModern3: View {
             .hideScrollBackground3()
             .background(DS3.Color.bg.ignoresSafeArea())
             .navigationTitle("统计")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        shareImage = renderShareCard(model)
+                        showShareCard = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundColor(DS3.Color.textDim)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showShareCard) {
+            if let img = shareImage { ShareSheet(items: [img]) }
         }
         .onAppear { model.load(range: range) }
         .onChange(of: range) { model.load(range: $0) }
@@ -367,6 +442,30 @@ private struct StatsModern3: View {
         .card3(inset: DS3.S.md)
     }
 
+    private var yearHeatmapCard: some View {
+        VStack(alignment: .leading, spacing: DS3.S.sm) {
+            Text("近一年").font(DS3.Font.sub.weight(.semibold)).foregroundColor(DS3.Color.textDim)
+            YearHeatmapView(weeks: model.yearWeeks)
+        }
+        .card3()
+    }
+
+    private var interruptCard: some View {
+        VStack(alignment: .leading, spacing: DS3.S.sm) {
+            Text("打断原因").font(DS3.Font.sub.weight(.semibold)).foregroundColor(DS3.Color.textDim)
+            ForEach(model.interruptReasons) { r in
+                HStack {
+                    Text(r.label).font(DS3.Font.sub).foregroundColor(DS3.Color.text)
+                    Spacer()
+                    Text("\(r.count) 次")
+                        .font(DS3.Font.caption).monospacedDigit()
+                        .foregroundColor(DS3.Color.textDim)
+                }
+            }
+        }
+        .card3()
+    }
+
     private func taskDistribution(_ model: StatsModel3) -> some View {
         let maxSeconds = max(1, model.taskStats.first?.seconds ?? 1)
         return VStack(alignment: .leading, spacing: DS3.S.sm) {
@@ -428,6 +527,157 @@ private struct StatsModern3: View {
     }
 }
 
+// MARK: - 年度热力图（GitHub 风格，纯 SwiftUI，iOS15 可用）
+
+struct YearHeatmapView: View {
+    let weeks: [[StatsModel3.YearCell]]
+    private let cell: CGFloat = 11
+    private let gap: CGFloat = 3
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DS3.S.xs) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 0) {
+                    ForEach(weeks.indices, id: \.self) { w in
+                        VStack(spacing: DS3.S.xs) {
+                            monthLabel(forWeek: w)
+                                .frame(height: 12)
+                            VStack(spacing: 2) {
+                                ForEach(weeks[w].indices, id: \.self) { d in
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(color(weeks[w][d]))
+                                        .frame(width: cell, height: cell)
+                                }
+                            }
+                        }
+                        .padding(.trailing, gap)
+                    }
+                }
+            }
+            HStack(spacing: DS3.S.xs) {
+                Text("少").font(DS3.Font.micro).foregroundColor(DS3.Color.textDim)
+                ForEach(0..<5, id: \.self) { level in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(levelColor(level))
+                        .frame(width: 9, height: 9)
+                }
+                Text("多").font(DS3.Font.micro).foregroundColor(DS3.Color.textDim)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func monthLabel(forWeek w: Int) -> some View {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        guard let start = cal.date(byAdding: .weekOfYear, value: -52, to: today),
+              let gridStart = cal.date(byAdding: .day,
+                                       value: -((cal.component(.weekday, from: start) + 5) % 7),
+                                       to: start),
+              let weekStart = cal.date(byAdding: .day, value: w * 7, to: gridStart) else {
+            EmptyView(); return
+        }
+        let prevStart = cal.date(byAdding: .day, value: -7, to: weekStart)
+        let m = cal.component(.month, from: weekStart)
+        let prevM = prevStart.map { cal.component(.month, from: $0) } ?? 0
+        if m != prevM && w > 0 {
+            Text("\(m)月")
+                .font(.system(size: 9))
+                .foregroundColor(DS3.Color.textDim)
+                .frame(width: cell + gap, alignment: .leading)
+        } else {
+            Color.clear.frame(width: cell + gap, height: 12)
+        }
+    }
+
+    private func color(_ c: StatsModel3.YearCell) -> Color {
+        if c.isEmpty { return Color.clear }
+        switch c.day {
+        case 0: return DS3.Color.hairline.opacity(0.35)
+        case 1: return DS3.Color.accent.opacity(0.25)
+        case 2: return DS3.Color.accent.opacity(0.45)
+        case 3...4: return DS3.Color.accent.opacity(0.65)
+        default: return DS3.Color.accent
+        }
+    }
+
+    private func levelColor(_ l: Int) -> Color {
+        switch l {
+        case 0: return DS3.Color.hairline.opacity(0.35)
+        case 1: return DS3.Color.accent.opacity(0.25)
+        case 2: return DS3.Color.accent.opacity(0.45)
+        case 3: return DS3.Color.accent.opacity(0.65)
+        default: return DS3.Color.accent
+        }
+    }
+}
+
+// MARK: - 分享卡片视图
+
+struct ShareCardView3: View {
+    @StateObject private var holder = CardModelHolder()
+
+    init(model: StatsModel3) {
+        _holder = StateObject(wrappedValue: CardModelHolder(model: model))
+    }
+
+    @MainActor final class CardModelHolder: ObservableObject {
+        let model: StatsModel3
+        init(model: StatsModel3 = StatsModel3()) { self.model = model }
+    }
+
+    var body: some View {
+        let m = holder.model
+        VStack(alignment: .leading, spacing: DS3.S.md) {
+            HStack {
+                Text("FocusFlip 专注报告")
+                    .font(DS3.Font.headline).foregroundColor(DS3.Color.text)
+                Spacer()
+                Text(DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none))
+                    .font(DS3.Font.caption).monospacedDigit().foregroundColor(DS3.Color.textDim)
+            }
+
+            VStack(alignment: .leading, spacing: DS3.S.xs) {
+                Text("本周专注")
+                    .font(DS3.Font.caption).foregroundColor(DS3.Color.textDim)
+                Text(DateUtils.hoursMinutes(from: m.rangeSeconds))
+                    .font(DS3.Font.numXL).monospacedDigit().foregroundColor(DS3.Color.text)
+            }
+
+            HStack(spacing: DS3.S.lg) {
+                mini("\(m.rangePomodoros)", "番茄")
+                mini("\(m.currentStreak)", "连续天")
+                mini("\(m.totalPomodoros)", "累计番茄")
+            }
+
+            // 近 7 天迷你柱图
+            HStack(alignment: .bottom, spacing: DS3.S.sm) {
+                ForEach(m.rangeBars) { bar in
+                    Capsule()
+                        .fill(DS3.Color.accent.opacity(0.85))
+                        .frame(height: min(CGFloat(bar.minutes), 64))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 70, alignment: .bottom)
+
+            Text("记录每一次专注 · FocusFlip")
+                .font(DS3.Font.micro)
+                .foregroundColor(DS3.Color.textDim)
+        }
+        .padding(DS3.S.lg)
+        .frame(width: 340, height: 480, alignment: .top)
+        .background(RoundedRectangle(cornerRadius: DS3.R.lg).fill(DS3.Color.surface))
+    }
+
+    private func mini(_ v: String, _ l: String) -> some View {
+        VStack(spacing: 2) {
+            Text(v).font(DS3.Font.numL).monospacedDigit().foregroundColor(DS3.Color.text)
+            Text(l).font(DS3.Font.micro).foregroundColor(DS3.Color.textDim)
+        }
+    }
+}
+
 // MARK: - Fallback (iOS 15, no Charts)
 
 private struct StatsFallback3: View {
@@ -469,6 +719,12 @@ private struct StatsFallback3: View {
                         row("累计专注", DateUtils.hoursMinutes(from: model.totalSeconds))
                         row("总番茄", "\(model.totalPomodoros)")
                         row("本月", DateUtils.hoursMinutes(from: model.monthSeconds))
+                    }
+                    .card3()
+
+                    VStack(alignment: .leading, spacing: DS3.S.sm) {
+                        Text("近一年").font(DS3.Font.sub.weight(.semibold)).foregroundColor(DS3.Color.textDim)
+                        YearHeatmapView(weeks: model.yearWeeks)
                     }
                     .card3()
                 }

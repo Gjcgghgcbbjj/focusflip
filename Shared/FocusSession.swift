@@ -12,6 +12,7 @@ public final class FocusSession: NSManagedObject, Identifiable {
     @NSManaged public var completed: Bool
     @NSManaged public var taskId: UUID?        // optional linked task
     @NSManaged public var note: String?
+    @NSManaged public var interruptReason: String?  // why an unfinished focus was skipped
 
     public var sessionType: SessionType {
         get { SessionType(rawValue: typeRaw) ?? .focus }
@@ -68,6 +69,7 @@ extension FocusSession {
             ("completed",       .booleanAttributeType, false),
             ("taskId",          .UUIDAttributeType,    true),
             ("note",            .stringAttributeType,  true),
+            ("interruptReason", .stringAttributeType,  true),
         ]
 
         entity.properties = attrs.map { name, type, optional in

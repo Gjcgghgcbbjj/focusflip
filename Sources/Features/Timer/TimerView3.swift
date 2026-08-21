@@ -16,6 +16,8 @@ struct TimerView3: View {
     @State private var showTaskPicker = false
     @State private var selectedTask: TaskItem?
     @State private var showCelebration = false
+    @State private var showClock = false
+    @State private var showInterruptDialog = false
 
     var body: some View {
         ZStack {
@@ -36,7 +38,7 @@ struct TimerView3: View {
                 todayStrip
                 taskChip
                     .padding(.top, DS3.S.sm)
-                if engine.isRunning {
+                if engine.isRunning && !engine.isFreeFocus {
                     Button(action: extendPhase) {
                         Label("加 5 分钟", systemImage: "plus")
                             .font(DS3.Font.caption.weight(.medium))
@@ -51,7 +53,27 @@ struct TimerView3: View {
                 }
                 controls
                     .padding(.top, DS3.S.lg)
-                    .padding(.bottom, DS3.S.xxl)
+
+                if isIdleState {
+                    Button {
+                        HapticManager.shared.light()
+                        engine.startFreeFocus()
+                        if settings.whiteNoiseEnabled { sound.playWhiteNoise() }
+                    } label: {
+                        Text("或开始自由专注（正计时）")
+                            .font(DS3.Font.caption)
+                            .foregroundColor(DS3.Color.textDim)
+                            .padding(.top, DS3.S.sm)
+                    }
+                    .pressable3()
+                }
+
+                if showBreakSuggestion {
+                    breakSuggestionCard
+                        .padding(.top, DS3.S.md)
+                }
+                Spacer(minLength: 0)
+                .padding(.bottom, DS3.S.xxl)
             }
         }
         .onAppear {
@@ -67,6 +89,20 @@ struct TimerView3: View {
         .overlay { celebrationOverlay }
         .sheet(isPresented: $showTaskPicker) {
             TaskPickerSheet3(selectedTask: $selectedTask)
+        }
+        .fullScreenCover(isPresented: $showClock) {
+            ClockView3()
+        }
+        .confirmationDialog("为什么中断这次专注？",
+                            isPresented: $showInterruptDialog, titleVisibility: .visible) {
+            ForEach(InterruptReason.all) { r in
+                Button(r.label) {
+                    engine.skip(interruptReason: r.label)
+                }
+            }
+            Button("不记原因，直接跳过", role: .cancel) {
+                engine.skip()
+            }
         }
     }
 
@@ -87,6 +123,16 @@ struct TimerView3: View {
             }
 
             Spacer()
+
+            Button {
+                showClock = true
+            } label: {
+                Image(systemName: "moon.stars")
+                    .font(.system(size: 16))
+                    .foregroundColor(DS3.Color.textDim)
+                    .frame(width: 40, height: 40)
+            }
+            .pressable3()
 
             if settings.whiteNoiseEnabled {
                 Button {
@@ -230,7 +276,11 @@ struct TimerView3: View {
             // 跳过
             Button {
                 HapticManager.shared.light()
-                engine.skip()
+                if engine.state == .focusing && !engine.isFreeFocus {
+                    showInterruptDialog = true
+                } else {
+                    engine.skip()
+                }
             } label: {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 17))
@@ -240,6 +290,32 @@ struct TimerView3: View {
             }
             .pressable3()
         }
+    }
+
+    private var isIdleState: Bool {
+        if case .idle = engine.state { return true }
+        return false
+    }
+
+    private var showBreakSuggestion: Bool {
+        settings.breakSuggestionEnabled &&
+        (engine.state == .shortBreak || engine.state == .longBreak)
+    }
+
+    private var breakSuggestionCard: some View {
+        let suggestions = ["喝一杯水 💧", "看看 6 米外的远处 20 秒 👀",
+                           "站起来伸展一下肩颈 🙆", "深呼吸 10 次 🌬",
+                           "走动一下，活动双腿 🚶"]
+        let idx = min(suggestions.count - 1,
+                      abs(engine.completedFocusCount) % suggestions.count)
+        return HStack(spacing: DS3.S.sm) {
+            Text(suggestions[idx])
+                .font(DS3.Font.sub)
+                .foregroundColor(DS3.Color.textDim)
+        }
+        .padding(.horizontal, DS3.S.lg)
+        .padding(.vertical, DS3.S.sm)
+        .background(Capsule().stroke(DS3.Color.hairline, lineWidth: 1))
     }
 
     private func applyKeepAwake() {
@@ -524,4 +600,27 @@ struct ImmersiveFocusView: View {
         }
         .transition(.opacity)
     }
+}
+
+
+// MARK: - 打断原因
+
+enum InterruptReason: Identifiable, CaseIterable {
+    case phone
+    case interrupted
+    case lowEnergy
+    case lostInterest
+
+    var label: String {
+        switch self {
+        case .phone: return "被手机干扰了"
+        case .interrupted: return "被人打断了"
+        case .lowEnergy: return "精力跟不上"
+        case .lostInterest: return "不想继续这个任务"
+        }
+    }
+
+    var id: String { label }
+
+    static let all: [InterruptReason] = [.phone, .interrupted, .lowEnergy, .lostInterest]
 }

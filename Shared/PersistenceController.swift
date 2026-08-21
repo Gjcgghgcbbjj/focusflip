@@ -18,6 +18,8 @@ public final class PersistenceController {
         model.entities = [
             FocusSession.entityDescription(),
             TaskItem.entityDescription(),
+            HabitItem.entityDescription(),
+            HabitCheck.entityDescription(),
         ]
 
         container = NSPersistentContainer(name: "FocusFlip", managedObjectModel: model)
@@ -138,7 +140,7 @@ public final class PersistenceController {
     // MARK: - Record a session
 
     public func recordSession(type: SessionType, duration: Int, taskId: UUID? = nil,
-                              startDate: Date? = nil) {
+                              startDate: Date? = nil, interruptReason: String? = nil) {
         let ctx = container.viewContext
         let session = FocusSession(context: ctx)
         session.id = UUID()
@@ -148,6 +150,7 @@ public final class PersistenceController {
         session.typeRaw = type.rawValue
         session.completed = true
         session.taskId = taskId
+        session.interruptReason = interruptReason
 
         // If linked to a task, increment its pomodoro count
         if let taskId = taskId, let task = fetchTask(id: taskId), type == .focus {
@@ -277,6 +280,37 @@ public final class PersistenceController {
               let newest = files.filter({ $0.pathExtension == "json" })
             .sorted(by: { $0.lastPathComponent > $1.lastPathComponent }).first else { return nil }
         return newest.lastPathComponent
+    }
+
+    // MARK: - CSV export (session detail for spreadsheets)
+
+    public func exportCSV() throws -> URL {
+        let sessions = fetchAllSessions().sorted { $0.startDate < $1.startDate }
+        var tasksById: [UUID: String] = [:]
+        fetchTasks().forEach { tasksById[$0.id] = $0.title }
+
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd HH:mm:ss"
+
+        var rows = ["开始时间,结束时间,类型,时长(分钟),完成,任务,打断原因"]
+        for s in sessions {
+            let task = s.taskId.flatMap { tasksById[$0] } ?? ""
+            let reason = (s.interruptReason ?? "").replacingOccurrences(of: ",", with: " ")
+            rows.append([
+                df.string(from: s.startDate),
+                df.string(from: s.endDate),
+                s.sessionType.displayName,
+                String(Int(s.durationSeconds) / 60),
+                s.completed ? "是" : "否",
+                task.replacingOccurrences(of: ",", with: " "),
+                reason,
+            ].joined(separator: ","))
+        }
+
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FocusFlip-\(Int(Date().timeIntervalSince1970)).csv")
+        try rows.joined(separator: "\n").data(using: .utf8)?.write(to: url, options: .atomic)
+        return url
     }
 
     public func importJSON(from url: URL) throws {

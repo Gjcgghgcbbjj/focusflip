@@ -115,11 +115,24 @@ struct SettingsView3: View {
             Toggle("白噪音", isOn: $settings.whiteNoiseEnabled)
 
             if settings.whiteNoiseEnabled {
-                Picker("类型", selection: $settings.whiteNoiseType) {
+                Picker("主音效", selection: $settings.whiteNoiseType) {
                     Text("雨声").tag("rain")
                     Text("海浪").tag("ocean")
                     Text("森林").tag("forest")
                     Text("风扇").tag("fan")
+                    Text("白噪音").tag("white")
+                    Text("粉噪音").tag("pink")
+                    Text("棕噪音").tag("brown")
+                }
+                Picker("叠加音效", selection: $settings.whiteNoiseLayerType) {
+                    Text("无").tag("none")
+                    Text("雨声").tag("rain")
+                    Text("海浪").tag("ocean")
+                    Text("森林").tag("forest")
+                    Text("风扇").tag("fan")
+                    Text("白噪音").tag("white")
+                    Text("粉噪音").tag("pink")
+                    Text("棕噪音").tag("brown")
                 }
                 Button {
                     sound.playWhiteNoise()
@@ -165,6 +178,7 @@ struct SettingsView3: View {
         Section("行为") {
             Toggle("自动开始休息", isOn: $settings.autoStartBreaks)
             Toggle("自动开始专注", isOn: $settings.autoStartFocus)
+            Toggle("休息活动建议", isOn: $settings.breakSuggestionEnabled)
             Toggle("专注时屏幕常亮", isOn: $settings.keepScreenAwake)
             Toggle("沉浸模式（专注时全屏）", isOn: $settings.immersiveMode)
             Toggle("震动反馈", isOn: $settings.hapticsEnabled)
@@ -233,6 +247,14 @@ struct SettingsView3: View {
                 if exportURL != nil { showExporter = true }
             } label: {
                 Label("备份到文件 App…", systemImage: "externaldrive")
+            }
+            Button {
+                if let url = try? PersistenceController.shared.exportCSV() {
+                    exportURL = url
+                    showShare = true
+                }
+            } label: {
+                Label("导出 CSV（表格明细）", systemImage: "tablecells")
             }
             Button {
                 showImporter = true
