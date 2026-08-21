@@ -43,6 +43,8 @@ public final class AppSettings: ObservableObject {
     @Published public var themeColorHex: String        { didSet { save() } }
     @Published public var keepScreenAwake: Bool        { didSet { save() } }
     @Published public var immersiveMode: Bool          { didSet { save() } }
+    /// system | light | dark —— 默认深色（专注类 App 的正确默认）
+    @Published public var appearanceMode: String       { didSet { save() } }
 
     // MARK: - Daily goal
     @Published public var dailyGoalPomodoros: Int      { didSet { save() } }
@@ -79,6 +81,7 @@ public final class AppSettings: ObservableObject {
         dailyGoalPomodoros  = d.object(forKey: "dailyGoalPomodoros") as? Int ?? 8
         keepScreenAwake     = d.object(forKey: "keepScreenAwake") as? Bool ?? true
         immersiveMode       = d.object(forKey: "immersiveMode") as? Bool ?? true
+        appearanceMode      = d.object(forKey: "appearanceMode") as? String ?? "dark"
 
         // 保证 themeColorHex 在合法列表内（老版本默认值 #FF6B6B 不在列表）
         if !Self.themeColors.contains(where: { $0.hex == self.themeColorHex }) {
@@ -109,6 +112,7 @@ public final class AppSettings: ObservableObject {
         defaults.set(dailyGoalPomodoros, forKey: "dailyGoalPomodoros")
         defaults.set(keepScreenAwake, forKey: "keepScreenAwake")
         defaults.set(immersiveMode, forKey: "immersiveMode")
+        defaults.set(appearanceMode, forKey: "appearanceMode")
     }
 
     // MARK: - Presets

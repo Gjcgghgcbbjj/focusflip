@@ -40,6 +40,7 @@ struct FocusFlipApp: App {
             ContentView()
                 .environment(\.managedObjectContext, PersistenceController.shared.viewContext)
                 .environmentObject(router)
+                .preferredColorScheme(preferredScheme)
                 .onAppear {
                     NotificationService.shared.requestPermission()
                 }
@@ -52,6 +53,14 @@ struct FocusFlipApp: App {
                         UIApplication.shared.isIdleTimerDisabled = false
                     }
                 }
+        }
+    }
+
+    private var preferredScheme: ColorScheme? {
+        switch settings.appearanceMode {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
         }
     }
 

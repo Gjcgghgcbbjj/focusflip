@@ -190,6 +190,11 @@ struct SettingsView3: View {
 
     private var appearance: some View {
         Section("外观") {
+            Picker("界面主题", selection: $settings.appearanceMode) {
+                Text("跟随系统").tag("system")
+                Text("浅色").tag("light")
+                Text("深色").tag("dark")
+            }
             HStack {
                 Text("专注色")
                 Spacer()

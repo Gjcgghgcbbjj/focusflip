@@ -41,6 +41,13 @@ enum DS3 {
         // 分隔
         static let hairline = adaptive(dark: "#38383A", light: "#E5E5EA")
 
+        // 场景专用固定色（计时页永远电影化，不随主题翻转）
+        static let sceneText = SwiftUI.Color(hex: "#FFFFFF")
+        static let sceneTextDim = SwiftUI.Color(hex: "#9A9AA2")
+        static let sceneHairline = SwiftUI.Color.white.opacity(0.18)
+        static let sceneSurface = SwiftUI.Color(hex: "#1C1C1E")
+        static let sceneIconOnAccent = SwiftUI.Color(hex: "#0B0B0B")
+
         // 强调色：用户主题色（动态读取设置）
         static var accent: SwiftUI.Color { AppSettings.shared.accentColor }
 
@@ -145,6 +152,7 @@ struct PhaseTheme3 {
     static func sceneBackground(for type: SessionType) -> some View {
         let c = theme(for: type).color
         return ZStack {
+            SwiftUI.Color.black.ignoresSafeArea()
             LinearGradient(stops: [
                 .init(color: c.opacity(0.34), location: 0),
                 .init(color: c.opacity(0.12), location: 0.45),

@@ -64,7 +64,7 @@ struct TimerView3: View {
                     } label: {
                         Text("或开始自由专注（正计时）")
                             .font(DS3.Font.caption)
-                            .foregroundColor(DS3.Color.textDim)
+                            .foregroundColor(DS3.Color.sceneTextDim)
                             .padding(.top, DS3.S.sm)
                     }
                     .pressable3()
@@ -121,7 +121,7 @@ struct TimerView3: View {
                     .frame(width: 8, height: 8)
                 Text(theme.label)
                     .font(DS3.Font.sub)
-                    .foregroundColor(DS3.Color.textDim)
+                    .foregroundColor(DS3.Color.sceneTextDim)
             }
 
             Spacer()
@@ -131,7 +131,7 @@ struct TimerView3: View {
             } label: {
                 Image(systemName: "moon.stars")
                     .font(.system(size: 16))
-                    .foregroundColor(DS3.Color.textDim)
+                    .foregroundColor(DS3.Color.sceneTextDim)
                     .frame(width: 40, height: 40)
             }
             .pressable3()
@@ -142,7 +142,7 @@ struct TimerView3: View {
                 } label: {
                     Image(systemName: sound.isPlaying ? "waveform" : "waveform.slash")
                         .font(.system(size: 16))
-                        .foregroundColor(DS3.Color.textDim)
+                        .foregroundColor(DS3.Color.sceneTextDim)
                         .frame(width: 40, height: 40)
                 }
                 .pressable3()
@@ -196,11 +196,11 @@ struct TimerView3: View {
             Text("\(engine.todayPomodoros)/\(settings.dailyGoalPomodoros)")
                 .font(DS3.Font.sub.weight(.semibold))
                 .monospacedDigit()
-                .foregroundColor(DS3.Color.text)
+                .foregroundColor(DS3.Color.sceneText)
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(DS3.Color.hairline)
+                    Capsule().fill(DS3.Color.sceneHairline)
                     Capsule()
                         .fill(theme.color)
                         .frame(width: max(4, geo.size.width * engine.dailyGoalProgress))
@@ -212,7 +212,7 @@ struct TimerView3: View {
             Text(DateUtils.hoursMinutes(from: engine.todayFocusSeconds))
                 .font(DS3.Font.caption)
                 .monospacedDigit()
-                .foregroundColor(DS3.Color.textDim)
+                .foregroundColor(DS3.Color.sceneTextDim)
         }
         .padding(.horizontal, DS3.S.lg + DS3.S.md)
     }
@@ -229,16 +229,16 @@ struct TimerView3: View {
                     Text(task.title).font(DS3.Font.caption)
                     Text("\(task.completedPomodoros)/\(task.estimatedPomodoros)")
                         .font(DS3.Font.micro)
-                        .foregroundColor(DS3.Color.textDim)
+                        .foregroundColor(DS3.Color.sceneTextDim)
                 } else {
                     Image(systemName: "plus").font(.system(size: 10))
                     Text("关联任务").font(DS3.Font.caption)
                 }
             }
-            .foregroundColor(selectedTask == nil ? DS3.Color.textDim : DS3.Color.text)
+            .foregroundColor(selectedTask == nil ? DS3.Color.sceneTextDim : DS3.Color.sceneText)
             .padding(.horizontal, DS3.S.md)
             .padding(.vertical, DS3.S.sm + 2)
-            .background(Capsule().stroke(DS3.Color.hairline, lineWidth: 1))
+            .background(Capsule().stroke(DS3.Color.sceneHairline, lineWidth: 1))
         }
         .pressable3()
         .padding(.horizontal, DS3.S.lg)
@@ -256,7 +256,7 @@ struct TimerView3: View {
             } label: {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.system(size: 17))
-                    .foregroundColor(DS3.Color.textDim)
+                    .foregroundColor(DS3.Color.sceneTextDim)
                     .frame(width: 54, height: 54)
                     .background(Circle().fill(.ultraThinMaterial))
             }
@@ -269,7 +269,7 @@ struct TimerView3: View {
             } label: {
                 Image(systemName: primaryIcon)
                     .font(.system(size: 26, weight: .medium))
-                    .foregroundColor(isFinished ? DS3.Color.text : DS3.Color.bg)
+                    .foregroundColor(isFinished ? DS3.Color.sceneText : DS3.Color.sceneIconOnAccent)
                     .frame(width: 78, height: 78)
                     .background(
                         Circle().fill(isFinished ? AnyShapeStyle(.ultraThinMaterial)
@@ -290,7 +290,7 @@ struct TimerView3: View {
             } label: {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 17))
-                    .foregroundColor(DS3.Color.textDim)
+                    .foregroundColor(DS3.Color.sceneTextDim)
                     .frame(width: 54, height: 54)
                     .background(Circle().fill(.ultraThinMaterial))
             }
@@ -317,11 +317,11 @@ struct TimerView3: View {
         return HStack(spacing: DS3.S.sm) {
             Text(suggestions[idx])
                 .font(DS3.Font.sub)
-                .foregroundColor(DS3.Color.textDim)
+                .foregroundColor(DS3.Color.sceneTextDim)
         }
         .padding(.horizontal, DS3.S.lg)
         .padding(.vertical, DS3.S.sm)
-        .background(Capsule().stroke(DS3.Color.hairline, lineWidth: 1))
+        .background(Capsule().stroke(DS3.Color.sceneHairline, lineWidth: 1))
     }
 
     private func applyKeepAwake() {
@@ -400,7 +400,7 @@ struct TimerView3: View {
     private var celebrationOverlay: some View {
         if showCelebration {
             ZStack {
-                DS3.Color.bg.opacity(0.85).ignoresSafeArea()
+                SwiftUI.Color.black.opacity(0.88).ignoresSafeArea()
                 VStack(spacing: DS3.S.lg) {
                     ZStack {
                         Circle().fill(DS3.Color.accent.opacity(0.12)).frame(width: 104, height: 104)
@@ -412,15 +412,15 @@ struct TimerView3: View {
                     VStack(spacing: DS3.S.xs) {
                         Text("今日目标达成")
                             .font(DS3.Font.title)
-                            .foregroundColor(DS3.Color.text)
+                            .foregroundColor(DS3.Color.sceneText)
                         Text("\(engine.todayPomodoros) 个番茄 · \(DateUtils.hoursMinutes(from: engine.todayFocusSeconds))")
                             .font(DS3.Font.sub)
                             .monospacedDigit()
-                            .foregroundColor(DS3.Color.textDim)
+                            .foregroundColor(DS3.Color.sceneTextDim)
                     }
                 }
                 .padding(DS3.S.xxl)
-                .background(RoundedRectangle(cornerRadius: DS3.R.lg).fill(DS3.Color.surface))
+                .background(RoundedRectangle(cornerRadius: DS3.R.lg).fill(DS3.Color.sceneSurface))
             }
             .transition(.opacity.combined(with: .scale(scale: 0.92)))
         }
@@ -445,7 +445,7 @@ struct RingView3: View {
 
         ZStack {
             Circle()
-                .stroke(DS3.Color.hairline.opacity(0.22), lineWidth: lineWidth)
+                .stroke(DS3.Color.sceneHairline, lineWidth: lineWidth)
                 .frame(width: side, height: side)
 
             // 进度环：角向渐变 + 外发光
@@ -485,7 +485,7 @@ struct RingView3: View {
                 Text(caption.isEmpty ? statusText : caption)
                     .font(DS3.Font.caption)
                     .kerning(1.5)
-                    .foregroundColor(DS3.Color.textDim)
+                    .foregroundColor(DS3.Color.sceneTextDim)
             }
         }
         .scaleEffect(breathe ? (isPaused ? 1.015 : 1.007) : 1)
@@ -605,7 +605,7 @@ struct ImmersiveFocusView: View {
                     } label: {
                         Text("+5")
                             .font(DS3.Font.headline.monospacedDigit())
-                            .foregroundColor(DS3.Color.textDim)
+                            .foregroundColor(DS3.Color.sceneTextDim)
                             .frame(width: 54, height: 54)
                             .background(Circle().fill(.ultraThinMaterial))
                     }
@@ -617,7 +617,7 @@ struct ImmersiveFocusView: View {
                     } label: {
                         Image(systemName: "pause.fill")
                             .font(.system(size: 24, weight: .medium))
-                            .foregroundColor(DS3.Color.bg)
+                            .foregroundColor(DS3.Color.sceneIconOnAccent)
                             .frame(width: 72, height: 72)
                             .background(Circle().fill(PhaseTheme3.theme(for: engine.currentSessionType).color))
                             .glow(PhaseTheme3.theme(for: engine.currentSessionType).color, radius: 16, opacity: 0.45)
@@ -630,7 +630,7 @@ struct ImmersiveFocusView: View {
                     } label: {
                         Image(systemName: "forward.fill")
                             .font(.system(size: 17))
-                            .foregroundColor(DS3.Color.textDim)
+                            .foregroundColor(DS3.Color.sceneTextDim)
                             .frame(width: 54, height: 54)
                             .background(Circle().fill(.ultraThinMaterial))
                     }
