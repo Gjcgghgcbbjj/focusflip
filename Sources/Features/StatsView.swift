@@ -30,7 +30,7 @@ struct StatsView: View {
                                    taskName: String, colorHex: String,
                                    note: String?)] = []
     @State private var noteTarget: SessionEntity?
-    @State private var noteText = 
+    @State private var noteText = ""
 
     private let accent = Color(hex: "#5865F2")
 
@@ -556,8 +556,7 @@ struct NoteSheet: View {
         NavigationView {
             Form {
                 Section("这一段专注的备注") {
-                    TextField("比如：状态不错 / 被打断两次…", text: $text, axis: .vertical)
-                        .lineLimit(3...5)
+                    TextField("比如：状态不错 / 被打断两次…", text: $text)
                 }
             }
             .navigationTitle("备注")
