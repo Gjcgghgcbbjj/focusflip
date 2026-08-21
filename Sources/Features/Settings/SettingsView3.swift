@@ -238,7 +238,7 @@ struct SettingsView3: View {
                 exportURL = try? PersistenceController.shared.exportToURL()
                 if exportURL != nil { showShare = true }
             } label: {
-                Label("导出数据", systemImage: "square.and.arrow.up")
+                tileRow("square.and.arrow.up", DS3.Color.longBreak, "导出数据 (JSON)")
             }
             Button {
                 if exportURL == nil {
@@ -246,7 +246,7 @@ struct SettingsView3: View {
                 }
                 if exportURL != nil { showExporter = true }
             } label: {
-                Label("备份到文件 App…", systemImage: "externaldrive")
+                tileRow("externaldrive", DS3.Color.shortBreak, "备份到文件 App…")
             }
             Button {
                 if let url = try? PersistenceController.shared.exportCSV() {
@@ -254,17 +254,17 @@ struct SettingsView3: View {
                     showShare = true
                 }
             } label: {
-                Label("导出 CSV（表格明细）", systemImage: "tablecells")
+                tileRow("tablecells", DS3.Color.focus, "导出 CSV（表格明细）")
             }
             Button {
                 showImporter = true
             } label: {
-                Label("导入数据", systemImage: "square.and.arrow.down")
+                tileRow("square.and.arrow.down", DS3.Color.warn, "导入数据")
             }
             Button(role: .destructive) {
                 showClearConfirm = true
             } label: {
-                Label("清除全部数据", systemImage: "trash")
+                tileRow("trash", DS3.Color.danger, "清除全部数据")
             }
         } header: {
             Text("数据")
@@ -282,6 +282,13 @@ struct SettingsView3: View {
                 Spacer()
                 Text(appVersion).foregroundColor(DS3.Color.textDim).monospacedDigit()
             }
+        }
+    }
+
+    private func tileRow(_ icon: String, _ tint: SwiftUI.Color, _ title: String) -> some View {
+        HStack(spacing: DS3.S.md) {
+            IconTile(systemName: icon, tint: tint)
+            Text(title).foregroundColor(tint == DS3.Color.danger ? DS3.Color.danger : DS3.Color.text)
         }
     }
 

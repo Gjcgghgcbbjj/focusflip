@@ -264,6 +264,7 @@ private struct StatsModern3: View {
     @State private var range: StatsModel3.Range = .week
     @State private var showShareCard = false
     @State private var shareImage: UIImage?
+    @Namespace private var rangeNS
 
     // MARK: 分享卡片渲染（iOS16 ImageRenderer / iOS15 hosting 回退）
 
@@ -314,11 +315,29 @@ private struct StatsModern3: View {
     }
 
     private var picker: some View {
-        Picker("范围", selection: $range) {
-            ForEach(StatsModel3.Range.allCases) { Text($0.rawValue).tag($0) }
+        HStack(spacing: 4) {
+            ForEach(StatsModel3.Range.allCases) { r in
+                Button {
+                    withAnimation(DS3.Anim.spring) { range = r }
+                } label: {
+                    Text(r.rawValue)
+                        .font(DS3.Font.sub.weight(range == r ? .semibold : .regular))
+                        .foregroundColor(range == r ? DS3.Color.text : DS3.Color.textDim)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, DS3.S.sm - 2)
+                        .background {
+                            if range == r {
+                                Capsule()
+                                    .fill(DS3.Color.surface)
+                                    .matchedGeometryEffect(id: "rangePill", in: rangeNS)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .pickerStyle(.segmented)
-        .tint(DS3.Color.accent)
+        .padding(4)
+        .background(Capsule().fill(.ultraThinMaterial))
     }
 
     private var heroCard: some View {
@@ -329,6 +348,8 @@ private struct StatsModern3: View {
             Text(DateUtils.hoursMinutes(from: model.todaySeconds))
                 .font(.system(size: 44, weight: .light, design: .rounded))
                 .monospacedDigit()
+                .numericTransition3()
+                .animation(DS3.Anim.smooth, value: model.todaySeconds)
                 .foregroundColor(DS3.Color.text)
             HStack(spacing: DS3.S.xl) {
                 stat("\(model.todayPomodoros)", "番茄")

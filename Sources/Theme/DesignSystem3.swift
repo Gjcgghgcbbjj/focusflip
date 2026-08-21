@@ -139,6 +139,70 @@ struct PhaseTheme3 {
         }
         .ignoresSafeArea()
     }
+
+    /// 极光背景：两枚相位色光斑缓慢漂移（潮汐式"活的场景"感）。
+    static func auroraBackground(for type: SessionType) -> some View {
+        let c = theme(for: type).color
+        return ZStack {
+            SwiftUI.Color.black.ignoresSafeArea()
+            CircleBlob(color: c, baseOpacity: 0.22, size: 420,
+                       offset: CGSize(width: -60, height: -180),
+                       drift: CGSize(width: 50, height: 30), period: 9)
+            CircleBlob(color: c, baseOpacity: 0.10, size: 300,
+                       offset: CGSize(width: 120, height: 40),
+                       drift: CGSize(width: -40, height: 36), period: 12)
+            LinearGradient(colors: [SwiftUI.Color.clear, SwiftUI.Color.black.opacity(0.55)],
+                           startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+        }
+        .ignoresSafeArea()
+    }
+}
+
+/// 单个漂移光斑（内部组件）
+struct CircleBlob: View {
+    let color: SwiftUI.Color
+    let baseOpacity: Double
+    let size: CGFloat
+    let offset: CGSize
+    let drift: CGSize
+    let period: Double
+
+    @State private var on = false
+
+    var body: some View {
+        Circle()
+            .fill(RadialGradient(colors: [color.opacity(baseOpacity),
+                                          color.opacity(baseOpacity * 0.35),
+                                          SwiftUI.Color.clear],
+                                 center: .center, startRadius: 0, endRadius: size / 2))
+            .blur(radius: 46)
+            .frame(width: size, height: size)
+            .offset(x: offset.width + (on ? drift.width : 0),
+                    y: offset.height + (on ? drift.height : 0))
+            .animation(.easeInOut(duration: period).repeatForever(autoreverses: true),
+                       value: on)
+            .onAppear { on = true }
+    }
+}
+
+// MARK: - 小构件
+
+/// 彩色图标砖（iOS 设置/Ice Cubes 风格）
+struct IconTile: View {
+    let systemName: String
+    let tint: SwiftUI.Color
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundColor(tint)
+            .frame(width: 27, height: 27)
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(tint.opacity(0.16))
+            )
+    }
 }
 
 // MARK: - UIKit bridge (for UIAppearance)

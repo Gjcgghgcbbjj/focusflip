@@ -22,7 +22,7 @@ struct TimerView3: View {
     var body: some View {
         ZStack {
             DS3.Color.bg.ignoresSafeArea()
-            PhaseTheme3.ambientBackground(for: engine.currentSessionType)
+            PhaseTheme3.auroraBackground(for: engine.currentSessionType)
                 .animation(DS3.Anim.gentle, value: engine.currentSessionType)
 
             VStack(spacing: 0) {
@@ -162,7 +162,8 @@ struct TimerView3: View {
                     color: theme.color,
                     isPaused: isPausedState,
                     side: side,
-                    caption: engine.isFreeFocus ? "自由专注" : ""
+                    caption: engine.isFreeFocus ? "自由专注" : "",
+                    isRunning: engine.isRunning
                 )
                 .frame(width: side, height: side)
                 .position(x: geo.size.width / 2, y: geo.size.height / 2)
@@ -435,6 +436,7 @@ struct RingView3: View {
     let isPaused: Bool
     let side: CGFloat
     var caption: String = ""
+    var isRunning: Bool = false
 
     @State private var breathe = false
 
@@ -459,25 +461,44 @@ struct RingView3: View {
                 .glow(color, radius: lineWidth * 1.4, opacity: 0.55)
                 .animation(DS3.Anim.gentle, value: color)
 
+            // 端点光点（Apple 活动圆环细节）
+            if progress > 0.004 && progress < 0.996 {
+                let theta = ((-90 + progress * 360) * Double.pi) / 180
+                Circle()
+                    .fill(SwiftUI.Color.white)
+                    .frame(width: lineWidth * 0.9, height: lineWidth * 0.9)
+                    .glow(color, radius: lineWidth * 1.1, opacity: 0.9)
+                    .position(x: side / 2 + (side / 2 - lineWidth / 2) * CGFloat(cos(theta)),
+                              y: side / 2 + (side / 2 - lineWidth / 2) * CGFloat(sin(theta)))
+            }
+
             VStack(spacing: DS3.S.xs) {
                 Text(timeText)
                     .font(side > 320 ? DS3.Font.timerHuge : DS3.Font.timerBig)
                     .monospacedDigit()
+                    .kerning(-1)
                     .foregroundColor(DS3.Color.text)
                     .numericTransition3()
                     .shadow(color: .black.opacity(0.6), radius: 8)
                 Text(caption.isEmpty ? statusText : caption)
                     .font(DS3.Font.caption)
+                    .kerning(1.5)
                     .foregroundColor(DS3.Color.textDim)
             }
         }
-        .scaleEffect(isPaused && breathe ? 1.015 : 1)
-        .animation(isPaused ? Animation.easeInOut(duration: 1.6).repeatForever(autoreverses: true) : .default,
-                   value: breathe)
-        .onChange(of: isPaused) { paused in
-            breathe = paused
+        .scaleEffect(breathe ? (isPaused ? 1.015 : 1.007) : 1)
+        .animation(
+            isPaused
+                ? Animation.easeInOut(duration: 1.6).repeatForever(autoreverses: true)
+                : Animation.easeInOut(duration: 4).repeatForever(autoreverses: true),
+            value: breathe)
+        .onChange(of: isRunning) { run in
+            breathe = run || isPaused
         }
-        .onAppear { breathe = isPaused }
+        .onChange(of: isPaused) { paused in
+            breathe = paused || isRunning
+        }
+        .onAppear { breathe = isRunning || isPaused }
     }
 
     private var timeText: String {
@@ -550,7 +571,7 @@ struct ImmersiveFocusView: View {
     var body: some View {
         ZStack {
             DS3.Color.bg.ignoresSafeArea()
-            PhaseTheme3.ambientBackground(for: engine.currentSessionType)
+            PhaseTheme3.auroraBackground(for: engine.currentSessionType)
 
             VStack(spacing: DS3.S.xl) {
                 Spacer()
@@ -564,7 +585,8 @@ struct ImmersiveFocusView: View {
                             color: PhaseTheme3.theme(for: engine.currentSessionType).color,
                             isPaused: false,
                             side: side,
-                            caption: engine.isFreeFocus ? "自由专注" : ""
+                            caption: engine.isFreeFocus ? "自由专注" : "",
+                            isRunning: true
                         )
                         .frame(width: side, height: side)
                         .position(x: geo.size.width / 2, y: geo.size.height / 2)
