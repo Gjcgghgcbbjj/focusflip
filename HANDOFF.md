@@ -6,7 +6,16 @@
 
 ---
 
-## 一、项目现状（v3.2.0 — 横向拓展九件套）
+## 一、项目现状（v3.3.0 — 视觉升级）
+
+**v3.3.0 美术升级（应对"界面不美观"反馈）：**
+- DS3.card3：20pt 圆角 + hairline 描边（卡片从纯灰底里"浮"出来）
+- PhaseTheme3.ambientBackground(for:)：全屏阶段色氛围渐变（顶部一抹色沉入黑，随阶段平滑过渡）
+- RingView3：角向渐变进度环 + glow 外发光 + caption 参数（自由专注显示"自由专注"）
+- 主按钮/沉浸暂停键辉光；侧按钮 ultraThinMaterial 毛玻璃
+- 统计 hero 卡 accent 渐变洗底+描边；任务/习惯空状态 accent 圆徽标；时钟数字辉光+日期毛玻璃胶囊
+
+**v3.2.0 — 横向拓展九件套**
 
 **v3.2.0 新增：**
 - 习惯打卡：HabitItem/HabitCheck 实体（程序化模型追加，自动轻量迁移）+ 连击/本周进度 + 独立 tab
@@ -71,7 +80,7 @@
 - 版本三处同步：project.yml MARKETING_VERSION + FocusFlip.plist（版本+build）+ workflow APP_VERSION
 - 发布：commit → tag vX.Y.Z → push tag → CI 自动 build + release
 - 下载 URL：`https://github.com/Gjcgghgcbbjj/focusflip/releases/download/vX.Y.Z/FocusFlip-X.Y.Z.ipa`
-- 当前：v3.2.0 (build 9)
+- 当前：v3.3.0 (build 10)
 
 ### 待真机验证
 
