@@ -1,85 +1,59 @@
 # FocusFlip 交接文档（给下一个 AI / 开发者）
 
-> 最后更新：2026-08-19
+> 最后更新：2026-08-21
 > 仓库：https://github.com/Gjcgghgcbbjj/focusflip （公开）
 > 构建方式：GitHub Actions（macos-15 + 动态选择 Xcode + xcodegen，双 target）
 
 ---
 
-## 一、项目现状（v2.0.2）
+## 一、项目现状（v3.0.0 — 全量重写）
 
-**v2.0.2 — 逐功能精修（计时/统计/任务/设置/触感）**
+**v3.0.0 "Calm Focus" — 应用户要求彻底从零重写全部 UI**
 
-已完成：
-- ✅ 全新设计体系（DesignSystem v2.0）：近黑底 + 语义阶段色 + 自适应深浅色
-- ✅ 全新计时界面：沉浸式大圆环 + 轮次进度圆点 + TimelineView 平滑动画
-- ✅ 全新统计界面：今日大卡 + 日/周/月柱状图 + 月热力图 + 总览网格 + bestStreak
-- ✅ 全新设置界面：预设方案卡片 + StepperRow/ToggleRow 复用 + Shield 选择器
-- ✅ 全新任务界面：清单卡片 + 左色条 + 进度条 + 空状态
-- ✅ Widget + Live Activity 重写：Dynamic Island 全区域 Text(timerInterval) 自走倒计时
-- ✅ 核心逻辑修复：跳过记录实际时长 / 通知调度 / streak 从昨天算 / Widget 5min 刷新
+设计哲学：
+- 纯黑/纯白底，唯一强调色 = 用户主题色
+- 大留白、元素少而精、数字是主角（SF Pro Rounded 超细体）
+- 动效克制：只在状态切换时有意义地动
 
-**v2.0.1 计时器准确性重构：**
-- ✅ 剩余时间从墙钟（phaseStartDate）派生，杜绝 tick 漂移
-- ✅ 暂停精确冻结剩余秒，恢复无累积误差
-- ✅ 环与数字从同一 context.date 派生，完全同步；数字 ceil 倒计时
+### 文件结构（新）
 
-**v2.0.2 逐功能精修：**
-- ✅ 统计：消除 view body 重复查库（monthFocusSeconds 等改缓存）、bestStreak 展示、日图偶数小时 label
-- ✅ 任务：List + 左滑完成/取消完成 + 右滑删除 + 手动标记（可逆）
-- ✅ 设置：白噪音/完成音试听按钮、专注色选择器（6 色）、预设判断补全
-- ✅ 触感：HapticManager prepare+复用 5 个 generator（低延迟稳定）
-- ✅ iOS15 降级页对齐 bestStreak
-- ✅ CI 全绿（编译 + 模拟器冒烟测试）
-- ✅ v2.0.0 Release 自动发布
+| 文件 | 说明 |
+|------|------|
+| `Sources/Theme/DesignSystem3.swift` | DS3 设计系统：S 间距/R 圆角/Color/Font/Anim token + UIColorToken（UIAppearance 用）+ hex init（全项目唯一定义处） |
+| `Sources/Features/Timer/TimerView3.swift` | 计时页：全屏大圆环（线宽随尺寸自适应）、环内超大 thin 数字与环同一时间源、暂停呼吸动画、今日进度条、任务 chip、三按钮控制区 |
+| `Sources/Features/Stats/StatsView3.swift` | 统计页：StatsModel3（@MainActor 数据层）+ StatsModern3（iOS16 Charts）+ StatsFallback3（iOS15 胶囊柱）。日时段/近7天/近30天柱图、月历热力图（周一起始5级色阶）、hero 卡、2x2 磁贴、会话分布 |
+| `Sources/Features/Tasks/TasksView3.swift` | 任务页：List 行卡片化、左滑完成/右滑删除、TaskEditSheet3（名称/备注/预估/8色板）、空状态引导 |
+| `Sources/Features/Settings/SettingsView3.swift` | 设置页：预设四方案（结构化激活判断）/时长/目标/声音+试听/行为/6色主题/App屏蔽选择器/数据导入导出清除/关于。含 ShareSheet |
 
-**IPA 状态：**
-- ✅ v2.0.0 Release：`FocusFlip-2.0.0.ipa`（~5MB）
-- ✅ 含 Widget 扩展 + 8 个 WAV + 无签名（TrollStore 安装时签名）
-- ✅ 数据兼容 v1.x（CoreData 模型未变）
+已删除：旧 TimerView / StatsView / StatsLegacyView / SettingsView / TasksView / DesignSystem(v2) / Compatibility / FlipClock 全家。
 
-**待真机验收：**
-- Widget / Live Activity / App 屏蔽
+### 引擎层（v2 沿用，多轮修复后稳定）
 
----
+- `PomodoroEngine`：墙钟派生剩余时间（phaseStartDate 为源），暂停精确冻结；skip/reset 记录实际时长；recordSession 传真实 startDate
+- `TimerService`：DispatchSourceTimer + 静音音频保活。**stop() 同时停静音音频但保留 AVAudioSession**（白噪音可继续）；deactivateBackground() 才释放会话；reset() 走完整释放
+- `NotificationService`：区分短休/长休文案，专注完成通知带任务名
+- `PersistenceController`：程序化 CoreData 模型 + App Group 共享；import/clear 后自动 WidgetCenter.reloadAllTimelines()
+- `HapticManager`：5 个 generator 复用 + prepare（属性名 selectionGen 避免与方法冲突）
+- URL scheme：focusflip://start|pause|resume|skip|reset|timer|tasks|stats|settings；start 自动切 tab + 白噪音
 
-## 二、关键架构
+### 已知限制
 
-```
-Sources/
-├── App/FocusFlipApp.swift        # @main + TabView + onOpenURL + UIAppearance
-├── Theme/
-│   ├── DesignSystem.swift        # v2.0 颜色/字体/间距/动画/PhaseTheme/View修饰符
-│   └── Compatibility.swift       # iOS 15/16 兼容（已清理，方法移入 DesignSystem）
-├── Engine/                       # PomodoroEngine + TimerService + NotificationService
-├── Features/                     # Timer/Stats/StatsLegacy/Settings/Tasks/Sound/FlipClock
-├── FocusShield/                  # App 屏蔽（私有 API，已崩溃安全）
-└── Models/AppSettings.swift
-Shared/                           # 主 App 与 Widget 扩展【双 target 共用】
-├── PersistenceController.swift   # CoreData（App Group + JSON 导入导出/清除）
-├── FocusSession.swift / TaskItem.swift
-└── LiveActivityAttributes.swift  # ActivityKit + LiveActivityManager
-Widget/                           # 仅编译进 Widget 扩展 target
-├── FocusFlipWidget.swift         # 锁屏小组件（注意：不能用 DS.*，扩展看不到）
-├── FocusFlipWidgetBundle.swift
-├── LockScreenWidget.swift        # Live Activity（注意：不能用 DS.*）
-└── Info.plist
-```
+- **App 屏蔽**依赖 TrollStore 私有权限，真机可能不生效（代码逻辑正确，entitlements 不能编造否则闪退）
+- Widget 扩展不能引用 Sources/ 下任何东西（DS3 不可见），Widget/ 内用字面量
+- 不要使用 widgetContainerBackground/containerBackground —— 曾致编译失败
+- 图表 x 轴类目标签必须唯一（空字符串会合并类目），密度用 desiredCount 控制
+- iOS16+ API 注意：fontWeight(17+) 等需 gate 或替代写法
 
-### ⚠️ 关键教训
-- **Widget 扩展 target 看不到 `Sources/` 里的 DS/DesignSystem** —— Widget 代码里用字面量（如 spacing: 8），不能用 DS.S.sm
-- **不要用 `widgetContainerBackground()` / `containerBackground(for: .widget)`** —— Xcode 26 下报 ContainerBackgroundPlacement.widget 无法解析；系统自动渲染背景
-- **不要写死 Xcode 版本** —— 用 actool 动态选择
-- **不要预签名 / 不要塞编造 entitlements** —— TrollStore 安装时自行注入
-- **`Compatibility.swift` 和 `DesignSystem.swift` 不要重复定义同名方法** —— 会编译报错
+### 版本/发布流程
 
----
+- 版本三处同步：project.yml MARKETING_VERSION + FocusFlip.plist（版本+build）+ workflow APP_VERSION
+- 发布：commit → tag vX.Y.Z → push tag → CI 自动 build + release
+- 下载 URL：`https://github.com/Gjcgghgcbbjj/focusflip/releases/download/vX.Y.Z/FocusFlip-X.Y.Z.ipa`
+- 当前：v3.0.0 (build 7)
 
-## 三、环境信息
+### 待真机验证
 
-| 项 | 值 |
-|----|-----|
-| 仓库 | https://github.com/Gjcgghgcbbjj/focusflip |
-| 最新 Release | v2.0.0 |
-| 最低系统 | iOS 15.0（Widget 扩展 16.0+，Live Activity 16.2+） |
-| 安装方式 | TrollStore（巨魔） |
+- 新计时页圆环渲染/暂停呼吸动画
+- 统计图表数据正确性
+- Widget/Live Activity 显示
+- App 屏蔽实际效果
