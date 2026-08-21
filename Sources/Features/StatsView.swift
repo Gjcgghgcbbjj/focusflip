@@ -25,6 +25,12 @@ struct StatsView: View {
     @State private var hourBins = [Double](repeating: 0, count: 24)
     @State private var taskRows: [(name: String, colorHex: String, minutes: Int)] = []
     @State private var streak = 0
+    @State private var timeline: [(id: UUID, start: Date, end: Date,
+                                   mins: Int, done: Bool,
+                                   taskName: String, colorHex: String,
+                                   note: String?)] = []
+    @State private var noteTarget: SessionEntity?
+    @State private var noteText = 
 
     private let accent = Color(hex: "#5865F2")
 
@@ -42,6 +48,7 @@ struct StatsView: View {
                     .onChange(of: range) { _ in reload() }
 
                     heroCard
+                    if range == .today && !timeline.isEmpty { timelineCard }
                     if range != .today && !dayBars.isEmpty { barChartCard }
                     if pomodoros > 0 {
                         if !hourBins.isEmpty && hourBins.max()! > 0 { hourCard }
@@ -300,6 +307,79 @@ struct StatsView: View {
         .frame(maxWidth: .infinity)
     }
 
+    // MARK: 今日时间线（记录类）
+
+    private var timelineCard: some View {
+        ChartCard(title: "今日时间线", subtitle: "点一条可写一句话备注") {
+            VStack(spacing: 0) {
+                ForEach(timeline.indices, id: \.self) { i in
+                    let e = timeline[i]
+                    HStack(alignment: .top, spacing: 12) {
+                        Text(Self.clock(e.start))
+                            .font(.system(size: 11).monospacedDigit())
+                            .foregroundColor(.secondary)
+                            .frame(width: 40, alignment: .leading)
+
+                        VStack(spacing: 0) {
+                            Circle()
+                                .fill(Color(hex: e.colorHex))
+                                .frame(width: 8, height: 8)
+                                .padding(.top, 4)
+                            if i < timeline.count - 1 {
+                                Rectangle().fill(Color.secondary.opacity(0.18))
+                                    .frame(width: 1.5)
+                                    .frame(minHeight: 26)
+                                    .padding(.top, 2)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 7) {
+                                Text(e.taskName.isEmpty ? "未关联任务" : e.taskName)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .lineLimit(1)
+                                Text("\(e.mins)′")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .monospacedDigit()
+                                    .foregroundColor(accent)
+                                if !e.done {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            if let note = e.note, !note.isEmpty {
+                                Text(note)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { openNote(i) }
+                }
+            }
+        }
+        .sheet(item: $noteTarget) { session in
+            NoteSheet(session: session) { reload() }
+        }
+    }
+
+    private func openNote(_ i: Int) {
+        guard i < timeline.count else { return }
+        let req: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
+        req.predicate = NSPredicate(format: "id == %@", timeline[i].id as CVarArg)
+        if let se = (try? Store.shared.context.fetch(req))?.first {
+            noteText = se.note ?? ""
+            noteTarget = se
+        }
+    }
+
+    private static func clock(_ d: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: d)
+    }
+
     // MARK: 派生文本
 
     private var hoursText: String {
@@ -355,6 +435,18 @@ struct StatsView: View {
             bars.append((label, Double(mins)))
         }
         dayBars = bars
+
+        // 时间线（仅今日）
+        if range == .today {
+            timeline = sessions.sorted { $0.startDate < $1.startDate }.map { se in
+                let t = se.taskId.flatMap { Store.shared.task(id: $0) }
+                return (se.id, se.startDate, se.endDate,
+                        Int(se.durationSeconds) / 60, se.completed,
+                        t?.name ?? "", t?.colorHex ?? "#8E8E93", se.note)
+            }
+        } else {
+            timeline = []
+        }
 
         // 时段分布
         var bins = [Double](repeating: 0, count: 24)
@@ -449,5 +541,39 @@ private struct RoundedCapsule: Shape {
                          cornerSize: CGSize(width: r, height: r),
                          style: .continuous)
         return p
+    }
+}
+
+
+/// 一句话备注
+struct NoteSheet: View {
+    let session: SessionEntity
+    let onDone: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("这一段专注的备注") {
+                    TextField("比如：状态不错 / 被打断两次…", text: $text, axis: .vertical)
+                        .lineLimit(3...5)
+                }
+            }
+            .navigationTitle("备注")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        Store.shared.setNote(session, text)
+                        onDone(); dismiss()
+                    }.font(.system(size: 17, weight: .semibold))
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { dismiss() }
+                }
+            }
+            .onAppear { text = session.note ?? "" }
+        }
     }
 }

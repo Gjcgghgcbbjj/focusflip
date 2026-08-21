@@ -12,6 +12,10 @@ struct FlowSimApp: App {
             TabView {
                 HomeView()
                     .tabItem { Label("计时", systemImage: "timer") }
+                FreeTimerView()
+                    .tabItem { Label("秒表", systemImage: "stopwatch") }
+                TodoView()
+                    .tabItem { Label("任务", systemImage: "checklist") }
                 StatsView()
                     .tabItem { Label("统计", systemImage: "chart.bar") }
                 SettingsView()

@@ -10,6 +10,7 @@ final class TaskEntity: NSManagedObject, Identifiable {
     @NSManaged var colorHex: String
     @NSManaged var sortOrder: Int32
     @NSManaged var createdAt: Date
+    @NSManaged var isDone: Bool
 
     static func fetchRequest() -> NSFetchRequest<TaskEntity> {
         NSFetchRequest<TaskEntity>(entityName: "TaskEntity")
@@ -25,9 +26,23 @@ final class SessionEntity: NSManagedObject, Identifiable {
     @NSManaged var durationSeconds: Int32
     @NSManaged var completed: Bool
     @NSManaged var taskId: UUID?
+    @NSManaged var note: String?
 
     static func fetchRequest() -> NSFetchRequest<SessionEntity> {
         NSFetchRequest<SessionEntity>(entityName: "SessionEntity")
+    }
+}
+
+@objc(CountdownEntity)
+final class CountdownEntity: NSManagedObject, Identifiable {
+    @NSManaged var id: UUID
+    @NSManaged var title: String
+    @NSManaged var targetDate: Date
+    @NSManaged var colorHex: String
+    @NSManaged var createdAt: Date
+
+    static func fetchRequest() -> NSFetchRequest<CountdownEntity> {
+        NSFetchRequest<CountdownEntity>(entityName: "CountdownEntity")
     }
 }
 
@@ -40,7 +55,7 @@ final class Store {
 
     private init() {
         let model = NSManagedObjectModel()
-        model.entities = [Self.taskEntity(), Self.sessionEntity()]
+        model.entities = [Self.taskEntity(), Self.sessionEntity(), Self.countdownEntity()]
         container = NSPersistentContainer(name: "FlowSim", managedObjectModel: model)
 
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -96,6 +111,11 @@ final class Store {
         return (try? context.fetch(req))?.first
     }
 
+    func setDone(_ task: TaskEntity, _ done: Bool) {
+        task.isDone = done
+        save()
+    }
+
     // MARK: 会话
 
     func record(phase: Phase, seconds: Int, start: Date, completed: Bool, taskId: UUID?) {
@@ -119,6 +139,33 @@ final class Store {
         return (try? context.count(for: req)) ?? 0
     }
 
+    // MARK: 会话备注
+
+    func setNote(_ session: SessionEntity, _ note: String?) {
+        session.note = (note?.isEmpty ?? true) ? nil : note
+        save()
+    }
+
+    // MARK: 倒计时
+
+    func countdowns() -> [CountdownEntity] {
+        let req: NSFetchRequest<CountdownEntity> = CountdownEntity.fetchRequest()
+        req.sortDescriptors = [NSSortDescriptor(key: "targetDate", ascending: true)]
+        return (try? context.fetch(req)) ?? []
+    }
+
+    @discardableResult
+    func addCountdown(title: String, date: Date, colorHex: String) -> CountdownEntity {
+        let c = CountdownEntity(context: context)
+        c.id = UUID(); c.title = title; c.targetDate = date
+        c.colorHex = colorHex; c.createdAt = Date()
+        save(); return c
+    }
+
+    func deleteCountdown(_ c: CountdownEntity) {
+        context.delete(c); save()
+    }
+
     // MARK: 程序化模型
 
     private static func attr(_ name: String, _ type: NSAttributeType, _ optional: Bool) -> NSAttributeDescription {
@@ -137,6 +184,22 @@ final class Store {
             attr("colorHex", .stringAttributeType, false),
             attr("sortOrder", .integer32AttributeType, false),
             attr("createdAt", .dateAttributeType, false),
+            attr("isDone", .booleanAttributeType, false),
+        ]
+        e.properties.last?.defaultValue = false
+        return e
+    }
+
+    private static func countdownEntity() -> NSEntityDescription {
+        let e = NSEntityDescription()
+        e.name = "CountdownEntity"
+        e.managedObjectClassName = NSStringFromClass(CountdownEntity.self)
+        e.properties = [
+            attr("id", .UUIDAttributeType, false),
+            attr("title", .stringAttributeType, false),
+            attr("targetDate", .dateAttributeType, false),
+            attr("colorHex", .stringAttributeType, false),
+            attr("createdAt", .dateAttributeType, false),
         ]
         return e
     }
@@ -153,6 +216,7 @@ final class Store {
             attr("durationSeconds", .integer32AttributeType, false),
             attr("completed", .booleanAttributeType, false),
             attr("taskId", .UUIDAttributeType, true),
+            attr("note", .stringAttributeType, true),
         ]
         return e
     }
