@@ -64,7 +64,7 @@ struct FocusFlipShortcuts: AppShortcutsProvider {
     @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: StartFocusIntent(),
-                    phrases: ["\(.applicationName) 开始专注", "开始专注"],
+                    phrases: ["\(.applicationName) 开始专注"],
                     shortTitle: "开始专注",
                     systemImageName: "timer")
         AppShortcut(intent: PauseFocusIntent(),
