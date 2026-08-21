@@ -1,5 +1,8 @@
 import Foundation
 import CoreData
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// Manages the CoreData stack with a programmatic model (no .xcdatamodeld binary).
 /// Also provides JSON export/import for all user data.
