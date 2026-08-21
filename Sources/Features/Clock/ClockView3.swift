@@ -22,10 +22,14 @@ struct ClockView3: View {
                     .foregroundColor(DS3.Color.text)
                     .numericTransition3()
                     .animation(DS3.Anim.smooth, value: minuteValue)
+                    .glow(DS3.Color.accent, radius: 24, opacity: 0.18)
 
                 Text(dateLine)
-                    .font(DS3.Font.headline)
+                    .font(DS3.Font.sub)
                     .foregroundColor(DS3.Color.textDim)
+                    .padding(.horizontal, DS3.S.md)
+                    .padding(.vertical, DS3.S.xs + 2)
+                    .background(Capsule().fill(.ultraThinMaterial))
 
                 Spacer()
                 Spacer()

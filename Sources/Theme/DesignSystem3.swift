@@ -127,6 +127,18 @@ struct PhaseTheme3 {
             return .init(color: DS3.Color.longBreak, icon: "leaf", label: "长歇")
         }
     }
+
+    /// 全屏氛围底色：顶部一抹阶段色，向下沉入纯黑。
+    static func ambientBackground(for type: SessionType) -> some View {
+        let c = theme(for: type).color
+        return ZStack {
+            LinearGradient(colors: [c.opacity(0.18), SwiftUI.Color.clear],
+                           startPoint: .top, endPoint: .bottom)
+            RadialGradient(colors: [c.opacity(0.12), SwiftUI.Color.clear],
+                           center: .top, startRadius: 0, endRadius: 520)
+        }
+        .ignoresSafeArea()
+    }
 }
 
 // MARK: - UIKit bridge (for UIAppearance)
@@ -149,10 +161,22 @@ extension DS3 {
 // MARK: - View helpers
 
 extension View {
-    /// Surface card used across screens.
+    /// Surface card used across screens (bordered, lifted from bg).
     func card3(inset: CGFloat = DS3.S.md) -> some View {
         padding(inset)
-            .background(RoundedRectangle(cornerRadius: DS3.R.md).fill(DS3.Color.surface))
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(DS3.Color.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(DS3.Color.hairline.opacity(0.7), lineWidth: 0.5)
+                    )
+            )
+    }
+
+    /// Soft outer glow (for rings / primary buttons).
+    func glow(_ color: SwiftUI.Color, radius: CGFloat = 14, opacity: Double = 0.5) -> some View {
+        shadow(color: color.opacity(opacity), radius: radius)
     }
 
     @ViewBuilder

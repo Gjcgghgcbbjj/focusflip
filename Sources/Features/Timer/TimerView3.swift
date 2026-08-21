@@ -22,6 +22,8 @@ struct TimerView3: View {
     var body: some View {
         ZStack {
             DS3.Color.bg.ignoresSafeArea()
+            PhaseTheme3.ambientBackground(for: engine.currentSessionType)
+                .animation(DS3.Anim.gentle, value: engine.currentSessionType)
 
             VStack(spacing: 0) {
                 header
@@ -159,7 +161,8 @@ struct TimerView3: View {
                     remaining: displayRemaining(at: ctx.date),
                     color: theme.color,
                     isPaused: isPausedState,
-                    side: side
+                    side: side,
+                    caption: engine.isFreeFocus ? "自由专注" : ""
                 )
                 .frame(width: side, height: side)
                 .position(x: geo.size.width / 2, y: geo.size.height / 2)
@@ -254,7 +257,7 @@ struct TimerView3: View {
                     .font(.system(size: 17))
                     .foregroundColor(DS3.Color.textDim)
                     .frame(width: 54, height: 54)
-                    .background(Circle().fill(DS3.Color.surface))
+                    .background(Circle().fill(.ultraThinMaterial))
             }
             .pressable3()
 
@@ -268,8 +271,10 @@ struct TimerView3: View {
                     .foregroundColor(isFinished ? DS3.Color.text : DS3.Color.bg)
                     .frame(width: 78, height: 78)
                     .background(
-                        Circle().fill(isFinished ? DS3.Color.surface : theme.color)
+                        Circle().fill(isFinished ? AnyShapeStyle(.ultraThinMaterial)
+                                                 : AnyShapeStyle(theme.color))
                     )
+                    .glow(theme.color, radius: isFinished ? 0 : 18, opacity: 0.45)
             }
             .pressable3()
 
@@ -286,7 +291,7 @@ struct TimerView3: View {
                     .font(.system(size: 17))
                     .foregroundColor(DS3.Color.textDim)
                     .frame(width: 54, height: 54)
-                    .background(Circle().fill(DS3.Color.surface))
+                    .background(Circle().fill(.ultraThinMaterial))
             }
             .pressable3()
         }
@@ -429,6 +434,7 @@ struct RingView3: View {
     let color: SwiftUI.Color
     let isPaused: Bool
     let side: CGFloat
+    var caption: String = ""
 
     @State private var breathe = false
 
@@ -437,14 +443,21 @@ struct RingView3: View {
 
         ZStack {
             Circle()
-                .stroke(DS3.Color.hairline.opacity(0.5), lineWidth: lineWidth)
+                .stroke(DS3.Color.hairline.opacity(0.35), lineWidth: lineWidth)
                 .frame(width: side, height: side)
 
+            // 进度环：角向渐变 + 外发光
             Circle()
                 .trim(from: 0, to: max(0.002, progress))
-                .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .stroke(
+                    AngularGradient(colors: [color.opacity(0.55), color, color.opacity(0.9), color],
+                                    center: .center),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
                 .frame(width: side, height: side)
                 .rotationEffect(.degrees(-90))
+                .glow(color, radius: lineWidth * 1.4, opacity: 0.55)
+                .animation(DS3.Anim.gentle, value: color)
 
             VStack(spacing: DS3.S.xs) {
                 Text(timeText)
@@ -452,7 +465,8 @@ struct RingView3: View {
                     .monospacedDigit()
                     .foregroundColor(DS3.Color.text)
                     .numericTransition3()
-                Text(statusText)
+                    .shadow(color: .black.opacity(0.6), radius: 8)
+                Text(caption.isEmpty ? statusText : caption)
                     .font(DS3.Font.caption)
                     .foregroundColor(DS3.Color.textDim)
             }
@@ -536,6 +550,7 @@ struct ImmersiveFocusView: View {
     var body: some View {
         ZStack {
             DS3.Color.bg.ignoresSafeArea()
+            PhaseTheme3.ambientBackground(for: engine.currentSessionType)
 
             VStack(spacing: DS3.S.xl) {
                 Spacer()
@@ -548,7 +563,8 @@ struct ImmersiveFocusView: View {
                             remaining: engine.smoothRemainingSeconds(at: ctx.date),
                             color: PhaseTheme3.theme(for: engine.currentSessionType).color,
                             isPaused: false,
-                            side: side
+                            side: side,
+                            caption: engine.isFreeFocus ? "自由专注" : ""
                         )
                         .frame(width: side, height: side)
                         .position(x: geo.size.width / 2, y: geo.size.height / 2)
@@ -567,7 +583,7 @@ struct ImmersiveFocusView: View {
                             .font(DS3.Font.headline.monospacedDigit())
                             .foregroundColor(DS3.Color.textDim)
                             .frame(width: 54, height: 54)
-                            .background(Circle().fill(DS3.Color.surface))
+                            .background(Circle().fill(.ultraThinMaterial))
                     }
                     .pressable3()
 
@@ -580,6 +596,7 @@ struct ImmersiveFocusView: View {
                             .foregroundColor(DS3.Color.bg)
                             .frame(width: 72, height: 72)
                             .background(Circle().fill(PhaseTheme3.theme(for: engine.currentSessionType).color))
+                            .glow(PhaseTheme3.theme(for: engine.currentSessionType).color, radius: 16, opacity: 0.45)
                     }
                     .pressable3()
 
@@ -591,7 +608,7 @@ struct ImmersiveFocusView: View {
                             .font(.system(size: 17))
                             .foregroundColor(DS3.Color.textDim)
                             .frame(width: 54, height: 54)
-                            .background(Circle().fill(DS3.Color.surface))
+                            .background(Circle().fill(.ultraThinMaterial))
                     }
                     .pressable3()
                 }

@@ -327,7 +327,7 @@ private struct StatsModern3: View {
                 .font(DS3.Font.caption)
                 .foregroundColor(DS3.Color.textDim)
             Text(DateUtils.hoursMinutes(from: model.todaySeconds))
-                .font(DS3.Font.numXL)
+                .font(.system(size: 44, weight: .light, design: .rounded))
                 .monospacedDigit()
                 .foregroundColor(DS3.Color.text)
             HStack(spacing: DS3.S.xl) {
@@ -337,7 +337,15 @@ private struct StatsModern3: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .card3()
+        .padding(.vertical, DS3.S.md)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(LinearGradient(colors: [DS3.Color.accent.opacity(0.16),
+                                              DS3.Color.surface],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(RoundedRectangle(cornerRadius: 20)
+                    .stroke(DS3.Color.accent.opacity(0.25), lineWidth: 0.5))
+        )
     }
 
     private func stat(_ v: String, _ l: String) -> some View {

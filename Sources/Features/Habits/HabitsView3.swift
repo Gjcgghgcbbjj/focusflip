@@ -67,8 +67,11 @@ struct HabitsView3: View {
     private var empty: some View {
         VStack(spacing: DS3.S.md) {
             Image(systemName: "checkmark.seal")
-                .font(.system(size: 44, weight: .light))
-                .foregroundColor(DS3.Color.textDim)
+                .font(.system(size: 30, weight: .light))
+                .foregroundColor(DS3.Color.accent)
+                .frame(width: 84, height: 84)
+                .background(Circle().fill(DS3.Color.accent.opacity(0.10)))
+                .overlay(Circle().stroke(DS3.Color.accent.opacity(0.25), lineWidth: 1))
             Text("还没有习惯").font(DS3.Font.title).foregroundColor(DS3.Color.text)
             Text("每天打卡的小目标，比如阅读、运动")
                 .font(DS3.Font.sub).foregroundColor(DS3.Color.textDim)
