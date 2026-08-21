@@ -111,7 +111,7 @@ struct TodoView: View {
         }
     }
 
-    private var dateLine: String {
+    private static var dateLine: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
         f.dateFormat = "M月d日 EEEE"

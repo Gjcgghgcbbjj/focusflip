@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 /// 设置 —— 行为 / 声音(新家) / 时长(完整编辑) / 数据(CSV) / 关于
 struct SettingsView: View {
@@ -188,12 +189,12 @@ extension Store {
 
         var rows = ["开始时间,结束时间,阶段,时长(分),是否完成,任务,备注"]
         for s in sessions {
-            let task = s.taskId.flatMap { task(id: $0) }?.name ?? ""
+            let taskName = s.taskId.flatMap { Store.shared.task(id: $0) }?.name ?? ""
             let note = (s.note ?? "").replacingOccurrences(of: "\"", with: "\"\"")
             let phase = SessionPhaseName(s.phaseRaw)
             rows.append("\(f.string(from: s.startDate)),\(f.string(from: s.endDate)),"
                       + "\(phase),\(Int(s.durationSeconds) / 60),"
-                      + "\(s.completed ? "是" : "否"),\"\(task)\",\"\(note)\"")
+                      + "\(s.completed ? "是" : "否"),\"\(taskName)\",\"\(note)\"")
         }
         let csv = "\u{FEFF}" + rows.joined(separator: "\n")   // BOM 兼容中文 Excel
         let url = FileManager.default.temporaryDirectory
