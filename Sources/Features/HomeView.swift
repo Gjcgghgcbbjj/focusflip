@@ -23,6 +23,9 @@ struct HomeView: View {
         return Palette.defaultBase
     }
 
+    private var fg: Color { Palette.ink(baseColor) }
+    private var fgSoft: Color { Palette.inkSoft(baseColor) }
+
     /// 用于动画的状态键（阶段变化时整屏颜色平滑过渡）
     private var phaseKey: String {
         let p = engine.phase.map { $0.rawValue } ?? "idle"
@@ -113,8 +116,8 @@ struct HomeView: View {
             segButton("自由", 1)
         }
         .padding(3)
-        .background(Capsule().fill(Color.black.opacity(0.22)))
-        .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+        .background(Capsule().fill(Palette.panel(baseColor)))
+        .animation(.easeInOut(duration: 0.25), value: homeMode)
         .animation(.easeInOut(duration: 0.25), value: homeMode)
     }
 
@@ -126,8 +129,7 @@ struct HomeView: View {
         } label: {
             Text(t)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(selected ? Palette.deepVariant(baseColor) : .white)
-                .shadow(color: .black.opacity(0.30), radius: 2, y: 1)
+                .foregroundColor(selected ? Palette.deepVariant(baseColor) : fg)
                 .padding(.horizontal, 20)
                 .frame(height: 30)
                 .background(Capsule().fill(selected ? AnyShapeStyle(Color.white)
@@ -150,14 +152,14 @@ struct HomeView: View {
                     .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 1))
                 Text(engine.currentTaskName.isEmpty ? "选择任务" : engine.currentTaskName)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(fg)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(fgSoft)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Capsule().fill(Color.white.opacity(0.16)))
+            .background(Capsule().fill(Palette.panel(baseColor)))
         }
         .buttonStyle(PressStyle())
     }
@@ -170,24 +172,23 @@ struct HomeView: View {
             let fraction = displayFraction(remaining: remaining)
             ZStack {
                 Circle()
-                    .stroke(Color.white.opacity(0.25), lineWidth: Layout.ringWidth)
+                    .stroke(fg.opacity(0.25), lineWidth: Layout.ringWidth)
                 Circle()
                     .trim(from: 0, to: max(0.001, fraction))
-                    .stroke(Color.white,
+                    .stroke(fg,
                             style: StrokeStyle(lineWidth: Layout.ringWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .shadow(color: .black.opacity(0.15), radius: 10)
 
                 VStack(spacing: 6) {
                     Text(modeLabel)
                         .font(.system(size: 13, weight: .medium))
                         .kerning(2)
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundColor(fgSoft)
                     Text(timeText(remaining))
                         .font(.system(size: 56, weight: .light, design: .rounded))
                         .monospacedDigit()
                         .kerning(-1)
-                        .foregroundColor(.white)
+                        .foregroundColor(fg)
                         .animation(.easeInOut(duration: 0.25), value: remaining)
                 }
             }
@@ -206,7 +207,7 @@ struct HomeView: View {
             if engine.isRunning || engine.isPaused {
                 Text("点按圆环暂停 / 继续")
                     .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.55))
+                    .foregroundColor(fgSoft)
             } else {
                 EmptyView()
             }
@@ -264,9 +265,9 @@ struct HomeView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundColor(fgSoft)
                         .frame(width: 36, height: 32)
-                        .background(Capsule().stroke(Color.white.opacity(0.35), lineWidth: 1))
+                        .background(Capsule().stroke(fgSoft.opacity(0.6), lineWidth: 1))
                 }
                 .buttonStyle(PressStyle())
             }
@@ -283,12 +284,12 @@ struct HomeView: View {
             Text("\(m)")
                 .font(.system(size: 15, weight: selected ? .semibold : .regular))
                 .monospacedDigit()
-                .foregroundColor(selected ? Palette.deepVariant(baseColor) : .white.opacity(0.9))
+                .foregroundColor(selected ? Palette.deepVariant(baseColor) : fgSoft)
                 .padding(.horizontal, 16)
                 .frame(height: 32)
                 .background(
                     Capsule().fill(selected ? AnyShapeStyle(Color.white)
-                                            : AnyShapeStyle(Color.white.opacity(0.14)))
+                                            : AnyShapeStyle(Palette.panel(baseColor)))
                 )
         }
         .buttonStyle(PressStyle())
@@ -362,7 +363,7 @@ struct HomeView: View {
                 Text("跳过").font(.system(size: 14))
             }
         }
-        .foregroundColor(.white.opacity(0.85))
+        .foregroundColor(fgSoft)
         .padding(.horizontal, 56)
     }
 }

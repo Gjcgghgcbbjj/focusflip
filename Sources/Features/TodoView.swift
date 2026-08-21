@@ -196,8 +196,9 @@ struct TodoView: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
+                let wasCurrent = engine.currentTaskID == t.id
                 withAnimation { Store.shared.deleteTask(t) }
-                if engine.currentTaskID == t.id { engine.select(taskID: nil) }
+                if wasCurrent { engine.select(taskID: nil) }
                 reload()
             } label: { Label("删除", systemImage: "trash") }
 
@@ -237,21 +238,43 @@ struct TodoView: View {
     // MARK: 快速添加
 
     private var addFieldRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 11) {
             Image(systemName: "plus.circle.fill")
-                .font(.system(size: 17))
-                .foregroundColor(Color(hex: "#5865F2").opacity(0.8))
-            TextField("新任务", text: $newText)
+                .font(.system(size: 19))
+                .foregroundStyle(
+                    LinearGradient(colors: [Color(hex: "#6A79FF"), Color(hex: "#4C50E0")],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing))
+            TextField("想到什么就记下来…", text: $newText)
                 .font(.system(size: 15))
                 .onSubmit(add)
-            if !newText.isEmpty {
-                Button("添加") { add() }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(hex: "#5865F2"))
+            if newText.trimmingCharacters(in: .whitespaces).isEmpty {
+                Text("回车")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary.opacity(0.6))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .overlay(Capsule().stroke(Color.secondary.opacity(0.3), lineWidth: 1))
+            } else {
+                Button {
+                    add()
+                } label: {
+                    Text("添加")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Color(hex: "#5865F2")))
+                }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 11)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
         .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
     }
 
     private func add() {
@@ -375,8 +398,11 @@ struct TaskEditSheet: View {
                                 isPresented: $confirmDelete,
                                 titleVisibility: .visible) {
                 Button("删除", role: .destructive) {
-                    Store.shared.deleteTask(task)
-                    onDone(); dismiss()
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        Store.shared.deleteTask(task)
+                        onDone()
+                    }
                 }
                 Button("取消", role: .cancel) {}
             }
