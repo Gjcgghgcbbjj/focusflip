@@ -10,6 +10,7 @@ struct HomeView: View {
     @State private var showTune = false
     @State private var showGiveUpConfirm = false
     @State private var homeMode = 0          // 0 番茄 / 1 自由
+    @State private var bloom = false         // 阶段完成光晕
 
     // MARK: 底色（Flow 核心：色随内容）
 
@@ -110,6 +111,15 @@ struct HomeView: View {
 
     // MARK: 番茄/自由 模式切换
 
+    private func fireBloom() {
+        guard !bloom else { return }
+        withAnimation(.easeOut(duration: 0.7)) { bloom = true }
+        Haptic.medium()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+            withAnimation(.easeIn(duration: 0.3)) { bloom = false }
+        }
+    }
+
     /// 自由模式在浅灰底上, 场景墨色不适用 → 双方案
     private var onScene: Bool { homeMode == 0 }
 
@@ -191,6 +201,14 @@ struct HomeView: View {
                     .stroke(fg,
                             style: StrokeStyle(lineWidth: Layout.ringWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
+                    .scaleEffect(bloom ? 1.12 : 1.0)
+                    .opacity(bloom ? 0.35 : 1)
+
+                if bloom {
+                    Circle()
+                        .stroke(fg.opacity(0.55), lineWidth: Layout.ringWidth)
+                        .scaleEffect(1.18)
+                }
 
                 VStack(spacing: 6) {
                     Text(modeLabel)
@@ -202,6 +220,7 @@ struct HomeView: View {
                         .monospacedDigit()
                         .kerning(-1)
                         .foregroundColor(fg)
+                        .scaleEffect(bloom ? 1.05 : 1.0)
                         .animation(.easeInOut(duration: 0.25), value: remaining)
                 }
             }
@@ -212,6 +231,7 @@ struct HomeView: View {
                 Haptic.tick()
                 engine.togglePause()
             }
+            .onChange(of: engine.phase) { _ in fireBloom() }
         }
     }
 
@@ -394,8 +414,10 @@ struct HomeView: View {
 struct PressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(.spring(response: 0.28, dampingFraction: 0.7),
+                       value: configuration.isPressed)
     }
 }
 

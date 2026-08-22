@@ -203,11 +203,19 @@ struct TodoView: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
+                let nm = t.name; let hex = t.colorHex; let done = t.isDone
                 let wasCurrent = engine.currentTaskID == t.id
                 var tx = Transaction(); tx.disablesAnimations = true
                 withTransaction(tx) {
                     Store.shared.deleteTask(t)
                     if wasCurrent { engine.select(taskID: nil) }
+                }
+                Haptic.medium()
+                ToastCenter.shared.show("已删除「\(nm)」") {
+                    if let nt = Store.shared.addTaskRaw(name: nm, colorHex: hex) , done {
+                        Store.shared.setDone(nt, true)
+                    }
+                    reload()
                 }
                 DispatchQueue.main.async { reload() }
             } label: { Label("删除", systemImage: "trash") }
@@ -371,6 +379,7 @@ struct TaskEditSheet: View {
 
     var body: some View {
         NavigationView {
+            .background(SheetDetents())
             Form {
                 Section("名称") {
                     HStack(spacing: 10) {

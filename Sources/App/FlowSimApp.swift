@@ -28,6 +28,7 @@ struct FlowSimApp: App {
                     .tabItem { Label("设置", systemImage: "gearshape") }
             }
             .tint(Color(hex: "#5865F2"))
+            .overlay(ToastOverlay())
             .onOpenURL { url in
                 switch url.host ?? "" {
                 case "start":

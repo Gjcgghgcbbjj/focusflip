@@ -17,13 +17,20 @@ struct CountdownSheet: View {
 
     var body: some View {
         NavigationView {
+            .background(SheetDetents())
             List {
                 ForEach(items) { c in
                     row(c)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
+                                let title = c.title; let date = c.targetDate; let hex = c.colorHex
                                 var tx = Transaction(); tx.disablesAnimations = true
                                 withTransaction(tx) { Store.shared.deleteCountdown(c) }
+                                Haptic.medium()
+                                ToastCenter.shared.show("已删除「\(title)」") {
+                                    _ = Store.shared.addCountdown(title: title, date: date, colorHex: hex)
+                                    reload()
+                                }
                                 DispatchQueue.main.async { reload() }
                             } label: { Label("删除", systemImage: "trash") }
                         }

@@ -129,10 +129,9 @@ struct TargetView: View {
                 }
                 Spacer()
                 VStack(spacing: 0) {
-                    Text("\(days)")
-                        .font(.system(size: 44, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundColor(urgent && days <= 7 ? .white : Color(hex: "#FFE08A"))
+                    RollText(value: max(0, days),
+                             font: .system(size: 44, weight: .bold, design: .rounded),
+                             color: urgent && days <= 7 ? .white : Color(hex: "#FFE08A"))
                     Text(days >= 0 ? (days == 0 ? "就是今天" : "天") : "天前")
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.8))
@@ -175,8 +174,14 @@ struct TargetView: View {
         .shadow(color: base.opacity(urgent ? 0.45 : 0.28), radius: urgent ? 14 : 10, y: 6)
         .contextMenu {
             Button(role: .destructive) {
+                let title = c.title; let date = c.targetDate; let hex = c.colorHex
                 var tx = Transaction(); tx.disablesAnimations = true
                 withTransaction(tx) { Store.shared.deleteCountdown(c) }
+                Haptic.medium()
+                ToastCenter.shared.show("已删除「\(title)」") {
+                    _ = Store.shared.addCountdown(title: title, date: date, colorHex: hex)
+                    reload()
+                }
                 DispatchQueue.main.async { reload() }
             } label: {
                 Label("删除", systemImage: "trash")

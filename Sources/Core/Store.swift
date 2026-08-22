@@ -86,6 +86,15 @@ final class Store {
     }
 
     @discardableResult
+    /// 撤销删除用: 指定颜色重建, 不参与轮换
+    func addTaskRaw(name: String, colorHex: String) -> TaskEntity? {
+        guard !name.isEmpty else { return nil }
+        let t = TaskEntity(context: context)
+        t.id = UUID(); t.name = name; t.colorHex = colorHex
+        t.sortOrder = Int32(tasks().count); t.createdAt = Date()
+        save(); return t
+    }
+
     func addTask(name: String) -> TaskEntity {
         let t = TaskEntity(context: context)
         t.id = UUID()

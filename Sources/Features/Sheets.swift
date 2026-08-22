@@ -11,6 +11,8 @@ struct TaskPickerSheet: View {
 
     var body: some View {
         NavigationView {
+            .background(SheetDetents())
+
             List {
                 // 不关联任务
                 row(id: nil, name: "不关联任务", colorHex: "#5865F2")
@@ -69,6 +71,7 @@ struct DurationTuneSheet: View {
 
     var body: some View {
         NavigationView {
+            .background(SheetDetents())
             Form {
                 Section("专注") {
                     minutesRow("时长", $prefs.focusMinutes, range: 1...180, step: 5)

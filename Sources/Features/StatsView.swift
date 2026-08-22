@@ -72,9 +72,9 @@ struct StatsView: View {
         VStack(spacing: 14) {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(pomodoros)")
-                        .font(.system(size: 44, weight: .bold, design: .rounded))
-                        .monospacedDigit()
+                    RollText(value: pomodoros,
+                             font: .system(size: 44, weight: .bold, design: .rounded),
+                             color: .white)
                     Text("个完成的番茄")
                         .font(.system(size: 13))
                         .opacity(0.8)
@@ -83,9 +83,9 @@ struct StatsView: View {
                 VStack(spacing: 6) {
                     Image(systemName: "flame.fill")
                         .font(.system(size: 17))
-                    Text("\(streak)")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .monospacedDigit()
+                    RollText(value: streak,
+                             font: .system(size: 22, weight: .bold, design: .rounded),
+                             color: .white)
                     Text("连续天数")
                         .font(.system(size: 11))
                         .opacity(0.85)
@@ -302,8 +302,11 @@ struct StatsView: View {
                                    startPoint: .top, endPoint: .bottom))
                 .opacity(0.55)
             Text("这段时间还没有完成的番茄")
-                .font(.system(size: 13))
+                .font(DS.F.subhead)
                 .foregroundColor(.secondary)
+            Text("去「专注」页点亮第一个圆环吧")
+                .font(DS.F.caption)
+                .foregroundColor(.secondary.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
     }
@@ -619,6 +622,7 @@ struct TimelineAllSheet: View {
 
     var body: some View {
         NavigationView {
+            .background(SheetDetents())
             List {
                 ForEach(groups.indices, id: \.self) { gi in
                     Section(groups[gi].day) {

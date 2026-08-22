@@ -51,3 +51,45 @@ struct DS {
     static let accent = Color(hex: "#5865F2")
     static let accentDeep = Color(hex: "#4C50E0")
 }
+
+// MARK: - iOS15 半高弹层桥（medium/large detents + 抓手）
+
+struct SheetDetents: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> DetentVC { DetentVC() }
+    func updateUIViewController(_ vc: DetentVC, context: Context) {}
+
+    final class DetentVC: UIViewController {
+        override func willMove(toParent parent: UIViewController?) {
+            super.willMove(toParent: parent)
+            guard let sheet = parent?.presentationController
+                    as? UISheetPresentationController else { return }
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
+        }
+    }
+}
+
+// MARK: - 数字滚动（整数 tween）
+
+struct RollText: View {
+    var value: Int
+    var font: Font = DS.F.numberM
+    var color: Color = .primary
+
+    @State private var shown: Double = 0
+
+    var body: some View {
+        Text("\(Int(shown.rounded()))")
+            .font(font)
+            .monospacedDigit()
+            .foregroundColor(color)
+            .onAppear { shown = Double(value) }
+            .onChange(of: value) { v in
+                withAnimation(.easeOut(duration: 0.6)) { shown = Double(v) }
+            }
+    }
+}
+
+extension Haptic {
+    static func light() { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+}

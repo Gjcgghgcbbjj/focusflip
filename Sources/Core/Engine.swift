@@ -73,16 +73,75 @@ final class FocusEngine: ObservableObject {
         }
     }
 
+    private static let pk = "eng.snapshot.v1"
+
     private init() {
         KeepAlive.tickPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.handleTick() }
             .store(in: &cancellables)
         refreshToday()
-        if let first = Store.shared.tasks().first {
-            currentTaskID = first.id
-        } else {
-            refreshTaskColor()
+        restoreState()
+        if currentTaskID == nil {
+            if let first = Store.shared.tasks().first { currentTaskID = first.id }
+            else { refreshTaskColor() }
+        }
+    }
+
+    // MARK: 杀后台恢复（墙钟补偿）
+
+    private func saveState() {
+        let key: String
+        switch state {
+        case .running: key = "running"
+        case .paused: key = "paused"
+        case .prepared: key = "prepared"
+        case .idle: key = "idle"
+        }
+        UserDefaults.standard.set([
+            "state": key,
+            "phase": phase?.rawValue ?? "",
+            "total": totalSeconds,
+            "remain": remainingSeconds,
+            "startedAt": startedAt?.timeIntervalSince1970 ?? 0,
+            "taskID": currentTaskID?.uuidString ?? ""
+        ] as [String: Any], forKey: Self.pk)
+    }
+
+    private func restoreState() {
+        guard let d = UserDefaults.standard.dictionary(forKey: Self.pk),
+              let ph = Phase(rawValue: d["phase"] as? String ?? "") else { return }
+        totalSeconds = d["total"] as? Int ?? 0
+        remainingSeconds = d["remain"] as? Int ?? 0
+        if let s = d["taskID"] as? String, let u = UUID(uuidString: s) {
+            currentTaskID = u; refreshTaskColor()
+        }
+        switch d["state"] as? String {
+        case "running":
+            let ts = d["startedAt"] as? Double ?? Date().timeIntervalSince1970
+            startedAt = Date(timeIntervalSince1970: ts)
+            state = .running(ph)
+            if remaining() <= 0 {
+                remainingSeconds = 0
+                finishCurrent(completed: true)
+                advanceToNext(afterCompleted: true)      // 死亡期间走完 → 结算推进
+            } else {
+                remainingSeconds = remaining()
+                keepAlive.start()
+                if prefs.soundAutoPlay && prefs.soundType != "none" {
+                    SoundPlayer.shared.startAmbient(type: prefs.soundType,
+                                                    volume: prefs.soundVolume)
+                }
+                Notifications.schedule(in: remainingSeconds, phase: ph,
+                                       taskName: currentTaskName.isEmpty ? nil : currentTaskName)
+            }
+        case "paused":
+            state = .paused(ph)
+        case "prepared":
+            startedAt = nil
+            state = .prepared(ph)
+        default:
+            goIdle()
         }
     }
 
@@ -127,6 +186,7 @@ final class FocusEngine: ObservableObject {
         }
         Notifications.schedule(in: seconds, phase: phase,
                                taskName: currentTaskName.isEmpty ? nil : currentTaskName)
+        saveState()
     }
 
     func pause() {
@@ -136,6 +196,7 @@ final class FocusEngine: ObservableObject {
         state = .paused(p)
         keepAlive.stop()
         Notifications.cancelAll()
+        saveState()
     }
 
     func resume() {
@@ -146,6 +207,7 @@ final class FocusEngine: ObservableObject {
         keepAlive.start()
         Notifications.schedule(in: remainingSeconds, phase: p,
                                taskName: currentTaskName.isEmpty ? nil : currentTaskName)
+        saveState()
     }
 
     func togglePause() { isRunning ? pause() : resume() }
@@ -206,6 +268,7 @@ final class FocusEngine: ObservableObject {
         remainingSeconds = seconds
         startedAt = nil
         state = .prepared(p)
+        saveState()
         if autoStart { startPreparedPhase() }
     }
 
@@ -214,6 +277,7 @@ final class FocusEngine: ObservableObject {
         totalSeconds = 0
         remainingSeconds = 0
         startedAt = nil
+        saveState()
     }
 
     // MARK: 任务联动
