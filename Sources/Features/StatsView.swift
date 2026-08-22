@@ -536,13 +536,16 @@ private struct ChartCard<Content: View>: View {
                 Spacer()
                 if let t = actionTitle, let act = action {
                     Button(action: act) {
-                        HStack(spacing: 2) {
+                        HStack(spacing: 3) {
                             Text(t)
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 9, weight: .bold))
                         }
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(Color(hex: "#5865F2"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Capsule().fill(Color(hex: "#5865F2").opacity(0.10)))
                     }
                 }
             }

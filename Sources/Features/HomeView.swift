@@ -115,7 +115,7 @@ struct HomeView: View {
             segButton("番茄", 0)
             segButton("自由", 1)
         }
-        .padding(3)
+        .padding(4)
         .background(Capsule().fill(Palette.panel(baseColor)))
         .animation(.easeInOut(duration: 0.25), value: homeMode)
         .animation(.easeInOut(duration: 0.25), value: homeMode)
@@ -128,10 +128,10 @@ struct HomeView: View {
             Haptic.tick()
         } label: {
             Text(t)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(selected ? Palette.deepVariant(baseColor) : fg)
-                .padding(.horizontal, 20)
-                .frame(height: 30)
+                .padding(.horizontal, 22)
+                .frame(height: 34)
                 .background(Capsule().fill(selected ? AnyShapeStyle(Color.white)
                                                     : AnyShapeStyle(Color.clear)))
         }
@@ -151,14 +151,14 @@ struct HomeView: View {
                     .frame(width: 8, height: 8)
                     .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 1))
                 Text(engine.currentTaskName.isEmpty ? "选择任务" : engine.currentTaskName)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(fg)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(fgSoft)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 11)
             .background(Capsule().fill(Palette.panel(baseColor)))
         }
         .buttonStyle(PressStyle())
@@ -264,9 +264,9 @@ struct HomeView: View {
                     showTune = true
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(fgSoft)
-                        .frame(width: 36, height: 32)
+                        .frame(width: 44, height: 37)
                         .background(Capsule().stroke(fgSoft.opacity(0.6), lineWidth: 1))
                 }
                 .buttonStyle(PressStyle())
@@ -282,11 +282,11 @@ struct HomeView: View {
             prefs.focusMinutes = m
         } label: {
             Text("\(m)")
-                .font(.system(size: 15, weight: selected ? .semibold : .regular))
+                .font(.system(size: 16, weight: selected ? .bold : .medium))
                 .monospacedDigit()
                 .foregroundColor(selected ? Palette.deepVariant(baseColor) : fgSoft)
-                .padding(.horizontal, 16)
-                .frame(height: 32)
+                .padding(.horizontal, 19)
+                .frame(height: 37)
                 .background(
                     Capsule().fill(selected ? AnyShapeStyle(Color.white)
                                             : AnyShapeStyle(Palette.panel(baseColor)))
@@ -353,18 +353,26 @@ struct HomeView: View {
                 if engine.phase == .focus { showGiveUpConfirm = true }
                 else { engine.skip() }
             } label: {
-                Text("放弃").font(.system(size: 14))
+                Text("放弃")
+                    .font(.system(size: 14, weight: .medium))
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(Palette.panel(baseColor)))
             }
             Spacer()
             Button {
                 Haptic.tick()
                 engine.skip()
             } label: {
-                Text("跳过").font(.system(size: 14))
+                Text("跳过")
+                    .font(.system(size: 14, weight: .medium))
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(Palette.panel(baseColor)))
             }
         }
-        .foregroundColor(fgSoft)
-        .padding(.horizontal, 56)
+        .foregroundColor(fg)
+        .padding(.horizontal, 48)
     }
 }
 

@@ -29,8 +29,11 @@ struct TargetView: View {
                         Haptic.tick()
                         showManager = true
                     } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 17, weight: .medium))
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(Color(hex: "#5865F2"))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                 }
             }

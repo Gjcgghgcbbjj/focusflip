@@ -45,8 +45,12 @@ struct SettingsView: View {
                         Toggle("专注时自动播放", isOn: $prefs.soundAutoPlay)
                         Button { playPreview() } label: {
                             Text(sound.isPlaying ? "停止" : "试听")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(Color(hex: "#5865F2"))
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(Color(hex: sound.isPlaying ? "#E5573F" : "#5865F2"))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(Capsule().fill(
+                                    Color(hex: sound.isPlaying ? "#E5573F" : "#5865F2").opacity(0.10)))
                         }
                         .buttonStyle(.borderless)
                     }
@@ -57,7 +61,12 @@ struct SettingsView: View {
                         }
                     }
                     Button { SoundPlayer.shared.playTone(prefs.toneType) } label: {
-                        Text("试听提示音").foregroundColor(Color(hex: "#5865F2"))
+                        Text("试听提示音")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(Color(hex: "#5865F2"))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(Color(hex: "#5865F2").opacity(0.10)))
                     }
                     footerText("环境音开始专注时响起，结束自动停止。")
                 }

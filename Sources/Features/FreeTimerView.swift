@@ -155,10 +155,10 @@ struct FreeTimerPane: View {
                                 Haptic.tick(); cdMinutes = m
                             } label: {
                                 Text("\(m)分")
-                                    .font(.system(size: 14, weight: cdMinutes == m ? .semibold : .regular))
+                                    .font(.system(size: 15, weight: cdMinutes == m ? .bold : .medium))
                                     .monospacedDigit()
                                     .foregroundColor(cdMinutes == m ? .white : Color(hex: "#5865F2"))
-                                    .padding(.horizontal, 14).frame(height: 30)
+                                    .padding(.horizontal, 17).frame(height: 35)
                                     .background(Capsule().fill(cdMinutes == m ? AnyShapeStyle(Color(hex: "#5865F2"))
                                                                               : AnyShapeStyle(Color(hex: "#5865F2").opacity(0.12))))
                             }
@@ -197,8 +197,11 @@ struct FreeTimerPane: View {
                         Notifications.cancelAll()
                     } label: {
                         Text("重置")
-                            .font(.system(size: 15))
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.secondary)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 11)
+                            .background(Capsule().stroke(Color.secondary.opacity(0.4), lineWidth: 1.2))
                     }
                 }
             }
