@@ -230,7 +230,28 @@ struct StatsView: View {
 
     // MARK: 任务占比（环形）
 
-    private var donutCard: some View {
+    private var donutCard: some View { VStack(spacing: 8) { filterChip; donutCardContent } }
+
+    private var filterChip: some View {
+        Group {
+            if let fn = filterName {
+                HStack(spacing: 6) {
+                    Text("已筛选：\(fn)")
+                        .font(DS.F.caption).foregroundColor(DS.accent)
+                    Button {
+                        filterName = nil; reload()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary.opacity(0.6))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+
+    private var donutCardContent: some View {
         ChartCard(title: "任务占比", subtitle: "按专注时长") {
             let total = Double(max(1, taskRows.reduce(0) { $0 + $1.minutes }))
             let segs = taskRows.map { ($0, Double($0.minutes) / total) }
@@ -550,19 +571,6 @@ private struct ChartCard<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-                    if let fn = filterName {
-                        HStack(spacing: 6) {
-                            Text("已筛选：\(fn)")
-                                .font(DS.F.caption).foregroundColor(DS.accent)
-                            Button { self.filterName = nil; self.reload() } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary.opacity(0.6))
-                            }
-                        }
-                        .padding(.horizontal, 12).padding(.vertical, 7)
-                        .background(Capsule().fill(DS.accent.opacity(0.10)))
-                    }
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)

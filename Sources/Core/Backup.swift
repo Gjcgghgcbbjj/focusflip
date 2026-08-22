@@ -84,7 +84,7 @@ enum Backup {
             df.dateFormat = "yyyyMMdd_HHmm"
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("FocusFlip_备份_\(df.string(from: Date())).json")
-            try data.write(to: url, atomically: true, encoding: .utf8)
+            try data.write(to: url, options: .atomic)
             return url
         } catch {
             NSLog("[Backup] export error: \(error.localizedDescription)")
@@ -132,7 +132,7 @@ enum Backup {
             se.id = s.id
             se.startDate = s.start
             se.endDate = s.end
-            se.durationSeconds = Int64(s.seconds)
+            se.durationSeconds = Int32(s.seconds)
             se.completed = s.completed
             se.phaseRaw = s.phaseRaw
             se.taskId = s.taskId
