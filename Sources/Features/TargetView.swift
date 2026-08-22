@@ -14,7 +14,7 @@ struct TargetView: View {
                         emptyState
                     }
                     ForEach(items) { c in
-                        bigCard(c)
+                        countdownCard(c)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -49,11 +49,68 @@ struct TargetView: View {
 
     // MARK: 大卡片（可滑动删除）
 
-    private func bigCard(_ c: CountdownEntity) -> some View {
+    /// 形态分级: 已过期=灰卡 / ≤7天=英雄卡+火焰徽章 / >30天=横条卡 / 其余=英雄卡
+    @ViewBuilder
+    private func countdownCard(_ c: CountdownEntity) -> some View {
+        let days = CountdownSheet.daysLeft(c.targetDate)
+        if days < 0 { pastCard(c, days: days) }
+        else if days > 30 { slimCard(c, days: days) }
+        else { bigCard(c, urgent: days <= 7) }
+    }
+
+    private func pastCard(_ c: CountdownEntity, days: Int) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(c.title).font(DS.F.bodySb).foregroundColor(.secondary)
+                Text(CountdownSheet.dateText(c.targetDate))
+                    .font(DS.F.caption).foregroundColor(.secondary.opacity(0.7))
+            }
+            Spacer()
+            VStack(spacing: 0) {
+                Text("\(abs(days))").font(DS.F.title2).monospacedDigit()
+                    .foregroundColor(.secondary)
+                Text("天前").font(DS.F.caption).foregroundColor(.secondary.opacity(0.7))
+            }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
+            .fill(Color(.secondarySystemGroupedBackground)))
+        .opacity(0.75)
+    }
+
+    private func slimCard(_ c: CountdownEntity, days: Int) -> some View {
+        let base = Color(hex: c.colorHex)
+        return HStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(base.opacity(0.18))
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Image(systemName: "flag")
+                        .font(.system(size: 15))
+                        .foregroundColor(base))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(c.title).font(DS.F.bodySb)
+                Text(CountdownSheet.dateText(c.targetDate))
+                    .font(DS.F.caption).foregroundColor(.secondary)
+            }
+            Spacer()
+            VStack(spacing: 0) {
+                Text("\(days)").font(DS.F.numberM).monospacedDigit()
+                    .foregroundColor(base)
+                Text("天").font(DS.F.caption).foregroundColor(.secondary)
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
+            .fill(Color(.secondarySystemGroupedBackground)))
+    }
+
+    private func bigCard(_ c: CountdownEntity, urgent: Bool) -> some View {
         let days = CountdownSheet.daysLeft(c.targetDate)
         let base = Color(hex: c.colorHex)
 
-        return VStack(alignment: .leading, spacing: 0) {
+        return ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(c.title)
@@ -68,7 +125,7 @@ struct TargetView: View {
                     Text("\(days)")
                         .font(.system(size: 44, weight: .bold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundColor(days <= 30 ? Color(hex: "#FFE08A") : .white)
+                        .foregroundColor(urgent && days <= 7 ? .white : Color(hex: "#FFE08A"))
                     Text(days >= 0 ? (days == 0 ? "就是今天" : "天") : "天前")
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.8))
@@ -90,12 +147,25 @@ struct TargetView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity)
+
+            if urgent {
+                HStack(spacing: 4) {
+                    Image(systemName: "flame.fill").font(.system(size: 10))
+                    Text("最后\(days)天").font(DS.F.caption)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(Color.white.opacity(0.22)))
+                .padding(10)
+            }
+        }
         .background(
             RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
                 .fill(LinearGradient(colors: [base.opacity(0.95), Palette.deepVariant(base)],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
         )
-        .shadow(color: base.opacity(0.32), radius: 10, y: 6)
+        .shadow(color: base.opacity(urgent ? 0.45 : 0.28), radius: urgent ? 14 : 10, y: 6)
         .contextMenu {
             Button(role: .destructive) {
                 withAnimation { Store.shared.deleteCountdown(c) }

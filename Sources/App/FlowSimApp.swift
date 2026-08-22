@@ -5,6 +5,12 @@ struct FlowSimApp: App {
 
     init() {
         Notifications.requestOnce()
+
+        let tab = UITabBarAppearance()
+        tab.configureWithOpaqueBackground()
+        tab.backgroundColor = UIColor.systemBackground
+        UITabBar.appearance().standardAppearance = tab
+        UITabBar.appearance().scrollEdgeAppearance = tab
     }
 
     var body: some Scene {

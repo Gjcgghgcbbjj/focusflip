@@ -130,23 +130,29 @@ struct TodoView: View {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
                     Store.shared.setDone(t, !t.isDone)
                 }
-                Haptic.tick()
+                t.isDone ? Haptic.success() : Haptic.tick()
                 reload()
             } label: {
                 ZStack {
                     Circle()
                         .stroke(t.isDone ? Color(hex: t.colorHex)
                                          : Color(hex: t.colorHex).opacity(0.55),
-                                lineWidth: 2)
-                        .frame(width: 24, height: 24)
+                                lineWidth: 2.4)
+                        .frame(width: 28, height: 28)
                     if t.isDone {
                         Circle().fill(Color(hex: t.colorHex))
-                            .frame(width: 24, height: 24)
+                            .frame(width: 28, height: 28)
+                            .transition(.scale(scale: 0.6).combined(with: .opacity))
                         Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 13, weight: .heavy))
                             .foregroundColor(.white)
+                            .transition(.scale(scale: 0.5).combined(with: .opacity))
                     }
                 }
+                .scaleEffect(t.isDone ? 1.05 : 1.0)
+                .animation(.spring(response: 0.3, damping: 0.55), value: t.isDone)
+                .frame(width: DS.H.touchMin, height: DS.H.touchMin)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -156,6 +162,8 @@ struct TodoView: View {
                 .strikethrough(t.isDone, color: .secondary)
                 .foregroundColor(t.isDone ? .secondary : .primary)
                 .lineLimit(1)
+
+            Spacer(minLength: 8)
 
             if isActive {
                 Circle()
@@ -176,7 +184,7 @@ struct TodoView: View {
                     .foregroundColor(.secondary.opacity(0.65))
             }
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 12)
         .contentShape(Rectangle())
         .onTapGesture { editing = t }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {

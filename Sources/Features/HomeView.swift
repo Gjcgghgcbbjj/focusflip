@@ -110,14 +110,27 @@ struct HomeView: View {
 
     // MARK: 番茄/自由 模式切换
 
+    /// 自由模式在浅灰底上, 场景墨色不适用 → 双方案
+    private var onScene: Bool { homeMode == 0 }
+
+    private var segContainerBg: Color {
+        onScene ? Palette.panel(baseColor) : Color.black.opacity(0.06)
+    }
+    private var segSelectedBg: Color {
+        onScene ? Color.white : DS.accent
+    }
+    private func segText(selected: Bool) -> Color {
+        if selected { return onScene ? Palette.deepVariant(baseColor) : .white }
+        return onScene ? fg : .primary.opacity(0.55)
+    }
+
     private var modeSwitch: some View {
         HStack(spacing: 4) {
             segButton("番茄", 0)
             segButton("自由", 1)
         }
         .padding(4)
-        .background(Capsule().fill(Palette.panel(baseColor)))
-        .animation(.easeInOut(duration: 0.25), value: homeMode)
+        .background(Capsule().fill(segContainerBg))
         .animation(.easeInOut(duration: 0.25), value: homeMode)
     }
 
@@ -129,10 +142,10 @@ struct HomeView: View {
         } label: {
             Text(t)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(selected ? Palette.deepVariant(baseColor) : fg)
+                .foregroundColor(segText(selected: selected))
                 .padding(.horizontal, 22)
                 .frame(height: 34)
-                .background(Capsule().fill(selected ? AnyShapeStyle(Color.white)
+                .background(Capsule().fill(selected ? AnyShapeStyle(segSelectedBg)
                                                     : AnyShapeStyle(Color.clear)))
         }
         .buttonStyle(PressStyle())
@@ -389,4 +402,7 @@ struct PressStyle: ButtonStyle {
 enum Haptic {
     static func tick() { UISelectionFeedbackGenerator().selectionChanged() }
     static func medium() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+    static func success() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
 }

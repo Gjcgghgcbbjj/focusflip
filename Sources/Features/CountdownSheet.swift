@@ -11,7 +11,9 @@ struct CountdownSheet: View {
     @State private var newDate = Calendar.current.date(byAdding: .day, value: 30, to: Date())!
     @State private var showAdd = false
 
-    private let colors = ["#5865F2", "#E5573F", "#2FA84F", "#1E88C7", "#9C27B0"]
+    @State private var newColor = "#5865F2"
+    static let palette = ["#5865F2", "#6A79FF", "#9C27B0", "#E5573F",
+                          "#F08A24", "#2FA84F", "#1E88C7", "#3A3F58"]
 
     var body: some View {
         NavigationView {
@@ -27,14 +29,50 @@ struct CountdownSheet: View {
 
                 Section {
                     if showAdd {
-                        HStack {
+                        VStack(alignment: .leading, spacing: 12) {
                             TextField("名称（如：高考）", text: $newTitle)
-                            DatePicker("", selection: $newDate,
-                                       displayedComponents: .date)
-                                .labelsHidden()
+                                .font(DS.F.bodyMd)
+                            HStack {
+                                Text("目标日期").foregroundColor(.secondary)
+                                Spacer()
+                                DatePicker("", selection: $newDate,
+                                           displayedComponents: .date)
+                                    .labelsHidden()
+                            }
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("颜色").foregroundColor(.secondary).font(DS.F.caption)
+                                LazyVGrid(columns: Array(repeating: GridItem(
+                                    .flexible(), spacing: 10), count: 8), spacing: 10) {
+                                    ForEach(Self.palette, id: \.self) { hex in
+                                        Circle()
+                                            .fill(Color(hex: hex))
+                                            .frame(width: 30, height: 30)
+                                            .overlay(
+                                                Circle().stroke(Color.primary.opacity(0.1),
+                                                                lineWidth: 1))
+                                            .overlay(
+                                                newColor == hex ?
+                                                    Image(systemName: "checkmark")
+                                                        .font(.system(size: 12, weight: .heavy))
+                                                        .foregroundColor(.white) : nil)
+                                            .onTapGesture {
+                                                newColor = hex; Haptic.tick()
+                                            }
+                                    }
+                                }
+                            }
+                            Button {
+                                add()
+                            } label: {
+                                Text("保存")
+                                    .font(DS.F.bodySb)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 13)
+                                    .background(Capsule().fill(Color(hex: newColor)))
+                            }
+                            .disabled(newTitle.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
-                        Button("保存") { add() }
-                            .disabled(newTitle.isEmpty)
                     } else {
                         Button {
                             showAdd = true; Haptic.tick()
@@ -109,8 +147,7 @@ struct CountdownSheet: View {
     private func add() {
         let name = newTitle.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
-        Store.shared.addCountdown(title: name, date: newDate,
-                                  colorHex: colors[items.count % colors.count])
+        Store.shared.addCountdown(title: name, date: newDate, colorHex: newColor)
         newTitle = ""; showAdd = false; reload(); Haptic.tick()
     }
 

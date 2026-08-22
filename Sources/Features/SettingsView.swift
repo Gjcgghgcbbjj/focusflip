@@ -1,7 +1,7 @@
 import SwiftUI
 import CoreData
 
-/// 设置 —— 全部分组可折叠（默认收起）
+/// 设置 —— 统计页同款卡片家族（R.card 卡 + 图标块分组头 + 自定义行控件）
 struct SettingsView: View {
 
     @ObservedObject private var prefs = Prefs.shared
@@ -13,88 +13,77 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                group("行为", icon: "switch.2") {
-                    Toggle("休息自动开始", isOn: $prefs.autoStartBreaks)
-                    Toggle("专注自动接续", isOn: $prefs.autoStartFocus)
-                    Toggle("专注时保持屏幕常亮", isOn: $prefs.keepAwake)
-                    footerText("阶段结束后自动进入下一阶段。")
-                }
-                group("声音", icon: "speaker.wave.2") {
-                    Picker("环境音", selection: $prefs.soundType) {
-                        ForEach(SoundPlayer.ambientTypes, id: \.id) { t in
-                            Text(t.name).tag(t.id)
-                        }
-                    }
-                    .onChange(of: prefs.soundType) { t in
-                        if sound.isPlaying {
-                            if t != "none" { playPreview() } else { sound.stopAmbient() }
-                        }
-                    }
+            ScrollView {
+                VStack(spacing: DS.S.md) {
+                    groupCard("行为", icon: "switch.2") {
+                        toggleRow("休息自动开始", $prefs.autoStartBreaks)
+                        divider
+                        toggleRow("专注自动接续", $prefs.autoStartFocus)
+                        divider
+                        toggleRow("专注时保持屏幕常亮", $prefs.keepAwake)
+                    } footer: { Text("阶段结束后自动进入下一阶段。") }
 
-                    HStack {
-                        Image(systemName: "speaker.fill")
-                            .font(.caption).foregroundColor(.secondary)
-                        Slider(value: $prefs.soundVolume, in: 0...1)
-                            .onChange(of: prefs.soundVolume) { v in sound.applyVolume(v) }
-                        Image(systemName: "speaker.wave.3.fill")
-                            .font(.caption).foregroundColor(.secondary)
-                    }
-
-                    HStack {
-                        Toggle("专注时自动播放", isOn: $prefs.soundAutoPlay)
-                        Button { playPreview() } label: {
-                            Text(sound.isPlaying ? "停止" : "试听")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Color(hex: sound.isPlaying ? "#E5573F" : "#5865F2"))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 7)
-                                .background(Capsule().fill(
-                                    Color(hex: sound.isPlaying ? "#E5573F" : "#5865F2").opacity(0.10)))
+                    groupCard("声音", icon: "speaker.wave.2") {
+                        menuRow("环境音", selection: $prefs.soundType,
+                                items: SoundPlayer.ambientTypes.map { ($0.id, $0.name) })
+                        divider
+                        sliderRow(value: $prefs.soundVolume) { v in sound.applyVolume(v) }
+                        divider
+                        HStack {
+                            Text("专注时自动播放").font(DS.F.bodyMd)
+                            Spacer()
+                            Toggle("", isOn: $prefs.soundAutoPlay)
+                                .labelsHidden()
                         }
-                        .buttonStyle(.borderless)
-                    }
-
-                    Picker("完成提示音", selection: $prefs.toneType) {
-                        ForEach(SoundPlayer.tones, id: \.id) { t in
-                            Text(t.name).tag(t.id)
+                        .padding(.vertical, 12)
+                        divider
+                        HStack {
+                            Text("完成提示音").font(DS.F.bodyMd)
+                            Spacer()
+                            menuButton(selection: $prefs.toneType,
+                                       items: SoundPlayer.tones.map { ($0.id, $0.name) })
                         }
-                    }
-                    Button { SoundPlayer.shared.playTone(prefs.toneType) } label: {
-                        Text("试听提示音")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Color(hex: "#5865F2"))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(Capsule().fill(Color(hex: "#5865F2").opacity(0.10)))
-                    }
-                    footerText("环境音开始专注时响起，结束自动停止。")
+                        .padding(.vertical, 12)
+                        divider
+                        actionRow(title: sound.isPlaying ? "停止试听" : "试听环境音",
+                                  system: sound.isPlaying ? "stop.fill" : "play.fill",
+                                  tint: sound.isPlaying ? Color(hex: "#E5573F") : nil) {
+                            playPreview()
+                        }
+                    } footer: { Text("环境音开始专注时响起，结束自动停止。") }
+
+                    groupCard("时长", icon: "timer") {
+                        stepperRow("默认专注", $prefs.focusMinutes, 1...180, 5)
+                        divider
+                        stepperRow("小憩", $prefs.shortMinutes, 1...60, 1)
+                        divider
+                        stepperRow("长歇", $prefs.longMinutes, 1...120, 5)
+                        divider
+                        stepperRow("长歇间隔", $prefs.longEvery, 2...8, 1, unit: "个")
+                    } footer: { Text("计时页的时长条可快速切换常用值。") }
+
+                    groupCard("数据", icon: "externaldrive") {
+                        actionRow(title: "导出全部记录 (CSV)",
+                                  system: "square.and.arrow.up",
+                                  tint: DS.accent) { exportCSV() }
+                    } footer: { Text("导出所有专注记录，表格软件可直接打开。") }
+
+                    groupCard("关于", icon: "info.circle") {
+                        HStack {
+                            Text("版本").font(DS.F.bodyMd)
+                            Spacer()
+                            Text(appVersion).foregroundColor(.secondary).monospacedDigit()
+                        }
+                        .padding(.vertical, 12)
+                    } footer: { Text("Flow 风格的极简专注计时器 · 个人自用") }
                 }
-                group("时长", icon: "timer") {
-                    minutesRow("默认专注", $prefs.focusMinutes, 1...180, 5)
-                    minutesRow("小憩", $prefs.shortMinutes, 1...60, 1)
-                    minutesRow("长歇", $prefs.longMinutes, 1...120, 5)
-                    Stepper(value: $prefs.longEvery, in: 2...8) {
-                        HStack { Text("长歇间隔"); Spacer()
-                            Text("每 \(prefs.longEvery) 个番茄").monospacedDigit()
-                                .foregroundColor(.secondary) }
-                    }
-                    footerText("计时页的时长条可快速切换常用值。")
-                }
-                group("数据", icon: "externaldrive") {
-                    Button { exportCSV() } label: {
-                        Label("导出全部记录 (CSV)", systemImage: "square.and.arrow.up")
-                            .foregroundColor(Color(hex: "#5865F2"))
-                    }
-                    footerText("导出所有专注记录，表格软件可直接打开。")
-                }
-                group("关于", icon: "info.circle") {
-                    HStack { Text("版本"); Spacer()
-                        Text(appVersion).foregroundColor(.secondary) }
-                    footerText("Flow 风格的极简专注计时器 · 个人自用")
-                }
+                .padding(.horizontal, DS.S.xl)
+                .padding(.top, DS.S.sm)
+                .padding(.bottom, DS.S.xl)
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("设置")
+            .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: Binding(
                 get: { shareURL != nil },
                 set: { if !$0 { shareURL = nil } })) {
@@ -103,54 +92,180 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: 可折叠分组
+    // MARK: 分组卡（统计卡同款容器）
 
     @ViewBuilder
-    private func group<Content: View>(_ title: String, icon: String,
-                                      @ViewBuilder content: () -> Content) -> some View {
-        let isOpen = expanded.contains(title)
-        Section {
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    if isOpen { expanded.remove(title) } else { expanded.insert(title) }
-                }
-                Haptic.tick()
-            } label: {
-                HStack(spacing: 11) {
-                    Image(systemName: icon)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(DS.accent)
-                        .frame(width: 27, height: 27)
-                        .background(
-                            RoundedRectangle(cornerRadius: DS.R.tile, style: .continuous)
-                                .fill(DS.accent.opacity(0.12))
-                        )
-                    Text(title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .bold))
-                        .rotationEffect(.degrees(isOpen ? 0 : -90))
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 3)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+    private func groupCard<Content: View, Footer: View>(
+        _ title: String, icon: String,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder footer: () -> Footer) -> some View {
 
-            if isOpen {
-                content()
+        let isOpen = expanded.contains(title)
+
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        if isOpen { expanded.remove(title) } else { expanded.insert(title) }
+                    }
+                    Haptic.tick()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: icon)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(DS.accent)
+                            .frame(width: 30, height: 30)
+                            .background(
+                                RoundedRectangle(cornerRadius: DS.R.tile, style: .continuous)
+                                    .fill(DS.accent.opacity(0.12)))
+                        Text(title)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .bold))
+                            .rotationEffect(.degrees(isOpen ? 0 : -90))
+                            .foregroundColor(.secondary.opacity(0.6))
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressStyle())
+
+                if isOpen {
+                    VStack(spacing: 0) {
+                        content()
+                    }
                     .transition(.opacity.combined(with: .move(edge: .top)))
+
+                    footer()
+                        .font(DS.F.caption)
+                        .foregroundColor(.secondary.opacity(0.75))
+                        .padding(.horizontal, 18)
+                        .padding(.top, 10)
+                        .padding(.bottom, 14)
+                }
             }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    private var divider: some View {
+        Divider().padding(.leading, 60)
+    }
+
+    // MARK: 行控件
+
+    private func toggleRow(_ title: String, _ on: Binding<Bool>) -> some View {
+        HStack {
+            Text(title).font(DS.F.bodyMd)
+            Spacer()
+            Toggle("", isOn: on).labelsHidden()
+        }
+        .padding(.vertical, 12)
+    }
+
+    private func menuRow(_ title: String, selection: Binding<String>,
+                         items: [(String, String)]) -> some View {
+        HStack {
+            Text(title).font(DS.F.bodyMd)
+            Spacer()
+            menuButton(selection: selection, items: items)
+        }
+        .padding(.vertical, 12)
+    }
+
+    private func menuButton(selection: Binding<String>,
+                            items: [(String, String)]) -> some View {
+        Menu {
+            Picker("", selection: selection) {
+                ForEach(items, id: \.0) { Text($0.1).tag($0.0) }
+            }
+        } label: {
+            let label = items.first { $0.0 == selection.wrappedValue }?.1 ?? "-"
+            HStack(spacing: 5) {
+                Text(label).font(DS.F.subheadSb)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+            }
+            .foregroundColor(DS.accent)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(DS.accent.opacity(0.10)))
         }
     }
 
-    private func footerText(_ s: String) -> some View {
-        Text(s)
-            .font(.footnote)
-            .foregroundColor(.secondary)
-            .padding(.top, 2)
+    private func sliderRow(value: Binding<Double>, onChange: @escaping (Double) -> Void)
+        -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "speaker.fill")
+                .font(.system(size: 10)).foregroundColor(.secondary)
+            Slider(value: value, in: 0...1)
+                .onChange(of: value.wrappedValue) { onChange($0) }
+            Image(systemName: "speaker.wave.3.fill")
+                .font(.system(size: 12)).foregroundColor(.secondary)
+        }
+        .padding(.vertical, 12)
+    }
+
+    private func stepperRow(_ title: String, _ value: Binding<Int>,
+                            _ range: ClosedRange<Int>, _ step: Int,
+                            unit: String = "分钟") -> some View {
+        HStack {
+            Text(title).font(DS.F.bodyMd)
+            Spacer()
+            HStack(spacing: 0) {
+                stepBtn("minus") {
+                    if value.wrappedValue - step >= range.lowerBound {
+                        value.wrappedValue -= step; Haptic.tick()
+                    }
+                }
+                Text("\(value.wrappedValue)")
+                    .font(DS.F.numberM.monospacedDigit())
+                    .foregroundColor(.primary)
+                    .frame(minWidth: 40)
+                + Text(" \(unit)")
+                    .font(DS.F.caption).foregroundColor(.secondary)
+                stepBtn("plus") {
+                    if value.wrappedValue + step <= range.upperBound {
+                        value.wrappedValue += step; Haptic.tick()
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Color(.tertiarySystemGroupedBackground)))
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func stepBtn(_ icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(DS.accent)
+                .frame(width: 34, height: 34)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle())
+    }
+
+    private func actionRow(title: String, system: String,
+                           tint: Color? = nil, action: @escaping () -> Void) -> some View {
+        Button {
+            action(); Haptic.tick()
+        } label: {
+            Label(title, systemImage: system)
+                .font(DS.F.bodySb)
+                .foregroundColor(tint ?? .primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle())
     }
 
     // MARK: 声音试听
@@ -163,23 +278,9 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: 时长行
-
-    private func minutesRow(_ title: String, _ value: Binding<Int>,
-                            _ range: ClosedRange<Int>, _ step: Int) -> some View {
-        Stepper(value: value, in: range, step: step) {
-            HStack { Text(title); Spacer()
-                Text("\(value.wrappedValue) 分钟").monospacedDigit()
-                    .foregroundColor(.secondary) }
-        }
-    }
-
-    // MARK: CSV
-
     private func exportCSV() {
         if let url = Store.shared.exportCSV() {
             shareURL = url
-            Haptic.tick()
         }
     }
 
@@ -208,7 +309,7 @@ extension Store {
                       + "\(phase),\(Int(s.durationSeconds) / 60),"
                       + "\(s.completed ? "是" : "否"),\"\(taskName)\",\"\(note)\"")
         }
-        let csv = "\u{FEFF}" + rows.joined(separator: "\n")   // BOM 兼容中文 Excel
+        let csv = "\u{FEFF}" + rows.joined(separator: "\n")
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("FocusFlip_记录.csv")
         do { try csv.write(to: url, atomically: true, encoding: .utf8); return url }
