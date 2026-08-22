@@ -118,19 +118,41 @@ struct FreeTimerPane: View {
             }
 
             if !laps.isEmpty {
+                let fastest = laps.min()
+                let slowest = laps.count > 1 ? laps.max() : nil
                 ScrollView {
                     VStack(spacing: 2) {
                         ForEach(laps.indices.reversed(), id: \.self) { i in
                             HStack {
-                                Text("Lap \(i + 1)")
+                                Text(laps[i] == fastest && laps.count > 1 ? "最快"
+                                     : laps[i] == slowest ? "最慢"
+                                     : "Lap \(i + 1)")
                                     .font(DS.F.subhead)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(laps[i] == fastest && laps.count > 1
+                                                     ? Color(hex: "#2FA84F")
+                                                     : laps[i] == slowest
+                                                     ? Color(hex: "#E5573F") : .secondary)
                                 Spacer()
                                 Text(Self.format(laps[i]))
                                     .font(DS.F.bodyMd.monospacedDigit())
+                                    .foregroundColor(laps[i] == fastest && laps.count > 1
+                                                     ? Color(hex: "#2FA84F")
+                                                     : laps[i] == slowest
+                                                     ? Color(hex: "#E5573F") : .primary)
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 11)
+                            .contentShape(Rectangle())
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    withAnimation(.easeOut(duration: 0.22)) {
+                                        _ = laps.remove(at: i)
+                                    }
+                                    Haptic.tick()
+                                } label: {
+                                    Label("删除此计次", systemImage: "trash")
+                                }
+                            }
                             if i > 0 { Divider() }
                         }
                     }

@@ -232,6 +232,27 @@ struct HomeView: View {
                 engine.togglePause()
             }
             .onChange(of: engine.phase) { _ in fireBloom() }
+            .contextMenu {
+                if engine.isRunning {
+                    Button { Haptic.tick(); engine.pause() } label: {
+                        Label("暂停", systemImage: "pause.fill")
+                    }
+                } else if engine.isPaused {
+                    Button { Haptic.tick(); engine.resume() } label: {
+                        Label("继续", systemImage: "play.fill")
+                    }
+                }
+                if !engine.isPlanning {
+                    Button { Haptic.tick(); engine.skip() } label: {
+                        Label("跳过此阶段", systemImage: "forward.fill")
+                    }
+                }
+                if engine.isRunning || engine.isPaused {
+                    Button(role: .destructive) { showGiveUpConfirm = true } label: {
+                        Label("放弃专注", systemImage: "xmark.circle")
+                    }
+                }
+            }
         }
     }
 

@@ -5,6 +5,7 @@ struct TargetView: View {
 
     @State private var items: [CountdownEntity] = []
     @State private var showManager = false
+    @State private var editing: CountdownEntity?
 
     var body: some View {
         NavigationView {
@@ -15,6 +16,10 @@ struct TargetView: View {
                     }
                     ForEach(items) { c in
                         countdownCard(c)
+                            .onTapGesture {
+                                Haptic.light()
+                                editing = c
+                            }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -39,6 +44,10 @@ struct TargetView: View {
             }
             .sheet(isPresented: $showManager) {
                 CountdownSheet()
+            }
+            .sheet(item: $editing) { c in
+                EditCountdownSheet(target: c) { reload() }
+                    .background(SheetDetents())
             }
             .onAppear(perform: reload)
             .onChange(of: showManager) { open in
@@ -228,5 +237,126 @@ struct TargetView: View {
         .padding(.bottom, 30)
     }
 
-    private func reload() { items = Store.shared.countdowns() }
+    private func reload() {
+        items = Store.shared.countdowns().sorted {
+            CountdownSheet.daysLeft($0.targetDate) < CountdownSheet.daysLeft($1.targetDate)
+        }
+    }
+}
+
+/// 编辑已有目标（点卡片进入）
+struct EditCountdownSheet: View {
+    let target: CountdownEntity
+    let onDone: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var title = ""
+    @State private var date = Date()
+    @State private var colorHex = "#5865F2"
+    @State private var loaded = false
+    @State private var confirmDelete = false
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: DS.S.lg) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("名称").font(DS.F.microCaps).kerning(1.5).foregroundColor(.secondary)
+                        TextField("如：高考", text: $title)
+                            .font(DS.F.headline)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(RoundedRectangle(cornerRadius: DS.R.composer,
+                                                         style: .continuous)
+                                .fill(Color(.tertiarySystemGroupedBackground)))
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("目标日期").font(DS.F.microCaps).kerning(1.5).foregroundColor(.secondary)
+                        DatePicker("", selection: $date, displayedComponents: .date)
+                            .labelsHidden()
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("颜色").font(DS.F.microCaps).kerning(1.5).foregroundColor(.secondary)
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12),
+                                                 count: 8), spacing: 12) {
+                            ForEach(CountdownSheet.palette, id: \.self) { hex in
+                                Circle()
+                                    .fill(Color(hex: hex))
+                                    .frame(width: 32, height: 32)
+                                    .overlay(Circle().stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                                    .overlay(
+                                        colorHex == hex ?
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 13, weight: .heavy))
+                                                .foregroundColor(.white) : nil)
+                                    .onTapGesture { colorHex = hex; Haptic.tick() }
+                            }
+                        }
+                    }
+
+                    Button {
+                        saveAndClose()
+                    } label: {
+                        Text("保存修改")
+                            .font(DS.F.bodySb)
+                            .foregroundColor(title.trimmingCharacters(in: .whitespaces).isEmpty
+                                             ? .secondary : .white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(Capsule().fill(
+                                title.trimmingCharacters(in: .whitespaces).isEmpty
+                                ? Color(.tertiarySystemGroupedBackground)
+                                : Color(hex: colorHex)))
+                    }
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                    Button(role: .destructive) { confirmDelete = true } label: {
+                        Label("删除此目标", systemImage: "trash")
+                            .font(DS.F.subheadSb)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                    }
+                    .confirmationDialog("删除「\(title)」？", isPresented: $confirmDelete,
+                                        titleVisibility: .visible) {
+                        Button("删除", role: .destructive) {
+                            dismiss()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                Store.shared.deleteCountdown(target)
+                                onDone()
+                            }
+                        }
+                        Button("取消", role: .cancel) {}
+                    }
+                }
+                .padding(DS.S.xl)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("编辑目标")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { dismiss() }
+                }
+            }
+            .onAppear {
+                guard !loaded else { return }
+                loaded = true
+                title = target.title
+                date = target.targetDate
+                colorHex = target.colorHex
+            }
+        }
+    }
+
+    private func saveAndClose() {
+        target.title = title.trimmingCharacters(in: .whitespaces)
+        target.targetDate = date
+        target.colorHex = colorHex
+        Store.shared.save()
+        Haptic.success()
+        dismiss()
+        onDone()
+    }
 }
