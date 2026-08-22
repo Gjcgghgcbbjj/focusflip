@@ -191,17 +191,6 @@ struct TodoView: View {
         .padding(.vertical, 12)
         .contentShape(Rectangle())
         .onTapGesture { editing = t }
-        )
-        Button {
-            var tx = Transaction(); tx.disablesAnimations = true
-            withTransaction(tx) { Store.shared.setDone(t, !t.isDone) }
-            if !t.isDone { showDone = true; Haptic.success() } else { Haptic.tick() }
-            DispatchQueue.main.async { reload() }
-        } label: {
-            Label(t.isDone ? "撤销" : "完成",
-                  systemImage: t.isDone ? "arrow.uturn.backward" : "checkmark")
-        }
-        .tint(Color(hex: "#2FA84F"))
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             if !t.isDone {
                 Button {
