@@ -43,8 +43,7 @@ struct TodoView: View {
                     }
                 }
             }
-            .listStyle(.plain)
-            .environment(\.defaultMinListRowHeight, 44)
+            .listStyle(.insetGrouped)
             .navigationTitle("任务")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -180,7 +179,6 @@ struct TodoView: View {
         .padding(.vertical, 5)
         .contentShape(Rectangle())
         .onTapGesture { editing = t }
-        .listRowSeparator(.hidden)
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
@@ -232,7 +230,6 @@ struct TodoView: View {
             }
         }
         .buttonStyle(.plain)
-        .listRowSeparator(.hidden)
     }
 
     // MARK: 快速添加

@@ -119,25 +119,26 @@ struct FreeTimerPane: View {
 
             if !laps.isEmpty {
                 ScrollView {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 2) {
                         ForEach(laps.indices.reversed(), id: \.self) { i in
                             HStack {
                                 Text("Lap \(i + 1)")
-                                    .font(.system(size: 13))
+                                    .font(DS.F.subhead)
                                     .foregroundColor(.secondary)
                                 Spacer()
                                 Text(Self.format(laps[i]))
-                                    .font(.system(size: 14).monospacedDigit())
+                                    .font(DS.F.bodyMd.monospacedDigit())
                             }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(.secondarySystemGroupedBackground)))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 11)
+                            if i > 0 { Divider() }
                         }
                     }
                 }
                 .frame(maxHeight: 190)
+                .background(
+                    RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
+                        .fill(Color(.secondarySystemGroupedBackground)))
             }
         }
         .padding(.horizontal, 24)
@@ -235,6 +236,25 @@ struct FreeTimerPane: View {
     }
 
     private var cdRunningOrPaused: Bool { cdEnd != nil || cdPausedRemain != nil }
+
+    /// 统计页同款时间卡：大数字 + 状态副标题
+    private func timeCard<Content: View>(caption: String,
+                                         tint: Color? = nil,
+                                         @ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 10) {
+            content()
+            Text(caption)
+                .font(DS.F.microCaps)
+                .kerning(1.5)
+                .foregroundColor(tint ?? .secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
+        .background(
+            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
 
     static func format(_ t: TimeInterval, forceHours: Bool = false) -> String {
         let s = max(0, Int(t))
