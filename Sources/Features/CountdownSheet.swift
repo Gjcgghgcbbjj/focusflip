@@ -95,7 +95,7 @@ struct CountdownSheet: View {
         }
     }
 
-    private func row(_ c: CountdownEntity) -> some View {
+    private func row(_ c: CountdownEntity) -> AnyView {
         if c.managedObjectContext == nil { return AnyView(EmptyView().frame(height: 0)) }
         let days = Self.daysLeft(c.targetDate)
         return AnyView(HStack(spacing: 12) {

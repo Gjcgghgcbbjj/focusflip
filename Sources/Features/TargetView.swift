@@ -58,7 +58,7 @@ struct TargetView: View {
         else { bigCard(c, urgent: days <= 7) }
     }
 
-    private func pastCard(_ c: CountdownEntity, days: Int) -> some View {
+    private func pastCard(_ c: CountdownEntity, days: Int) -> AnyView {
         guard safe(c) else { return AnyView(EmptyView()) }
         return AnyView(HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -80,7 +80,7 @@ struct TargetView: View {
         )
     }
 
-    private func slimCard(_ c: CountdownEntity, days: Int) -> some View {
+    private func slimCard(_ c: CountdownEntity, days: Int) -> AnyView {
         guard safe(c) else { return AnyView(EmptyView()) }
         let base = Color(hex: c.colorHex)
         return AnyView(HStack(spacing: 14) {
@@ -111,7 +111,7 @@ struct TargetView: View {
 
     private func safe(_ c: CountdownEntity) -> Bool { c.managedObjectContext != nil }
 
-    private func bigCard(_ c: CountdownEntity, urgent: Bool) -> some View {
+    private func bigCard(_ c: CountdownEntity, urgent: Bool) -> AnyView {
         guard safe(c) else { return AnyView(EmptyView()) }
         let days = CountdownSheet.daysLeft(c.targetDate)
         let base = Color(hex: c.colorHex)
