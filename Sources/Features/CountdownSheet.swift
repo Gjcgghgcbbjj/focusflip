@@ -99,7 +99,6 @@ struct CountdownSheet: View {
         if c.managedObjectContext == nil { return AnyView(EmptyView().frame(height: 0)) }
         let days = Self.daysLeft(c.targetDate)
         return AnyView(HStack(spacing: 12) {
-        return HStack(spacing: 12) {
             Circle().fill(Color(hex: c.colorHex)).frame(width: 9, height: 9)
             VStack(alignment: .leading, spacing: 2) {
                 Text(c.title).font(.system(size: 15))

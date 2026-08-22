@@ -103,7 +103,6 @@ struct TargetView: View {
                 Text("天").font(DS.F.caption).foregroundColor(.secondary)
             }
         }
-        )
         .padding(14)
         .background(RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
             .fill(Color(.secondarySystemGroupedBackground)))
