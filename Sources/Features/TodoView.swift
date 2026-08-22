@@ -9,7 +9,6 @@ struct TodoView: View {
     @State private var tasks: [TaskEntity] = []
     @State private var newText = ""
     @FocusState private var addFocused: Bool
-    @FocusState private var addFocused: Bool
     @State private var editing: TaskEntity?
     @State private var showDone = false
 
