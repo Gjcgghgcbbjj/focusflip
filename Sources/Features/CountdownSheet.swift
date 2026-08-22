@@ -131,8 +131,8 @@ struct CountdownSheet: View {
             }
             .frame(minWidth: 52)
         }
-        )
         .padding(.vertical, 3)
+        )
     }
 
     static func daysLeft(_ date: Date) -> Int {

@@ -126,7 +126,7 @@ struct TodoView: View {
 
     // MARK: 行
 
-    private func row(_ t: TaskEntity) -> some View {
+    private func row(_ t: TaskEntity) -> AnyView {
         if t.managedObjectContext == nil { return AnyView(EmptyView().frame(height: 0)) }
         let isActive = engine.currentTaskID == t.id
         return AnyView(HStack(spacing: 13) {
@@ -223,6 +223,7 @@ struct TodoView: View {
                 DispatchQueue.main.async { reload() }
             } label: { Label("删除", systemImage: "trash") }
         }
+        )
     }
 
     // MARK: 已完成折叠头
