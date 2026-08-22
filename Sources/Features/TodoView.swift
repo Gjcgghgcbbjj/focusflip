@@ -150,7 +150,7 @@ struct TodoView: View {
                     }
                 }
                 .scaleEffect(t.isDone ? 1.05 : 1.0)
-                .animation(.spring(response: 0.3, damping: 0.55), value: t.isDone)
+                .animation(.spring(response: 0.3, dampingFraction: 0.55), value: t.isDone)
                 .frame(width: DS.H.touchMin, height: DS.H.touchMin)
                 .contentShape(Rectangle())
             }

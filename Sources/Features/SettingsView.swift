@@ -224,12 +224,14 @@ struct SettingsView: View {
                         value.wrappedValue -= step; Haptic.tick()
                     }
                 }
-                Text("\(value.wrappedValue)")
-                    .font(DS.F.numberM.monospacedDigit())
-                    .foregroundColor(.primary)
-                    .frame(minWidth: 40)
-                + Text(" \(unit)")
-                    .font(DS.F.caption).foregroundColor(.secondary)
+                HStack(spacing: 3) {
+                    Text("\(value.wrappedValue)")
+                        .font(DS.F.numberM.monospacedDigit())
+                        .foregroundColor(.primary)
+                    Text(unit)
+                        .font(DS.F.caption).foregroundColor(.secondary)
+                }
+                .frame(minWidth: 64)
                 stepBtn("plus") {
                     if value.wrappedValue + step <= range.upperBound {
                         value.wrappedValue += step; Haptic.tick()
