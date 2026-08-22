@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import UniformTypeIdentifiers
 
 /// 设置 —— 统计页同款卡片家族（R.card 卡 + 图标块分组头 + 自定义行控件）
 struct SettingsView: View {
@@ -10,6 +11,8 @@ struct SettingsView: View {
 
     @State private var expanded: Set<String> = []
     @State private var shareURL: URL?
+    @State private var showImporter = false
+    @State private var importToast: String?
 
     var body: some View {
         NavigationView {
@@ -21,6 +24,8 @@ struct SettingsView: View {
                         toggleRow("专注自动接续", $prefs.autoStartFocus)
                         divider
                         toggleRow("专注时保持屏幕常亮", $prefs.keepAwake)
+                    divider
+                    toggleRow("计时中隐藏底部标签栏", $prefs.immersive)
                     } footer: { Text("阶段结束后自动进入下一阶段。") }
 
                     groupCard("声音", icon: "speaker.wave.2") {
@@ -63,10 +68,18 @@ struct SettingsView: View {
                     } footer: { Text("计时页的时长条可快速切换常用值。") }
 
                     groupCard("数据", icon: "externaldrive") {
-                        actionRow(title: "导出全部记录 (CSV)",
+                        actionRow(title: "备份全部数据 (JSON)",
                                   system: "square.and.arrow.up",
-                                  tint: DS.accent) { exportCSV() }
-                    } footer: { Text("导出所有专注记录，表格软件可直接打开。") }
+                                  tint: DS.accent) { exportBackup() }
+                        divider
+                        actionRow(title: "从备份导入…",
+                                  system: "square.and.arrow.down",
+                                  tint: DS.accent) { showImporter = true }
+                        divider
+                        actionRow(title: "导出全部记录 (CSV)",
+                                  system: "doc.text",
+                                  tint: nil) { exportCSV() }
+                    } footer: { Text("JSON 备份含任务/目标/记录，导入按 ID 去重合并。") }
 
                     groupCard("关于", icon: "info.circle") {
                         HStack {
@@ -88,6 +101,13 @@ struct SettingsView: View {
                 get: { shareURL != nil },
                 set: { if !$0 { shareURL = nil } })) {
                 if let url = shareURL { ShareSheet(items: [url]) }
+            }
+            .fileImporter(isPresented: $showImporter,
+                          allowedContentTypes: [.json],
+                          allowsMultipleSelection: false) { result in
+                if case .success(let urls) = result, let url = urls.first {
+                    importBackup(from: url)
+                }
             }
         }
     }
@@ -285,6 +305,22 @@ struct SettingsView: View {
         if let url = Store.shared.exportCSV() {
             shareURL = url
         }
+    }
+
+    private func exportBackup() {
+        if let url = Backup.make() {
+            shareURL = url
+        }
+    }
+
+    private func importBackup(from url: URL) {
+        let secured = url.startAccessingSecurityScopedResource()
+        defer { if secured { url.stopAccessingSecurityScopedResource() } }
+        let count = Backup.restore(from: url)
+        Haptic.tick()
+        ToastCenter.shared.show(count >= 0 ? "已导入 \(count) 条新数据"
+                                           : "导入失败：文件格式不正确",
+                                undoLabel: "知道了", undo: nil)
     }
 
     private var appVersion: String {

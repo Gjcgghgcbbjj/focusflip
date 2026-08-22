@@ -25,9 +25,19 @@ enum EngineState: Equatable {
 
 // MARK: - 引擎（墙钟派生，后台不漂移）
 
+struct PhaseCompletion: Equatable {
+    let id = UUID()
+    let minutes: Int
+    let wasFocus: Bool
+    let nextPrepared: Bool   // true=下一阶段待启动(false=已自动开跑)
+}
+
 final class FocusEngine: ObservableObject {
 
     static let shared = FocusEngine()
+
+    /// 最近一次阶段自然完成（供结算卡展示）
+    @Published var lastCompletion: PhaseCompletion?
 
     @Published private(set) var state: EngineState = .idle
     @Published private(set) var remainingSeconds: Int = 0
@@ -225,9 +235,17 @@ final class FocusEngine: ObservableObject {
     }
 
     private func completePhase() {
+        let mins = max(1, totalSeconds / 60)
+        let wasFocus = phase == .focus
         finishCurrent(completed: true)
         SoundPlayer.shared.playTone(Prefs.shared.toneType)
         advanceToNext(afterCompleted: true)
+
+        var preparedNext = false
+        if case .prepared = state { preparedNext = true }
+        lastCompletion = PhaseCompletion(minutes: mins,
+                                         wasFocus: wasFocus,
+                                         nextPrepared: preparedNext)
     }
 
     private func finishCurrent(completed: Bool) {

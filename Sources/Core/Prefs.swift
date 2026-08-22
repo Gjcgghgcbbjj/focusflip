@@ -10,6 +10,7 @@ final class Prefs: ObservableObject {
     @Published var autoStartBreaks: Bool  { didSet { d.set(autoStartBreaks, forKey: "autoStartBreaks") } }
     @Published var autoStartFocus: Bool   { didSet { d.set(autoStartFocus, forKey: "autoStartFocus") } }
     @Published var keepAwake: Bool        { didSet { d.set(keepAwake, forKey: "keepAwake") } }
+    @Published var immersive: Bool        { didSet { d.set(immersive, forKey: "immersive") } }
 
     @Published var focusMinutes: Int      { didSet { d.set(focusMinutes, forKey: "focusMinutes") } }
     @Published var shortMinutes: Int      { didSet { d.set(shortMinutes, forKey: "shortMinutes") } }
@@ -25,6 +26,7 @@ final class Prefs: ObservableObject {
         autoStartBreaks = d.object(forKey: "autoStartBreaks") as? Bool ?? true
         autoStartFocus  = d.object(forKey: "autoStartFocus") as? Bool ?? false
         keepAwake       = d.object(forKey: "keepAwake") as? Bool ?? true
+        immersive       = d.object(forKey: "immersive") as? Bool ?? false
         focusMinutes    = d.object(forKey: "focusMinutes") as? Int ?? 25
         shortMinutes    = d.object(forKey: "shortMinutes") as? Int ?? 5
         longMinutes     = d.object(forKey: "longMinutes") as? Int ?? 15

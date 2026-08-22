@@ -32,6 +32,7 @@ struct StatsView: View {
     @State private var noteTarget: SessionEntity?
     @State private var noteText = ""
     @State private var showAllTimeline = false
+    @State private var filterName: String?
 
     private let accent = Color(hex: "#5865F2")
 
@@ -270,17 +271,32 @@ struct StatsView: View {
                 VStack(alignment: .leading, spacing: 9) {
                     ForEach(taskRows.prefix(5).indices, id: \.self) { i in
                         let r = taskRows[i]
+                        let selected = filterName == r.name
                         HStack(spacing: 7) {
                             Circle().fill(Color(hex: r.colorHex))
                                 .frame(width: 8, height: 8)
                             Text(r.name)
-                                .font(.system(size: 12))
+                                .font(.system(size: selected ? 12.5 : 12,
+                                              weight: selected ? .bold : .regular))
+                                .foregroundColor(selected ? Color(hex: r.colorHex) : .primary)
                                 .lineLimit(1)
                             Spacer()
-                            Text("\(Int(Double(r.minutes) / total * 100))%")
-                                .font(.system(size: 11, weight: .semibold))
-                                .monospacedDigit()
-                                .foregroundColor(.secondary)
+                            if selected {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color(hex: r.colorHex))
+                            } else {
+                                Text("\(Int(Double(r.minutes) / total * 100))%")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .monospacedDigit()
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            Haptic.tick()
+                            filterName = selected ? nil : r.name
+                            reload()
                         }
                     }
                     Spacer(minLength: 0)
@@ -428,7 +444,13 @@ struct StatsView: View {
         let req: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
         req.predicate = NSPredicate(format: "phaseRaw == %@ AND completed == YES AND startDate >= %@",
                                     Phase.focus.rawValue, rangeStart as NSDate)
-        let sessions = (try? Store.shared.context.fetch(req)) ?? []
+        var sessions = (try? Store.shared.context.fetch(req)) ?? []
+        if let fname = filterName {
+            sessions = sessions.filter { s in
+                let n = s.taskId.flatMap { Store.shared.task(id: $0) }?.name ?? "未关联任务"
+                return n == fname
+            }
+        }
 
         pomodoros = sessions.count
         totalMinutes = sessions.reduce(0) { $0 + Int($1.durationSeconds) } / 60
@@ -528,6 +550,19 @@ private struct ChartCard<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+                    if let fn = filterName {
+                        HStack(spacing: 6) {
+                            Text("已筛选：\(fn)")
+                                .font(DS.F.caption).foregroundColor(DS.accent)
+                            Button { self.filterName = nil; self.reload() } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary.opacity(0.6))
+                            }
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .background(Capsule().fill(DS.accent.opacity(0.10)))
+                    }
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)

@@ -11,6 +11,7 @@ struct HomeView: View {
     @State private var showGiveUpConfirm = false
     @State private var homeMode = 0          // 0 番茄 / 1 自由
     @State private var bloom = false         // 阶段完成光晕
+    @State private var settle: (minutes: Int, wasFocus: Bool)?
 
     // MARK: 底色（Flow 核心：色随内容）
 
@@ -35,6 +36,20 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
+
+            // 阶段完成结算卡（全屏）
+            if let done = engine.lastCompletion {
+                SettleCard(info: done,
+                           taskColor: baseColor,
+                           todayCount: engine.todayPomodoros) {
+                    engine.startPreparedPhase()
+                    engine.lastCompletion = nil
+                } later: {
+                    engine.lastCompletion = nil
+                }
+                .transition(.opacity)
+                .zIndex(10)
+            }
             if homeMode == 0 {
                 Palette.sceneGradient(baseColor)
                     .ignoresSafeArea()
@@ -110,6 +125,40 @@ struct HomeView: View {
     }
 
     // MARK: 番茄/自由 模式切换
+
+    // MARK: 沉浸模式（计时中隐藏底部标签栏）
+
+    private func applyImmersive() {
+        guard prefs.immersive else { setTabBar(hidden: false); return }
+        setTabBar(hidden: engine.isRunning)
+    }
+
+    private func setTabBar(hidden: Bool) {
+        DispatchQueue.main.async {
+            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            for scene in scenes {
+                for window in scene.windows {
+                    Self.walk(window.rootViewController) { vc in
+                        guard let bar = (vc as? UITabBarController)?.tabBar else { return }
+                        guard bar.superview != nil else { return }
+                        UIView.animate(withDuration: 0.28, delay: 0,
+                                       options: [.beginFromCurrentState, .curveEaseInOut]) {
+                            bar.alpha = hidden ? 0 : 1
+                            bar.frame.origin.y = hidden
+                                ? UIScreen.main.bounds.height
+                                : UIScreen.main.bounds.height - bar.frame.height
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static func walk(_ vc: UIViewController?, _ visit: (UIViewController) -> Void) {
+        guard let vc else { return }
+        visit(vc)
+        vc.children.forEach { walk($0, visit) }
+    }
 
     private func fireBloom() {
         guard !bloom else { return }
@@ -231,7 +280,10 @@ struct HomeView: View {
                 Haptic.tick()
                 engine.togglePause()
             }
-            .onChange(of: engine.phase) { _ in fireBloom() }
+                        .onChange(of: engine.phase) { _ in fireBloom() }
+            .onAppear { applyImmersive() }
+            .onDisappear { setTabBar(hidden: false) }
+            .onChange(of: engine.isRunning) { _ in applyImmersive() }
             .contextMenu {
                 if engine.isRunning {
                     Button { Haptic.tick(); engine.pause() } label: {
