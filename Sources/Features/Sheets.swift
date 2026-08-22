@@ -11,7 +11,6 @@ struct TaskPickerSheet: View {
 
     var body: some View {
         NavigationView {
-            .background(SheetDetents())
 
             List {
                 // 不关联任务
@@ -24,6 +23,7 @@ struct TaskPickerSheet: View {
             }
             .listStyle(.plain)
             .navigationTitle("选择任务")
+.background(SheetDetents())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -71,7 +71,6 @@ struct DurationTuneSheet: View {
 
     var body: some View {
         NavigationView {
-            .background(SheetDetents())
             Form {
                 Section("专注") {
                     minutesRow("时长", $prefs.focusMinutes, range: 1...180, step: 5)
@@ -85,6 +84,7 @@ struct DurationTuneSheet: View {
                 }
             }
             .navigationTitle("时长")
+.background(SheetDetents())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

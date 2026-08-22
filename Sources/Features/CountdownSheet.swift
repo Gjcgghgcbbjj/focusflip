@@ -17,7 +17,6 @@ struct CountdownSheet: View {
 
     var body: some View {
         NavigationView {
-            .background(SheetDetents())
             List {
                 ForEach(items) { c in
                     row(c)
@@ -92,6 +91,7 @@ struct CountdownSheet: View {
                 }
             }
             .navigationTitle("日期倒计时")
+.background(SheetDetents())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

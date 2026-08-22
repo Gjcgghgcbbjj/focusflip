@@ -379,7 +379,6 @@ struct TaskEditSheet: View {
 
     var body: some View {
         NavigationView {
-            .background(SheetDetents())
             Form {
                 Section("名称") {
                     HStack(spacing: 10) {
@@ -418,6 +417,7 @@ struct TaskEditSheet: View {
                 }
             }
             .navigationTitle("编辑任务")
+.background(SheetDetents())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

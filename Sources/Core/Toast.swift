@@ -8,6 +8,7 @@ final class ToastCenter: ObservableObject {
     @Published var undoLabel: String = "撤销"
     private var undoAction: (() -> Void)?
     private var hideTask: DispatchWorkItem?
+    var canUndo: Bool { undoAction != nil }
 
     func show(_ message: String, undoLabel: String = "撤销", undo: (() -> Void)? = nil) {
         self.message = message
@@ -37,7 +38,7 @@ struct ToastOverlay: View {
                         .font(DS.F.subhead)
                         .foregroundColor(.white)
                         .lineLimit(1)
-                    if center.undoAction != nil {
+                    if center.canUndo {
                         Button {
                             Haptic.tick()
                             center.performUndo()

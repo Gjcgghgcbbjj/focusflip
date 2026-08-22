@@ -622,7 +622,6 @@ struct TimelineAllSheet: View {
 
     var body: some View {
         NavigationView {
-            .background(SheetDetents())
             List {
                 ForEach(groups.indices, id: \.self) { gi in
                     Section(groups[gi].day) {
@@ -637,6 +636,7 @@ struct TimelineAllSheet: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("专注记录")
+.background(SheetDetents())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
