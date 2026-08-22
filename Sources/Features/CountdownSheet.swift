@@ -22,7 +22,9 @@ struct CountdownSheet: View {
                     row(c)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
-                                Store.shared.deleteCountdown(c); reload()
+                                var tx = Transaction(); tx.disablesAnimations = true
+                                withTransaction(tx) { Store.shared.deleteCountdown(c) }
+                                DispatchQueue.main.async { reload() }
                             } label: { Label("删除", systemImage: "trash") }
                         }
                 }
@@ -94,7 +96,9 @@ struct CountdownSheet: View {
     }
 
     private func row(_ c: CountdownEntity) -> some View {
+        if c.managedObjectContext == nil { return AnyView(EmptyView().frame(height: 0)) }
         let days = Self.daysLeft(c.targetDate)
+        return AnyView(HStack(spacing: 12) {
         return HStack(spacing: 12) {
             Circle().fill(Color(hex: c.colorHex)).frame(width: 9, height: 9)
             VStack(alignment: .leading, spacing: 2) {
@@ -128,6 +132,7 @@ struct CountdownSheet: View {
             }
             .frame(minWidth: 52)
         }
+        )
         .padding(.vertical, 3)
     }
 
@@ -146,9 +151,14 @@ struct CountdownSheet: View {
 
     private func add() {
         let name = newTitle.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        Store.shared.addCountdown(title: name, date: newDate, colorHex: newColor)
-        newTitle = ""; showAdd = false; reload(); Haptic.tick()
+        guard !name.isEmpty, !Self.palette.contains(where: { $0.isEmpty }) else { return }
+        Store.shared.addCountdown(title: name,
+                                  date: newDate,
+                                  colorHex: Self.palette.contains(newColor) ? newColor : "#5865F2")
+        newTitle = ""
+        showAdd = false
+        Haptic.success()
+        DispatchQueue.main.async { reload() }
     }
 
     private func reload() { items = Store.shared.countdowns() }

@@ -59,7 +59,8 @@ struct TargetView: View {
     }
 
     private func pastCard(_ c: CountdownEntity, days: Int) -> some View {
-        HStack {
+        guard safe(c) else { return AnyView(EmptyView()) }
+        return AnyView(HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(c.title).font(DS.F.bodySb).foregroundColor(.secondary)
                 Text(CountdownSheet.dateText(c.targetDate))
@@ -76,11 +77,13 @@ struct TargetView: View {
         .background(RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
             .fill(Color(.secondarySystemGroupedBackground)))
         .opacity(0.75)
+        )
     }
 
     private func slimCard(_ c: CountdownEntity, days: Int) -> some View {
+        guard safe(c) else { return AnyView(EmptyView()) }
         let base = Color(hex: c.colorHex)
-        return HStack(spacing: 14) {
+        return AnyView(HStack(spacing: 14) {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(base.opacity(0.18))
                 .frame(width: 44, height: 44)
@@ -100,16 +103,21 @@ struct TargetView: View {
                 Text("天").font(DS.F.caption).foregroundColor(.secondary)
             }
         }
+        )
         .padding(14)
         .background(RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
             .fill(Color(.secondarySystemGroupedBackground)))
+        )
     }
 
+    private func safe(_ c: CountdownEntity) -> Bool { c.managedObjectContext != nil }
+
     private func bigCard(_ c: CountdownEntity, urgent: Bool) -> some View {
+        guard safe(c) else { return AnyView(EmptyView()) }
         let days = CountdownSheet.daysLeft(c.targetDate)
         let base = Color(hex: c.colorHex)
 
-        return ZStack(alignment: .topTrailing) {
+        return AnyView(ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -168,13 +176,14 @@ struct TargetView: View {
         .shadow(color: base.opacity(urgent ? 0.45 : 0.28), radius: urgent ? 14 : 10, y: 6)
         .contextMenu {
             Button(role: .destructive) {
-                withAnimation { Store.shared.deleteCountdown(c) }
-                Haptic.tick()
-                reload()
+                var tx = Transaction(); tx.disablesAnimations = true
+                withTransaction(tx) { Store.shared.deleteCountdown(c) }
+                DispatchQueue.main.async { reload() }
             } label: {
                 Label("删除", systemImage: "trash")
             }
         }
+        )
     }
 
     // MARK: 空态

@@ -137,6 +137,7 @@ struct SettingsView: View {
                     VStack(spacing: 0) {
                         content()
                     }
+                    .padding(.horizontal, 18)
                     .transition(.opacity.combined(with: .move(edge: .top)))
 
                     footer()

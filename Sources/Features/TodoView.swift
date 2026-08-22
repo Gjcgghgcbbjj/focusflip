@@ -8,6 +8,8 @@ struct TodoView: View {
 
     @State private var tasks: [TaskEntity] = []
     @State private var newText = ""
+    @FocusState private var addFocused: Bool
+    @FocusState private var addFocused: Bool
     @State private var editing: TaskEntity?
     @State private var showDone = false
 
@@ -51,7 +53,10 @@ struct TodoView: View {
                     if !done.isEmpty {
                         Button("清空") {
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                done.forEach { Store.shared.deleteTask($0) }
+                                var tx = Transaction(); tx.disablesAnimations = true
+                        withTransaction(tx) {
+                            done.forEach { Store.shared.deleteTask($0) }
+                        }
                             }
                             Haptic.tick()
                             reload()
@@ -123,15 +128,15 @@ struct TodoView: View {
     // MARK: 行
 
     private func row(_ t: TaskEntity) -> some View {
+        if t.managedObjectContext == nil { return AnyView(EmptyView().frame(height: 0)) }
         let isActive = engine.currentTaskID == t.id
-        return HStack(spacing: 13) {
+        return AnyView(HStack(spacing: 13) {
             // 彩色勾选圈（颜色即任务）
             Button {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
-                    Store.shared.setDone(t, !t.isDone)
-                }
-                t.isDone ? Haptic.success() : Haptic.tick()
-                reload()
+                var tx = Transaction(); tx.disablesAnimations = true
+                withTransaction(tx) { Store.shared.setDone(t, !t.isDone) }
+                if !t.isDone { showDone = true; Haptic.success() } else { Haptic.tick() }
+                DispatchQueue.main.async { reload() }
             } label: {
                 ZStack {
                     Circle()
@@ -187,27 +192,18 @@ struct TodoView: View {
         .padding(.vertical, 12)
         .contentShape(Rectangle())
         .onTapGesture { editing = t }
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            Button {
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.62)) {
-                    Store.shared.setDone(t, !t.isDone)
-                }
-                Haptic.tick()
-                reload()
-            } label: {
-                Label(t.isDone ? "撤销" : "完成",
-                      systemImage: t.isDone ? "arrow.uturn.backward" : "checkmark")
-            }
-            .tint(Color(hex: "#2FA84F"))
+        )
+        Button {
+            var tx = Transaction(); tx.disablesAnimations = true
+            withTransaction(tx) { Store.shared.setDone(t, !t.isDone) }
+            if !t.isDone { showDone = true; Haptic.success() } else { Haptic.tick() }
+            DispatchQueue.main.async { reload() }
+        } label: {
+            Label(t.isDone ? "撤销" : "完成",
+                  systemImage: t.isDone ? "arrow.uturn.backward" : "checkmark")
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                let wasCurrent = engine.currentTaskID == t.id
-                withAnimation { Store.shared.deleteTask(t) }
-                if wasCurrent { engine.select(taskID: nil) }
-                reload()
-            } label: { Label("删除", systemImage: "trash") }
-
+        .tint(Color(hex: "#2FA84F"))
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
             if !t.isDone {
                 Button {
                     Haptic.tick()
@@ -216,6 +212,17 @@ struct TodoView: View {
                 } label: { Label("设为当前", systemImage: "timer") }
                 .tint(Color(hex: "#5865F2"))
             }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                let wasCurrent = engine.currentTaskID == t.id
+                var tx = Transaction(); tx.disablesAnimations = true
+                withTransaction(tx) {
+                    Store.shared.deleteTask(t)
+                    if wasCurrent { engine.select(taskID: nil) }
+                }
+                DispatchQueue.main.async { reload() }
+            } label: { Label("删除", systemImage: "trash") }
         }
     }
 
@@ -249,9 +256,29 @@ struct TodoView: View {
                 .foregroundStyle(
                     LinearGradient(colors: [Color(hex: "#6A79FF"), Color(hex: "#4C50E0")],
                                    startPoint: .topLeading, endPoint: .bottomTrailing))
+            Circle()
+                .fill(Color(hex: Self.nextColorHex()))
+                .frame(width: 8, height: 8)
             TextField("想到什么就记下来…", text: $newText)
-                .font(.system(size: 15))
+                .font(DS.F.bodyMd)
+                .focused($addFocused)
+                .submitLabel(.done)
                 .onSubmit(add)
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        addFocused = true
+                    }
+                }
+            if !newText.isEmpty {
+                Button {
+                    newText = ""; Haptic.tick()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundColor(.secondary.opacity(0.5))
+                }
+                .buttonStyle(.plain)
+            }
             if newText.trimmingCharacters(in: .whitespaces).isEmpty {
                 Text("回车")
                     .font(.system(size: 11))
@@ -288,7 +315,16 @@ struct TodoView: View {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             Store.shared.addTask(name: name)
         }
-        newText = ""; Haptic.tick(); reload()
+        newText = ""; Haptic.tick()
+        addFocused = true
+        reload()
+    }
+
+    static func nextColorHex() -> String {
+        let p = ["#5865F2", "#E5573F", "#2FA84F", "#1E88C7",
+                 "#9C27B0", "#F08A24", "#2AA198", "#D81B60"]
+        let n = (try? Store.shared.context.count(for: TaskEntity.fetchRequest())) ?? 0
+        return p[n % p.count]
     }
 
     // MARK: 大气空态
@@ -405,7 +441,8 @@ struct TaskEditSheet: View {
                 Button("删除", role: .destructive) {
                     dismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        Store.shared.deleteTask(task)
+                        var tx = Transaction(); tx.disablesAnimations = true
+                        withTransaction(tx) { Store.shared.deleteTask(task) }
                         onDone()
                     }
                 }
