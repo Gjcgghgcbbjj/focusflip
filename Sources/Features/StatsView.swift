@@ -108,8 +108,8 @@ struct StatsView: View {
         .padding(20)
         .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(LinearGradient(colors: [Color(hex: "#6A79FF"), Color(hex: "#4C50E0")],
+            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
+                .fill(LinearGradient(colors: [Color(hex: "#6A79FF"), DS.accentDeep],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
         )
         .shadow(color: Color(hex: "#5865F2").opacity(0.35), radius: 16, y: 8)
@@ -554,7 +554,7 @@ private struct ChartCard<Content: View>: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
         )
         .padding(.horizontal, 20)

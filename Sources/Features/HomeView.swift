@@ -185,7 +185,7 @@ struct HomeView: View {
                         .kerning(2)
                         .foregroundColor(fgSoft)
                     Text(timeText(remaining))
-                        .font(.system(size: 56, weight: .light, design: .rounded))
+                        .font(DS.F.display)
                         .monospacedDigit()
                         .kerning(-1)
                         .foregroundColor(fg)
@@ -314,7 +314,7 @@ struct HomeView: View {
                     }
                 } label: {
                     Text(mainTitle)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(DS.F.headline)
                         .foregroundColor(Palette.deepVariant(baseColor))
                         .padding(.horizontal, 46)
                         .frame(height: 54)

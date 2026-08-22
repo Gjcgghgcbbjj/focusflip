@@ -91,7 +91,7 @@ struct TargetView: View {
         .padding(18)
         .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
                 .fill(LinearGradient(colors: [base.opacity(0.95), Palette.deepVariant(base)],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
         )

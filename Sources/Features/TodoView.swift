@@ -78,14 +78,14 @@ struct TodoView: View {
         return Section {
             VStack(alignment: .leading, spacing: 10) {
                 Text(Self.dateLine)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(DS.F.microCaps)
                     .kerning(1.2)
                     .foregroundColor(.secondary)
 
                 HStack(alignment: .firstTextBaseline) {
                     Text(active.isEmpty && !tasks.isEmpty ? "全部完成"
                          : "\(active.count) 项待办")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(DS.F.title2)
                     Spacer()
                     if total > 0 {
                         Text("\(Int(frac * 100))%")

@@ -27,12 +27,20 @@ struct FreeTimerPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("模式", selection: $mode.animation()) {
-                ForEach(Mode.allCases) { m in Text(m.label).tag(m) }
+            HStack(spacing: 30) {
+                underTab("秒表", mode == .stopwatch)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.22)) { mode = .stopwatch }
+                        Haptic.tick()
+                    }
+                underTab("倒计时", mode == .countdown)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.22)) { mode = .countdown }
+                        Haptic.tick()
+                    }
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 28)
-            .padding(.top, 10)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 14)
 
             Spacer()
 
@@ -43,6 +51,19 @@ struct FreeTimerPane: View {
 
             Spacer()
         }
+    }
+
+    private func underTab(_ title: String, _ selected: Bool) -> some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(DS.F.bodySb)
+                .foregroundColor(selected ? DS.accent : .secondary)
+            Capsule()
+                .fill(selected ? DS.accent : Color.clear)
+                .frame(width: 26, height: 3)
+        }
+        .frame(minHeight: DS.H.touchMin - 8)
+        .contentShape(Rectangle())
     }
 
     // MARK: 秒表

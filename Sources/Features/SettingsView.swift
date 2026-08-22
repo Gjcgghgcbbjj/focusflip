@@ -118,9 +118,13 @@ struct SettingsView: View {
             } label: {
                 HStack(spacing: 11) {
                     Image(systemName: icon)
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "#5865F2"))
-                        .frame(width: 20)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(DS.accent)
+                        .frame(width: 27, height: 27)
+                        .background(
+                            RoundedRectangle(cornerRadius: DS.R.tile, style: .continuous)
+                                .fill(DS.accent.opacity(0.12))
+                        )
                     Text(title)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.primary)
