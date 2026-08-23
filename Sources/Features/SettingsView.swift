@@ -23,87 +23,23 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: DS.S.md) {
-                    groupCard("行为", icon: "switch.2") {
-                        toggleRow("休息自动开始", $prefs.autoStartBreaks)
-                        divider
-                        toggleRow("专注自动接续", $prefs.autoStartFocus)
-                        divider
-                        toggleRow("专注时保持屏幕常亮", $prefs.keepAwake)
-                    divider
-                    toggleRow("计时中隐藏底部标签栏", $prefs.immersive)
-                    } footer: { Text("阶段结束后自动进入下一阶段。") }
+            settingsList
+        }
+    }
 
-                    groupCard("声音", icon: "speaker.wave.2") {
-                        menuRow("环境音", selection: $prefs.soundType,
-                                items: SoundPlayer.ambientTypes.map { ($0.id, $0.name) })
-                        divider
-                        sliderRow(value: $prefs.soundVolume) { v in sound.applyVolume(v) }
-                        divider
-                        HStack {
-                            Text("专注时自动播放").font(DS.F.bodyMd)
-                            Spacer()
-                            Toggle("", isOn: $prefs.soundAutoPlay)
-                                .labelsHidden()
-                        }
-                        .padding(.vertical, 12)
-                        divider
-                        HStack {
-                            Text("完成提示音").font(DS.F.bodyMd)
-                            Spacer()
-                            menuButton(selection: $prefs.toneType,
-                                       items: SoundPlayer.tones.map { ($0.id, $0.name) })
-                        }
-                        .padding(.vertical, 12)
-                        divider
-                        actionRow(title: sound.isPlaying ? "停止试听" : "试听环境音",
-                                  system: sound.isPlaying ? "stop.fill" : "play.fill",
-                                  tint: sound.isPlaying ? Color(hex: "#E5573F") : nil) {
-                            playPreview()
-                        }
-                    } footer: { Text("环境音开始专注时响起，结束自动停止。") }
-
-                    groupCard("时长", icon: "timer") {
-                        stepperRow("默认专注", $prefs.focusMinutes, 1...180, 5)
-                        divider
-                        stepperRow("小憩", $prefs.shortMinutes, 1...60, 1)
-                        divider
-                        stepperRow("长歇", $prefs.longMinutes, 1...120, 5)
-                        divider
-                        stepperRow("长歇间隔", $prefs.longEvery, 2...8, 1, unit: "个")
-                    } footer: { Text("计时页的时长条可快速切换常用值。") }
-
-                    groupCard("数据", icon: "externaldrive") {
-                        actionRow(title: "备份全部数据 (JSON)",
-                                  system: "square.and.arrow.up",
-                                  tint: DS.accent) { prepareExport() }
-                        divider
-                        actionRow(title: "从备份导入…",
-                                  system: "square.and.arrow.down",
-                                  tint: DS.accent) {
-                            Haptic.warning()
-                            showImporter = true
-                        }
-                        divider
-                        actionRow(title: "导出全部记录 (CSV)",
-                                  system: "doc.text",
-                                  tint: nil) { prepareCSVExport() }
-                    } footer: { Text("JSON 备份含任务/目标/记录，导入前会预览并按 ID 合并。") }
-
-                    groupCard("关于", icon: "info.circle") {
-                        HStack {
-                            Text("版本").font(DS.F.bodyMd)
-                            Spacer()
-                            Text(appVersion).foregroundColor(.secondary).monospacedDigit()
-                        }
-                        .padding(.vertical, 12)
-                    } footer: { Text("Flow 风格的极简专注计时器 · 个人自用") }
-                }
-                .padding(.horizontal, DS.S.xl)
-                .padding(.top, DS.S.sm)
-                .padding(.bottom, DS.S.xl)
+    private var settingsList: some View {
+        ScrollView {
+            VStack(spacing: DS.S.md) {
+                behaviorCard
+                soundCard
+                durationCard
+                dataCard
+                aboutCard
             }
+            .padding(.horizontal, DS.S.xl)
+            .padding(.top, DS.S.sm)
+            .padding(.bottom, DS.S.xl)
+        }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.large)
@@ -149,6 +85,98 @@ struct SettingsView: View {
                 }
             }
         }
+
+    @ViewBuilder private var behaviorCard: some View {
+        groupCard("行为", icon: "switch.2") {
+            toggleRow("休息自动开始", $prefs.autoStartBreaks)
+            divider
+            toggleRow("专注自动接续", $prefs.autoStartFocus)
+            divider
+            toggleRow("专注时保持屏幕常亮", $prefs.keepAwake)
+            divider
+            toggleRow("计时中隐藏底部标签栏", $prefs.immersive)
+        } footer: { Text("阶段结束后自动进入下一阶段。") }
+    }
+
+    @ViewBuilder private var soundCard: some View {
+        groupCard("声音", icon: "speaker.wave.2") {
+            menuRow("环境音", selection: $prefs.soundType,
+                    items: SoundPlayer.ambientTypes.map { ($0.id, $0.name) })
+            divider
+            sliderRow(value: $prefs.soundVolume) { v in sound.applyVolume(v) }
+            divider
+            autoPlayRow
+            divider
+            toneRow
+            divider
+            actionRow(title: sound.isPlaying ? "停止试听" : "试听环境音",
+                      system: sound.isPlaying ? "stop.fill" : "play.fill",
+                      tint: sound.isPlaying ? Color(hex: "#E5573F") : nil) {
+                playPreview()
+            }
+        } footer: { Text("环境音开始专注时响起，结束自动停止。") }
+    }
+
+    @ViewBuilder private var durationCard: some View {
+        groupCard("时长", icon: "timer") {
+            stepperRow("默认专注", $prefs.focusMinutes, 1...180, 5)
+            divider
+            stepperRow("小憩", $prefs.shortMinutes, 1...60, 1)
+            divider
+            stepperRow("长歇", $prefs.longMinutes, 1...120, 5)
+            divider
+            stepperRow("长歇间隔", $prefs.longEvery, 2...8, 1, unit: "个")
+        } footer: { Text("计时页的时长条可快速切换常用值。") }
+    }
+
+    @ViewBuilder private var dataCard: some View {
+        groupCard("数据", icon: "externaldrive") {
+            actionRow(title: "备份全部数据 (JSON)",
+                      system: "square.and.arrow.up",
+                      tint: DS.accent) { prepareExport() }
+            divider
+            actionRow(title: "从备份导入…",
+                      system: "square.and.arrow.down",
+                      tint: DS.accent) {
+                Haptic.warning()
+                showImporter = true
+            }
+            divider
+            actionRow(title: "导出全部记录 (CSV)",
+                      system: "doc.text",
+                      tint: nil) { prepareCSVExport() }
+        } footer: { Text("JSON 备份含任务/目标/记录，导入前会预览并按 ID 合并。") }
+    }
+
+    @ViewBuilder private var aboutCard: some View {
+        groupCard("关于", icon: "info.circle") {
+            HStack {
+                Text("版本").font(DS.F.bodyMd)
+                Spacer()
+                Text(appVersion).foregroundColor(.secondary).monospacedDigit()
+            }
+            .padding(.vertical, 12)
+        } footer: { Text("Flow 风格的极简专注计时器 · 个人自用") }
+    }
+
+    @ViewBuilder private var autoPlayRow: some View {
+        HStack {
+            Text("专注时自动播放").font(DS.F.bodyMd)
+            Spacer()
+            Toggle("", isOn: $prefs.soundAutoPlay)
+                .labelsHidden()
+        }
+        .padding(.vertical, 12)
+    }
+
+    @ViewBuilder private var toneRow: some View {
+        HStack {
+            Text("完成提示音").font(DS.F.bodyMd)
+            Spacer()
+            menuButton(selection: $prefs.toneType,
+                       items: SoundPlayer.tones.map { ($0.id, $0.name) })
+        }
+        .padding(.vertical, 12)
     }
 
     // MARK: 分组卡（统计卡同款容器）
@@ -336,6 +364,12 @@ struct SettingsView: View {
             sound.stopAmbient()
         } else if prefs.soundType != "none" {
             sound.startAmbient(type: prefs.soundType, volume: prefs.soundVolume)
+        }
+    }
+
+    private func exportBackup() {
+        if let url = Backup.make() {
+            shareURL = url
         }
     }
 
