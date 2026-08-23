@@ -481,23 +481,3 @@ struct HomeView: View {
         .padding(.horizontal, 48)
     }
 }
-
-// MARK: - 按压反馈
-
-struct PressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .opacity(configuration.isPressed ? 0.82 : 1)
-            .animation(.spring(response: 0.28, dampingFraction: 0.7),
-                       value: configuration.isPressed)
-    }
-}
-
-enum Haptic {
-    static func tick() { UISelectionFeedbackGenerator().selectionChanged() }
-    static func medium() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
-    static func success() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-    }
-}
