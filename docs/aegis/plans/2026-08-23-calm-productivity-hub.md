@@ -137,6 +137,7 @@ Steps:
 
 Files:
 
+- Modify `Sources/App/FlowSimApp.swift`
 - Modify `Sources/Features/TodoView.swift`
 - Possibly modify `Sources/Features/Sheets.swift`
 

@@ -1,7 +1,19 @@
 import SwiftUI
 
+enum AppTab: Hashable {
+    case focus, tasks, stats, targets, settings
+}
+
+final class AppRouter: ObservableObject {
+    static let shared = AppRouter()
+    @Published var tab: AppTab = .focus
+
+    func showFocus() { tab = .focus }
+}
+
 @main
 struct FlowSimApp: App {
+    @StateObject private var router = AppRouter.shared
 
     init() {
         Notifications.requestOnce()
@@ -15,19 +27,24 @@ struct FlowSimApp: App {
 
     var body: some Scene {
         WindowGroup {
-            TabView {
+            TabView(selection: $router.tab) {
                 HomeView()
                     .tabItem { Label("专注", systemImage: "timer") }
+                    .tag(AppTab.focus)
                 TodoView()
                     .tabItem { Label("任务", systemImage: "checklist") }
+                    .tag(AppTab.tasks)
                 StatsView()
                     .tabItem { Label("统计", systemImage: "chart.bar") }
+                    .tag(AppTab.stats)
                 TargetView()
                     .tabItem { Label("目标", systemImage: "flag") }
+                    .tag(AppTab.targets)
                 SettingsView()
                     .tabItem { Label("设置", systemImage: "gearshape") }
+                    .tag(AppTab.settings)
             }
-            .tint(Color(hex: "#5865F2"))
+            .tint(DS.accent)
             .overlay(ToastOverlay())
             .onOpenURL { url in
                 switch url.host ?? "" {
