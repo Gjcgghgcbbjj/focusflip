@@ -65,7 +65,7 @@ Sources/Features/SettingsView.swift 行为/时长/概览/关于
 
 ---
 
-# v1.4 → v2.5.0 演进全记录（2026-08-22 收官文档）
+# v1.4 → v2.6.0 演进全记录（2026-08-24 更新）
 
 ## 版本线
 
@@ -83,6 +83,7 @@ Sources/Features/SettingsView.swift 行为/时长/概览/关于
 | v2.3.0 | 主流交互包 | **计时器杀后台快照恢复**(eng.snapshot.v1, 后台走完自动结算推进)；5 sheet 半高化(iOS15 桥接 detents+抓手)；阶段完成光晕仪式；删除撤销 Toast(5s)；英雄数字滚动 RollText；PressStyle 升级；触感分级 |
 | v2.4.0 | 交互深挖 | 目标可编辑 sheet；秒表最快/最慢圈(Apple Stopwatch 标准)+长按删圈；圆环长按菜单(暂停/跳过/放弃)；目标紧急置顶 |
 | v2.5.0 | 数据与下钻 | 统计图例点选按任务下钻过滤；**全屏结算卡**(引擎 lastCompletion 事件驱动)；沉浸模式(tabBar 动画隐藏)；JSON 备份导出/导入(按 ID 合并) |
+| v2.6.0 | Calm Productivity Hub 重设计 | 规范 `docs/aegis/specs/2026-08-23-calm-productivity-hub-design-spec.md`，分支 feature/calm-productivity-hub(PR#1)；**设计系统全面升级**(DS.swift：hubSurface 卡面/MetricTile/PillControl/motion tokens/DS.Haptic 集中触感)；专注页圆环·chips·主按钮重制+SettleCard 滑动关闭；自由计时统一控件+环境音入口按钮；任务页 Today Focus 锚点卡+AppRouter 跨 tab 路由；统计分层洞察(range pills/hero 卡/图表卡族/时间线文案)；目标 urgency 卡片(进度环/滑动 postpone·duplicate·delete)；设置两步备份导出导入(计数确认)+CSV 预览+声音面板 PressStyle 精修 |
 
 ## 当前文件地图（v2.5.0）
 
@@ -176,4 +177,4 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # 若撞旧项目tag: gh release dele
 - 完成提示音换真录音（用户可随时点名需求）
 
 ---
-*收官时点：v2.5.0 (build 16)，master=3edfcab。*
+*收官时点：v2.6.0 (build 17)，tag=v2.6.0（feature/calm-productivity-hub 经 PR#1 合入 master）。*
