@@ -58,6 +58,15 @@ struct DS {
         static let touchMin: CGFloat = 44
     }
 
+    // MARK: - Motion
+
+    struct Motion {
+        static let quick = Animation.spring(response: 0.24, dampingFraction: 0.78)
+        static let soft = Animation.spring(response: 0.34, dampingFraction: 0.84)
+        static let ring = Animation.easeInOut(duration: 0.32)
+        static let settle = Animation.spring(response: 0.45, dampingFraction: 0.76)
+    }
+
     // MARK: - Semantic colors
 
     static let accent = Color(hex: "#5865F2")
