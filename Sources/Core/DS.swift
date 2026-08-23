@@ -135,8 +135,8 @@ extension View {
 
     /// Adds shared padding and card material.
     func hubCard(_ role: DS.SurfaceRole = .standard,
-                 padding: CGFloat = DS.S.card) -> some View {
-        padding(padding)
+                 inset: CGFloat = DS.S.card) -> some View {
+        self.padding(inset)
             .hubSurface(role)
     }
 }
