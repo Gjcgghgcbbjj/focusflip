@@ -13,6 +13,13 @@ struct SettingsView: View {
     @State private var shareURL: URL?
     @State private var showImporter = false
     @State private var importToast: String?
+    @State private var exportSummary: Backup.Summary?
+    @State private var showExportConfirm = false
+    @State private var importSummary: Backup.Summary?
+    @State private var importData: Data?
+    @State private var showImportConfirm = false
+    @State private var csvRecordCount = 0
+    @State private var showCSVConfirm = false
 
     var body: some View {
         NavigationView {
@@ -70,16 +77,19 @@ struct SettingsView: View {
                     groupCard("数据", icon: "externaldrive") {
                         actionRow(title: "备份全部数据 (JSON)",
                                   system: "square.and.arrow.up",
-                                  tint: DS.accent) { exportBackup() }
+                                  tint: DS.accent) { prepareExport() }
                         divider
                         actionRow(title: "从备份导入…",
                                   system: "square.and.arrow.down",
-                                  tint: DS.accent) { showImporter = true }
+                                  tint: DS.accent) {
+                            Haptic.warning()
+                            showImporter = true
+                        }
                         divider
                         actionRow(title: "导出全部记录 (CSV)",
                                   system: "doc.text",
-                                  tint: nil) { exportCSV() }
-                    } footer: { Text("JSON 备份含任务/目标/记录，导入按 ID 去重合并。") }
+                                  tint: nil) { prepareCSVExport() }
+                    } footer: { Text("JSON 备份含任务/目标/记录，导入前会预览并按 ID 合并。") }
 
                     groupCard("关于", icon: "info.circle") {
                         HStack {
@@ -97,6 +107,35 @@ struct SettingsView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.large)
+            .confirmationDialog("导出 JSON 备份？", isPresented: $showExportConfirm,
+                                titleVisibility: .visible, presenting: exportSummary) { summary in
+                Button("生成备份") {
+                    Haptic.light()
+                    exportBackup()
+                }
+                Button("取消", role: .cancel) {}
+            } message: { summary in
+                Text("将包含任务 \(summary.tasks)、目标 \(summary.countdowns)、记录 \(summary.sessions)。")
+            }
+            .confirmationDialog("导入 JSON 备份？", isPresented: $showImportConfirm,
+                                titleVisibility: .visible, presenting: importSummary) { summary in
+                Button("合并导入", role: .destructive) {
+                    confirmImport()
+                }
+                Button("取消", role: .cancel) {}
+            } message: { summary in
+                Text("将导入任务 \(summary.tasks)、目标 \(summary.countdowns)、记录 \(summary.sessions)；冲突项按 ID 去重合并。")
+            }
+            .confirmationDialog("导出 CSV 记录？", isPresented: $showCSVConfirm,
+                                titleVisibility: .visible) {
+                Button("生成 CSV") {
+                    Haptic.light()
+                    exportCSV()
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("预计导出 \(csvRecordCount) 条专注记录。")
+            }
             .sheet(isPresented: Binding(
                 get: { shareURL != nil },
                 set: { if !$0 { shareURL = nil } })) {
@@ -106,7 +145,7 @@ struct SettingsView: View {
                           allowedContentTypes: [.json],
                           allowsMultipleSelection: false) { result in
                 if case .success(let urls) = result, let url = urls.first {
-                    importBackup(from: url)
+                    prepareImport(from: url)
                 }
             }
         }
@@ -125,10 +164,10 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(DS.Motion.soft) {
                         if isOpen { expanded.remove(title) } else { expanded.insert(title) }
                     }
-                    Haptic.tick()
+                    Haptic.light()
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: icon)
@@ -139,7 +178,7 @@ struct SettingsView: View {
                                 RoundedRectangle(cornerRadius: DS.R.tile, style: .continuous)
                                     .fill(DS.accent.opacity(0.12)))
                         Text(title)
-                            .font(.system(size: 17, weight: .bold))
+                            .font(DS.F.headline)
                             .foregroundColor(.primary)
                         Spacer()
                         Image(systemName: "chevron.down")
@@ -169,10 +208,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
+        .hubSurface(.standard)
     }
 
     private var divider: some View {
@@ -215,9 +251,10 @@ struct SettingsView: View {
             }
             .foregroundColor(DS.accent)
             .padding(.horizontal, 12)
-            .padding(.vertical, 7)
+            .frame(minHeight: 30)
             .background(Capsule().fill(DS.accent.opacity(0.10)))
         }
+        .buttonStyle(PressStyle())
     }
 
     private func sliderRow(value: Binding<Double>, onChange: @escaping (Double) -> Void)
@@ -279,7 +316,8 @@ struct SettingsView: View {
     private func actionRow(title: String, system: String,
                            tint: Color? = nil, action: @escaping () -> Void) -> some View {
         Button {
-            action(); Haptic.tick()
+            Haptic.light()
+            action()
         } label: {
             Label(title, systemImage: system)
                 .font(DS.F.bodySb)
@@ -307,20 +345,45 @@ struct SettingsView: View {
         }
     }
 
-    private func exportBackup() {
-        if let url = Backup.make() {
-            shareURL = url
+    private func prepareExport() {
+        exportSummary = Backup.currentSummary()
+        Haptic.light()
+        showExportConfirm = true
+    }
+
+    private func prepareCSVExport() {
+        csvRecordCount = Store.shared.sessionCount()
+        showCSVConfirm = true
+    }
+
+    private func prepareImport(from url: URL) {
+        let secured = url.startAccessingSecurityScopedResource()
+        defer { if secured { url.stopAccessingSecurityScopedResource() } }
+
+        do {
+            let data = try Data(contentsOf: url)
+            guard let summary = Backup.summary(of: data) else { throw NSError(domain: "FocusFlip.Import", code: -1) }
+            importData = data
+            importSummary = summary
+            showImportConfirm = true
+        } catch {
+            Haptic.warning()
+            ToastCenter.shared.show("导入失败：文件格式不正确", undoLabel: "知道了", undo: nil)
         }
     }
 
-    private func importBackup(from url: URL) {
-        let secured = url.startAccessingSecurityScopedResource()
-        defer { if secured { url.stopAccessingSecurityScopedResource() } }
-        let count = Backup.restore(from: url)
-        Haptic.tick()
-        ToastCenter.shared.show(count >= 0 ? "已导入 \(count) 条新数据"
-                                           : "导入失败：文件格式不正确",
-                                undoLabel: "知道了", undo: nil)
+    private func confirmImport() {
+        guard let data = importData else { return }
+        let count = Backup.restore(data: data)
+        if count >= 0 {
+            Haptic.success()
+            ToastCenter.shared.show("已导入 \(count) 条新数据", undoLabel: "知道了", undo: nil)
+        } else {
+            Haptic.warning()
+            ToastCenter.shared.show("导入失败：文件内容不完整", undoLabel: "知道了", undo: nil)
+        }
+        importData = nil
+        importSummary = nil
     }
 
     private var appVersion: String {
@@ -332,6 +395,11 @@ struct SettingsView: View {
 
 /// CSV 导出（Store 扩展）
 extension Store {
+    func sessionCount() -> Int {
+        let req: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
+        return (try? context.count(for: req)) ?? 0
+    }
+
     func exportCSV() -> URL? {
         let req: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
         req.sortDescriptors = [NSSortDescriptor(key: "startDate", ascending: true)]

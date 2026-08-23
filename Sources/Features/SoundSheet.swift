@@ -40,7 +40,9 @@ struct SoundSheet: View {
                     } label: {
                         Label(sound.isPlaying ? "停止试听" : "试听",
                               systemImage: sound.isPlaying ? "stop.circle" : "play.circle")
+                            .font(DS.F.bodySb)
                     }
+                    .buttonStyle(PressStyle())
                 }
 
                 Section("完成提示音") {
@@ -50,24 +52,28 @@ struct SoundSheet: View {
                         }
                     }
                     Button {
+                        Haptic.light()
                         SoundPlayer.shared.playTone(prefs.toneType)
                     } label: {
                         Label("试听", systemImage: "play.circle")
+                            .font(DS.F.bodySb)
                     }
+                    .buttonStyle(PressStyle())
                 }
             }
             .navigationTitle("声音")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }.font(.system(size: 17, weight: .semibold))
+                    Button("完成") { dismiss() }.font(DS.F.headline)
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") {
-                        // 离开面板：若非运行态则收掉试听
+                        // 离开面板：若非运行态则收掉试听。
                         if !engine.isRunning { sound.stopAmbient() }
                         dismiss()
                     }
+                    .font(DS.F.headline)
                 }
             }
             .onDisappear {
