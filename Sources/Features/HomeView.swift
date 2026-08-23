@@ -9,6 +9,7 @@ struct HomeView: View {
     @State private var showTaskPicker = false
     @State private var showTune = false
     @State private var showGiveUpConfirm = false
+    @State private var showSound = false
     @State private var homeMode = 0          // 0 番茄 / 1 自由
     @State private var bloom = false         // 阶段完成光晕
     @State private var settle: (minutes: Int, wasFocus: Bool)?
@@ -88,6 +89,7 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showTaskPicker) { TaskPickerSheet() }
         .sheet(isPresented: $showTune) { DurationTuneSheet() }
+        .sheet(isPresented: $showSound) { SoundSheet() }
         .confirmationDialog("放弃这次专注？", isPresented: $showGiveUpConfirm,
                             titleVisibility: .visible) {
             Button("放弃", role: .destructive) { engine.giveUp() }
@@ -493,6 +495,21 @@ struct HomeView: View {
                         Capsule()
                             .fill(Palette.panel(baseColor))
                             .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+                    )
+            }
+            Spacer()
+            Button {
+                Haptic.light()
+                showSound = true
+            } label: {
+                Image(systemName: "waveform")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(fg)
+                    .frame(width: DS.H.ghostPill, height: DS.H.ghostPill)
+                    .background(
+                        Circle()
+                            .fill(Palette.panel(baseColor))
+                            .overlay(Circle().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
                     )
             }
             Spacer()
