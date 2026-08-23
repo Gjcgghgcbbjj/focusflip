@@ -55,7 +55,8 @@ struct HomeView: View {
                     .ignoresSafeArea()
                     .animation(.easeInOut(duration: 0.6), value: phaseKey)
             } else {
-                Color.clear
+                DS.canvas
+                    .ignoresSafeArea()
             }
 
             VStack(spacing: 0) {
@@ -188,24 +189,32 @@ struct HomeView: View {
             segButton("番茄", 0)
             segButton("自由", 1)
         }
-        .padding(4)
-        .background(Capsule().fill(segContainerBg))
-        .animation(.easeInOut(duration: 0.25), value: homeMode)
+        .padding(5)
+        .background(
+            Capsule()
+                .fill(segContainerBg)
+                .overlay(Capsule().stroke(Color.white.opacity(onScene ? 0.12 : 0), lineWidth: 0.5))
+        )
+        .animation(DS.Motion.soft, value: homeMode)
     }
 
     private func segButton(_ t: String, _ i: Int) -> some View {
         let selected = homeMode == i
         return Button {
-            withAnimation(.easeInOut(duration: 0.25)) { homeMode = i }
-            Haptic.tick()
+            withAnimation(DS.Motion.soft) { homeMode = i }
+            Haptic.light()
         } label: {
             Text(t)
-                .font(.system(size: 14, weight: .semibold))
+                .font(DS.F.bodySb)
                 .foregroundColor(segText(selected: selected))
                 .padding(.horizontal, 22)
-                .frame(height: 34)
-                .background(Capsule().fill(selected ? AnyShapeStyle(segSelectedBg)
-                                                    : AnyShapeStyle(Color.clear)))
+                .frame(height: DS.H.segInner)
+                .background(
+                    Capsule().fill(selected ? AnyShapeStyle(segSelectedBg)
+                                            : AnyShapeStyle(Color.clear))
+                        .shadow(color: selected ? Color.black.opacity(0.08) : .clear,
+                                radius: 10, y: 3)
+                )
         }
         .buttonStyle(PressStyle())
     }
@@ -214,24 +223,31 @@ struct HomeView: View {
 
     private var taskHeader: some View {
         Button {
+            Haptic.light()
             showTaskPicker = true
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Circle()
                     .fill(Color(hex: engine.currentTaskColorHex.isEmpty
                                 ? "#FFFFFF" : engine.currentTaskColorHex))
-                    .frame(width: 8, height: 8)
-                    .overlay(Circle().stroke(Color.white.opacity(0.6), lineWidth: 1))
+                    .frame(width: 9, height: 9)
+                    .overlay(Circle().stroke(Color.white.opacity(0.65), lineWidth: 1))
                 Text(engine.currentTaskName.isEmpty ? "选择任务" : engine.currentTaskName)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(DS.F.headline)
                     .foregroundColor(fg)
+                    .lineLimit(1)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundColor(fgSoft)
             }
             .padding(.horizontal, 18)
-            .padding(.vertical, 11)
-            .background(Capsule().fill(Palette.panel(baseColor)))
+            .frame(minHeight: DS.H.touchMin)
+            .background(
+                Capsule()
+                    .fill(Palette.panel(baseColor))
+                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.5))
+                    .shadow(color: fg.opacity(0.12), radius: 16, y: 6)
+            )
         }
         .buttonStyle(PressStyle())
     }
@@ -252,6 +268,8 @@ struct HomeView: View {
                     .rotationEffect(.degrees(-90))
                     .scaleEffect(bloom ? 1.12 : 1.0)
                     .opacity(bloom ? 0.35 : 1)
+                    .shadow(color: fg.opacity(0.18), radius: 8, y: 2)
+                    .animation(.easeInOut(duration: 0.32), value: fraction)
 
                 if bloom {
                     Circle()
@@ -277,7 +295,7 @@ struct HomeView: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 guard engine.isRunning || engine.isPaused else { return }
-                Haptic.tick()
+                Haptic.light()
                 engine.togglePause()
             }
                         .onChange(of: engine.phase) { _ in fireBloom() }
@@ -384,18 +402,20 @@ struct HomeView: View {
     private func chip(_ m: Int) -> some View {
         let selected = m == prefs.focusMinutes
         return Button {
-            Haptic.tick()
+            Haptic.light()
             prefs.focusMinutes = m
         } label: {
             Text("\(m)")
-                .font(.system(size: 16, weight: selected ? .bold : .medium))
+                .font(DS.F.headline)
                 .monospacedDigit()
                 .foregroundColor(selected ? Palette.deepVariant(baseColor) : fgSoft)
-                .padding(.horizontal, 19)
-                .frame(height: 37)
+                .frame(minWidth: selected ? 58 : 48, minHeight: DS.H.chip)
                 .background(
-                    Capsule().fill(selected ? AnyShapeStyle(Color.white)
-                                            : AnyShapeStyle(Palette.panel(baseColor)))
+                    Capsule()
+                        .fill(selected ? AnyShapeStyle(Color.white)
+                                       : AnyShapeStyle(Palette.panel(baseColor)))
+                        .shadow(color: selected ? Color.black.opacity(0.10) : .clear,
+                                radius: 12, y: 4)
                 )
         }
         .buttonStyle(PressStyle())
@@ -423,9 +443,12 @@ struct HomeView: View {
                         .font(DS.F.headline)
                         .foregroundColor(Palette.deepVariant(baseColor))
                         .padding(.horizontal, 46)
-                        .frame(height: 54)
-                        .background(Capsule().fill(Color.white))
-                        .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
+                        .frame(minWidth: 168, minHeight: DS.H.primaryButton)
+                        .background(
+                            Capsule()
+                                .fill(Color.white)
+                                .shadow(color: Color.black.opacity(0.14), radius: 20, y: 8)
+                        )
                 }
                 .buttonStyle(PressStyle())
             }
@@ -444,9 +467,12 @@ struct HomeView: View {
             Image(systemName: icon)
                 .font(.system(size: 26, weight: .medium))
                 .foregroundColor(Palette.deepVariant(baseColor))
-                .frame(width: 74, height: 74)
-                .background(Circle().fill(Color.white))
-                .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
+                .frame(width: DS.H.circleMain, height: DS.H.circleMain)
+                .background(
+                    Circle()
+                        .fill(Color.white)
+                        .shadow(color: Color.black.opacity(0.15), radius: 22, y: 9)
+                )
         }
         .buttonStyle(PressStyle())
     }
@@ -460,21 +486,29 @@ struct HomeView: View {
                 else { engine.skip() }
             } label: {
                 Text("放弃")
-                    .font(.system(size: 14, weight: .medium))
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(Palette.panel(baseColor)))
+                    .font(DS.F.subheadSb)
+                    .padding(.horizontal, 24)
+                    .frame(minHeight: DS.H.ghostPill)
+                    .background(
+                        Capsule()
+                            .fill(Palette.panel(baseColor))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+                    )
             }
             Spacer()
             Button {
-                Haptic.tick()
+                Haptic.light()
                 engine.skip()
             } label: {
                 Text("跳过")
-                    .font(.system(size: 14, weight: .medium))
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(Palette.panel(baseColor)))
+                    .font(DS.F.subheadSb)
+                    .padding(.horizontal, 24)
+                    .frame(minHeight: DS.H.ghostPill)
+                    .background(
+                        Capsule()
+                            .fill(Palette.panel(baseColor))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
+                    )
             }
         }
         .foregroundColor(fg)

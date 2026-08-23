@@ -16,13 +16,22 @@ struct SettleCard: View {
                            startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
 
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    Haptic.light()
+                    later()
+                }
+
             VStack(spacing: 0) {
                 Spacer()
 
                 ZStack {
                     Circle()
-                        .stroke(Color.white.opacity(0.25), lineWidth: 2)
-                        .frame(width: 92, height: 92)
+                        .fill(Color.white.opacity(0.13))
+                        .frame(width: 94, height: 94)
+                        .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 1.5))
+                        .shadow(color: Color.black.opacity(0.12), radius: 22, y: 10)
                     Image(systemName: info.wasFocus ? "checkmark" : "cup.and.saucer.fill")
                         .font(.system(size: 36, weight: .medium))
                         .foregroundColor(.white)
@@ -51,7 +60,7 @@ struct SettleCard: View {
                         .font(DS.F.subhead)
                         .foregroundColor(.white.opacity(0.8))
                         .padding(.top, 8)
-                        .transition(.opacity)
+                        .transition(.opacity.combined(with: .scale(scale: 1.03)))
                 }
 
                 Spacer()
@@ -63,35 +72,45 @@ struct SettleCard: View {
                             .foregroundColor(Palette.deepVariant(taskColor))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 17)
-                            .background(Capsule().fill(Color.white))
-                            .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white)
+                                    .shadow(color: Color.black.opacity(0.16), radius: 22, y: 10)
+                            )
+                    }
+                    .buttonStyle(PressStyle())
+
+                    Button(action: later) {
+                        Text("稍后再说")
+                            .font(DS.F.subheadSb)
+                            .foregroundColor(.white.opacity(0.78))
+                            .frame(maxWidth: .infinity, minHeight: DS.H.touchMin)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(PressStyle())
                 } else {
-                    // 已自动开跑下一阶段 → 仅确认收起
+                    // 已自动开跑下一阶段 → 仅确认收起。
                     Button(action: later) {
                         Text("继续当前阶段")
                             .font(DS.F.headline)
                             .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 17)
+                            .frame(maxWidth: .infinity, minHeight: DS.H.primaryButton)
                             .background(Capsule().fill(Color.white.opacity(0.20)))
                     }
                     .buttonStyle(PressStyle())
-                }
-
-                Button(action: later) {
-                    Text("稍后再说")
-                        .font(DS.F.subhead)
-                        .foregroundColor(.white.opacity(0.75))
-                        .padding(.vertical, 12)
-                        .contentShape(Rectangle())
                 }
             }
             .padding(.horizontal, 40)
             .padding(.bottom, 24)
         }
         .statusBar(hidden: false)
+        .gesture(
+            DragGesture(minimumDistance: 24).onEnded { value in
+                guard value.translation.height < -42 else { return }
+                Haptic.light()
+                later()
+            }
+        )
         .onAppear {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { appear = true }
             Haptic.success()
