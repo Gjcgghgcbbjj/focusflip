@@ -251,7 +251,7 @@ struct TodoView: View {
         let isActive = engine.currentTaskID == t.id
         let tint = Color(hex: t.colorHex)
 
-        return AnyView(HStack(spacing: DS.S.md) {
+        return AnyView(AnyView(HStack(spacing: DS.S.md) {
             Button {
                 var tx = Transaction(); tx.disablesAnimations = true
                 withTransaction(tx) { Store.shared.setDone(t, !t.isDone) }
@@ -346,7 +346,7 @@ struct TodoView: View {
         .hubSurface(.standard)
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16)))
     }
 
     private func setCurrent(_ t: TaskEntity) {
