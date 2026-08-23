@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import UIKit
 
 /// 统计页 —— 渐变英雄卡 + 多图表（iOS15 Canvas 自绘）
 struct StatsView: View {
@@ -40,15 +41,7 @@ struct StatsView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 14) {
-                    Picker("范围", selection: $range) {
-                        ForEach(RangeKind.allCases) { k in
-                            Text(k.label).tag(k)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 20)
-                    .onChange(of: range) { _ in reload() }
-
+                    rangeSelector
                     heroCard
                     if range == .today && !timeline.isEmpty { timelineCard }
                     if range != .today && !dayBars.isEmpty { barChartCard }
@@ -68,27 +61,62 @@ struct StatsView: View {
     }
 
     // MARK: 英雄卡（渐变）
+    private var rangeSelector: some View {
+        HStack(spacing: 5) {
+            ForEach(RangeKind.allCases) { kind in
+                let selected = range == kind
+                Button {
+                    Haptic.light()
+                    withAnimation(DS.Motion.quick) { range = kind }
+                    reload()
+                } label: {
+                    Text(kind.label)
+                        .font(DS.F.subheadSb)
+                        .monospacedDigit()
+                        .foregroundColor(selected ? .white : .secondary)
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 36)
+                        .background(
+                            Capsule().fill(selected ? AnyShapeStyle(DS.accent)
+                                                    : AnyShapeStyle(Color.clear))
+                                .shadow(color: selected ? DS.accent.opacity(0.20) : .clear,
+                                        radius: 10, y: 4)
+                        )
+                }
+                .buttonStyle(PressStyle())
+            }
+        }
+        .padding(5)
+        .background(
+            Capsule()
+                .fill(Color.primary.opacity(0.05))
+                .overlay(Capsule().stroke(Color.primary.opacity(0.04), lineWidth: 0.5))
+        )
+        .padding(.horizontal, DS.S.screen)
+        .animation(DS.Motion.soft, value: range)
+    }
+
 
     private var heroCard: some View {
         VStack(spacing: 14) {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     RollText(value: pomodoros,
-                             font: .system(size: 44, weight: .bold, design: .rounded),
+                             font: DS.F.hero,
                              color: .white)
                     Text("个完成的番茄")
-                        .font(.system(size: 13))
-                        .opacity(0.8)
+                        .font(DS.F.subhead)
+                        .opacity(0.82)
                 }
                 Spacer()
                 VStack(spacing: 6) {
                     Image(systemName: "flame.fill")
-                        .font(.system(size: 17))
+                        .font(.system(size: 17, weight: .semibold))
                     RollText(value: streak,
-                             font: .system(size: 22, weight: .bold, design: .rounded),
+                             font: DS.F.numberL,
                              color: .white)
                     Text("连续天数")
-                        .font(.system(size: 11))
+                        .font(DS.F.caption)
                         .opacity(0.85)
                 }
                 .padding(.horizontal, 14)
@@ -106,27 +134,31 @@ struct StatsView: View {
             }
         }
         .foregroundColor(.white)
-        .padding(20)
+        .padding(DS.S.card + 2)
         .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
+            RoundedRectangle(cornerRadius: DS.R.hero, style: .continuous)
                 .fill(LinearGradient(colors: [Color(hex: "#6A79FF"), DS.accentDeep],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.R.hero, style: .continuous)
+                        .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+                )
         )
-        .shadow(color: Color(hex: "#5865F2").opacity(0.35), radius: 16, y: 8)
-        .padding(.horizontal, 20)
+        .shadow(color: DS.accent.opacity(0.22), radius: 26, y: 12)
+        .padding(.horizontal, DS.S.screen)
     }
 
     private func heroStat(_ value: String, _ label: String) -> some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 15, weight: .semibold))
+                .font(DS.F.subheadSb)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label)
-                .font(.system(size: 11))
-                .opacity(0.75)
+                .font(DS.F.caption)
+                .opacity(0.78)
         }
         .frame(maxWidth: .infinity)
     }
@@ -278,12 +310,14 @@ struct StatsView: View {
                             start = end + Angle.degrees(gapDeg)
                         }
                     }
-                    VStack(spacing: 0) {
+                    VStack(spacing: 2) {
                         Text(Self.durationText(totalMinutes))
-                            .font(.system(size: 15, weight: .bold))
+                            .font(DS.F.numberM)
                             .monospacedDigit()
-                        Text("总计")
-                            .font(.system(size: 10))
+                        Text(filterName ?? "总计")
+                            .font(DS.F.caption)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             .foregroundColor(.secondary)
                     }
                 }
@@ -315,7 +349,7 @@ struct StatsView: View {
                         }
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            Haptic.tick()
+                            Haptic.light()
                             filterName = selected ? nil : r.name
                             reload()
                         }
@@ -331,21 +365,24 @@ struct StatsView: View {
     }
 
     private var emptyView: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "chart.pie.fill")
-                .font(.system(size: 34))
-                .foregroundStyle(
-                    LinearGradient(colors: [Color(hex: "#6A79FF"), Color(hex: "#4C50E0")],
-                                   startPoint: .top, endPoint: .bottom))
-                .opacity(0.55)
+        VStack(spacing: DS.S.md) {
+            ZStack {
+                Circle().fill(DS.accent.opacity(0.07)).frame(width: 76, height: 76)
+                Circle().stroke(DS.accent.opacity(0.15), lineWidth: 1.4).frame(width: 76, height: 76)
+                Image(systemName: "chart.pie.fill")
+                    .font(.system(size: 28, weight: .light))
+                    .foregroundColor(DS.accent.opacity(0.62))
+            }
             Text("这段时间还没有完成的番茄")
+                .font(DS.F.headline)
+            Text("去「专注」页点亮第一个圆环吧")
                 .font(DS.F.subhead)
                 .foregroundColor(.secondary)
-            Text("去「专注」页点亮第一个圆环吧")
-                .font(DS.F.caption)
-                .foregroundColor(.secondary.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, DS.S.card)
+        .hubCard(.standard)
+        .padding(.horizontal, DS.S.screen)
     }
 
     // MARK: 今日时间线（记录类）
@@ -410,7 +447,18 @@ struct StatsView: View {
                         Spacer(minLength: 0)
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture { openNote(i) }
+                    .onTapGesture {
+                        Haptic.light()
+                        openNote(i)
+                    }
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = "\(Self.clock(e.start)) · \(e.taskName) · \(e.mins) 分钟"
+                            Haptic.light()
+                        } label: {
+                            Label("复制摘要", systemImage: "doc.on.doc")
+                        }
+                    }
                 }
             }
         }
@@ -574,36 +622,37 @@ private struct ChartCard<Content: View>: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(DS.F.headline)
                     Text(subtitle)
-                        .font(.system(size: 11))
+                        .font(DS.F.caption)
                         .foregroundColor(.secondary)
                 }
                 Spacer()
                 if let t = actionTitle, let act = action {
-                    Button(action: act) {
+                    Button {
+                        Haptic.light()
+                        act()
+                    } label: {
                         HStack(spacing: 3) {
                             Text(t)
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 9, weight: .bold))
                         }
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Color(hex: "#5865F2"))
+                        .font(DS.F.subheadSb)
+                        .foregroundColor(DS.accent)
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(Capsule().fill(Color(hex: "#5865F2").opacity(0.10)))
+                        .frame(minHeight: 30)
+                        .background(Capsule().fill(DS.accent.opacity(0.10)))
                     }
+                    .buttonStyle(PressStyle())
                 }
             }
             content
         }
-        .padding(18)
+        .padding(DS.S.card)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .padding(.horizontal, 20)
+        .hubSurface(.standard)
+        .padding(.horizontal, DS.S.screen)
     }
 }
 

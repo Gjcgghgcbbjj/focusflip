@@ -13,90 +13,65 @@ struct SettingsView: View {
     @State private var shareURL: URL?
     @State private var showImporter = false
     @State private var importToast: String?
+    @State private var exportSummary: Backup.Summary?
+    @State private var showExportConfirm = false
+    @State private var importSummary: Backup.Summary?
+    @State private var importData: Data?
+    @State private var showImportConfirm = false
+    @State private var csvRecordCount = 0
+    @State private var showCSVConfirm = false
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: DS.S.md) {
-                    groupCard("行为", icon: "switch.2") {
-                        toggleRow("休息自动开始", $prefs.autoStartBreaks)
-                        divider
-                        toggleRow("专注自动接续", $prefs.autoStartFocus)
-                        divider
-                        toggleRow("专注时保持屏幕常亮", $prefs.keepAwake)
-                    divider
-                    toggleRow("计时中隐藏底部标签栏", $prefs.immersive)
-                    } footer: { Text("阶段结束后自动进入下一阶段。") }
+            settingsList
+        }
+    }
 
-                    groupCard("声音", icon: "speaker.wave.2") {
-                        menuRow("环境音", selection: $prefs.soundType,
-                                items: SoundPlayer.ambientTypes.map { ($0.id, $0.name) })
-                        divider
-                        sliderRow(value: $prefs.soundVolume) { v in sound.applyVolume(v) }
-                        divider
-                        HStack {
-                            Text("专注时自动播放").font(DS.F.bodyMd)
-                            Spacer()
-                            Toggle("", isOn: $prefs.soundAutoPlay)
-                                .labelsHidden()
-                        }
-                        .padding(.vertical, 12)
-                        divider
-                        HStack {
-                            Text("完成提示音").font(DS.F.bodyMd)
-                            Spacer()
-                            menuButton(selection: $prefs.toneType,
-                                       items: SoundPlayer.tones.map { ($0.id, $0.name) })
-                        }
-                        .padding(.vertical, 12)
-                        divider
-                        actionRow(title: sound.isPlaying ? "停止试听" : "试听环境音",
-                                  system: sound.isPlaying ? "stop.fill" : "play.fill",
-                                  tint: sound.isPlaying ? Color(hex: "#E5573F") : nil) {
-                            playPreview()
-                        }
-                    } footer: { Text("环境音开始专注时响起，结束自动停止。") }
-
-                    groupCard("时长", icon: "timer") {
-                        stepperRow("默认专注", $prefs.focusMinutes, 1...180, 5)
-                        divider
-                        stepperRow("小憩", $prefs.shortMinutes, 1...60, 1)
-                        divider
-                        stepperRow("长歇", $prefs.longMinutes, 1...120, 5)
-                        divider
-                        stepperRow("长歇间隔", $prefs.longEvery, 2...8, 1, unit: "个")
-                    } footer: { Text("计时页的时长条可快速切换常用值。") }
-
-                    groupCard("数据", icon: "externaldrive") {
-                        actionRow(title: "备份全部数据 (JSON)",
-                                  system: "square.and.arrow.up",
-                                  tint: DS.accent) { exportBackup() }
-                        divider
-                        actionRow(title: "从备份导入…",
-                                  system: "square.and.arrow.down",
-                                  tint: DS.accent) { showImporter = true }
-                        divider
-                        actionRow(title: "导出全部记录 (CSV)",
-                                  system: "doc.text",
-                                  tint: nil) { exportCSV() }
-                    } footer: { Text("JSON 备份含任务/目标/记录，导入按 ID 去重合并。") }
-
-                    groupCard("关于", icon: "info.circle") {
-                        HStack {
-                            Text("版本").font(DS.F.bodyMd)
-                            Spacer()
-                            Text(appVersion).foregroundColor(.secondary).monospacedDigit()
-                        }
-                        .padding(.vertical, 12)
-                    } footer: { Text("Flow 风格的极简专注计时器 · 个人自用") }
-                }
-                .padding(.horizontal, DS.S.xl)
-                .padding(.top, DS.S.sm)
-                .padding(.bottom, DS.S.xl)
+    private var settingsList: some View {
+        ScrollView {
+            VStack(spacing: DS.S.md) {
+                behaviorCard
+                soundCard
+                durationCard
+                dataCard
+                aboutCard
             }
+            .padding(.horizontal, DS.S.xl)
+            .padding(.top, DS.S.sm)
+            .padding(.bottom, DS.S.xl)
+        }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.large)
+            .confirmationDialog("导出 JSON 备份？", isPresented: $showExportConfirm,
+                                titleVisibility: .visible, presenting: exportSummary) { summary in
+                Button("生成备份") {
+                    Haptic.light()
+                    exportBackup()
+                }
+                Button("取消", role: .cancel) {}
+            } message: { summary in
+                Text("将包含任务 \(summary.tasks)、目标 \(summary.countdowns)、记录 \(summary.sessions)。")
+            }
+            .confirmationDialog("导入 JSON 备份？", isPresented: $showImportConfirm,
+                                titleVisibility: .visible, presenting: importSummary) { summary in
+                Button("合并导入", role: .destructive) {
+                    confirmImport()
+                }
+                Button("取消", role: .cancel) {}
+            } message: { summary in
+                Text("将导入任务 \(summary.tasks)、目标 \(summary.countdowns)、记录 \(summary.sessions)；冲突项按 ID 去重合并。")
+            }
+            .confirmationDialog("导出 CSV 记录？", isPresented: $showCSVConfirm,
+                                titleVisibility: .visible) {
+                Button("生成 CSV") {
+                    Haptic.light()
+                    exportCSV()
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("预计导出 \(csvRecordCount) 条专注记录。")
+            }
             .sheet(isPresented: Binding(
                 get: { shareURL != nil },
                 set: { if !$0 { shareURL = nil } })) {
@@ -106,10 +81,102 @@ struct SettingsView: View {
                           allowedContentTypes: [.json],
                           allowsMultipleSelection: false) { result in
                 if case .success(let urls) = result, let url = urls.first {
-                    importBackup(from: url)
+                    prepareImport(from: url)
                 }
             }
         }
+
+    @ViewBuilder private var behaviorCard: some View {
+        groupCard("行为", icon: "switch.2") {
+            toggleRow("休息自动开始", $prefs.autoStartBreaks)
+            divider
+            toggleRow("专注自动接续", $prefs.autoStartFocus)
+            divider
+            toggleRow("专注时保持屏幕常亮", $prefs.keepAwake)
+            divider
+            toggleRow("计时中隐藏底部标签栏", $prefs.immersive)
+        } footer: { Text("阶段结束后自动进入下一阶段。") }
+    }
+
+    @ViewBuilder private var soundCard: some View {
+        groupCard("声音", icon: "speaker.wave.2") {
+            menuRow("环境音", selection: $prefs.soundType,
+                    items: SoundPlayer.ambientTypes.map { ($0.id, $0.name) })
+            divider
+            sliderRow(value: $prefs.soundVolume) { v in sound.applyVolume(v) }
+            divider
+            autoPlayRow
+            divider
+            toneRow
+            divider
+            actionRow(title: sound.isPlaying ? "停止试听" : "试听环境音",
+                      system: sound.isPlaying ? "stop.fill" : "play.fill",
+                      tint: sound.isPlaying ? Color(hex: "#E5573F") : nil) {
+                playPreview()
+            }
+        } footer: { Text("环境音开始专注时响起，结束自动停止。") }
+    }
+
+    @ViewBuilder private var durationCard: some View {
+        groupCard("时长", icon: "timer") {
+            stepperRow("默认专注", $prefs.focusMinutes, 1...180, 5)
+            divider
+            stepperRow("小憩", $prefs.shortMinutes, 1...60, 1)
+            divider
+            stepperRow("长歇", $prefs.longMinutes, 1...120, 5)
+            divider
+            stepperRow("长歇间隔", $prefs.longEvery, 2...8, 1, unit: "个")
+        } footer: { Text("计时页的时长条可快速切换常用值。") }
+    }
+
+    @ViewBuilder private var dataCard: some View {
+        groupCard("数据", icon: "externaldrive") {
+            actionRow(title: "备份全部数据 (JSON)",
+                      system: "square.and.arrow.up",
+                      tint: DS.accent) { prepareExport() }
+            divider
+            actionRow(title: "从备份导入…",
+                      system: "square.and.arrow.down",
+                      tint: DS.accent) {
+                Haptic.warning()
+                showImporter = true
+            }
+            divider
+            actionRow(title: "导出全部记录 (CSV)",
+                      system: "doc.text",
+                      tint: nil) { prepareCSVExport() }
+        } footer: { Text("JSON 备份含任务/目标/记录，导入前会预览并按 ID 合并。") }
+    }
+
+    @ViewBuilder private var aboutCard: some View {
+        groupCard("关于", icon: "info.circle") {
+            HStack {
+                Text("版本").font(DS.F.bodyMd)
+                Spacer()
+                Text(appVersion).foregroundColor(.secondary).monospacedDigit()
+            }
+            .padding(.vertical, 12)
+        } footer: { Text("Flow 风格的极简专注计时器 · 个人自用") }
+    }
+
+    @ViewBuilder private var autoPlayRow: some View {
+        HStack {
+            Text("专注时自动播放").font(DS.F.bodyMd)
+            Spacer()
+            Toggle("", isOn: $prefs.soundAutoPlay)
+                .labelsHidden()
+        }
+        .padding(.vertical, 12)
+    }
+
+    @ViewBuilder private var toneRow: some View {
+        HStack {
+            Text("完成提示音").font(DS.F.bodyMd)
+            Spacer()
+            menuButton(selection: $prefs.toneType,
+                       items: SoundPlayer.tones.map { ($0.id, $0.name) })
+        }
+        .padding(.vertical, 12)
     }
 
     // MARK: 分组卡（统计卡同款容器）
@@ -125,10 +192,10 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(DS.Motion.soft) {
                         if isOpen { expanded.remove(title) } else { expanded.insert(title) }
                     }
-                    Haptic.tick()
+                    Haptic.light()
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: icon)
@@ -139,7 +206,7 @@ struct SettingsView: View {
                                 RoundedRectangle(cornerRadius: DS.R.tile, style: .continuous)
                                     .fill(DS.accent.opacity(0.12)))
                         Text(title)
-                            .font(.system(size: 17, weight: .bold))
+                            .font(DS.F.headline)
                             .foregroundColor(.primary)
                         Spacer()
                         Image(systemName: "chevron.down")
@@ -169,10 +236,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
+        .hubSurface(.standard)
     }
 
     private var divider: some View {
@@ -215,9 +279,10 @@ struct SettingsView: View {
             }
             .foregroundColor(DS.accent)
             .padding(.horizontal, 12)
-            .padding(.vertical, 7)
+            .frame(minHeight: 30)
             .background(Capsule().fill(DS.accent.opacity(0.10)))
         }
+        .buttonStyle(PressStyle())
     }
 
     private func sliderRow(value: Binding<Double>, onChange: @escaping (Double) -> Void)
@@ -279,7 +344,8 @@ struct SettingsView: View {
     private func actionRow(title: String, system: String,
                            tint: Color? = nil, action: @escaping () -> Void) -> some View {
         Button {
-            action(); Haptic.tick()
+            Haptic.light()
+            action()
         } label: {
             Label(title, systemImage: system)
                 .font(DS.F.bodySb)
@@ -301,26 +367,57 @@ struct SettingsView: View {
         }
     }
 
-    private func exportCSV() {
-        if let url = Store.shared.exportCSV() {
-            shareURL = url
-        }
-    }
-
     private func exportBackup() {
         if let url = Backup.make() {
             shareURL = url
         }
     }
 
-    private func importBackup(from url: URL) {
+    private func exportCSV() {
+        if let url = Store.shared.exportCSV() {
+            shareURL = url
+        }
+    }
+
+    private func prepareExport() {
+        exportSummary = Backup.currentSummary()
+        Haptic.light()
+        showExportConfirm = true
+    }
+
+    private func prepareCSVExport() {
+        csvRecordCount = Store.shared.sessionCount()
+        showCSVConfirm = true
+    }
+
+    private func prepareImport(from url: URL) {
         let secured = url.startAccessingSecurityScopedResource()
         defer { if secured { url.stopAccessingSecurityScopedResource() } }
-        let count = Backup.restore(from: url)
-        Haptic.tick()
-        ToastCenter.shared.show(count >= 0 ? "已导入 \(count) 条新数据"
-                                           : "导入失败：文件格式不正确",
-                                undoLabel: "知道了", undo: nil)
+
+        do {
+            let data = try Data(contentsOf: url)
+            guard let summary = Backup.summary(of: data) else { throw NSError(domain: "FocusFlip.Import", code: -1) }
+            importData = data
+            importSummary = summary
+            showImportConfirm = true
+        } catch {
+            Haptic.warning()
+            ToastCenter.shared.show("导入失败：文件格式不正确", undoLabel: "知道了", undo: nil)
+        }
+    }
+
+    private func confirmImport() {
+        guard let data = importData else { return }
+        let count = Backup.restore(data: data)
+        if count >= 0 {
+            Haptic.success()
+            ToastCenter.shared.show("已导入 \(count) 条新数据", undoLabel: "知道了", undo: nil)
+        } else {
+            Haptic.warning()
+            ToastCenter.shared.show("导入失败：文件内容不完整", undoLabel: "知道了", undo: nil)
+        }
+        importData = nil
+        importSummary = nil
     }
 
     private var appVersion: String {
@@ -332,6 +429,11 @@ struct SettingsView: View {
 
 /// CSV 导出（Store 扩展）
 extension Store {
+    func sessionCount() -> Int {
+        let req: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
+        return (try? context.count(for: req)) ?? 0
+    }
+
     func exportCSV() -> URL? {
         let req: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
         req.sortDescriptors = [NSSortDescriptor(key: "startDate", ascending: true)]

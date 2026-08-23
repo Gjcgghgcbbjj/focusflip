@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 自由计时面板 —— 嵌入专注页「自由」模式
+/// 自由计时面板 —— 与专注主控共用一套计时/按钮语言。
 struct FreeTimerPane: View {
 
     private enum Mode: Int, CaseIterable, Identifiable {
@@ -11,13 +11,13 @@ struct FreeTimerPane: View {
 
     @State private var mode: Mode = .stopwatch
 
-    // 秒表
+    // 秒表：startedAt + accumulated 是唯一真相源。
     @State private var swRunning = false
     @State private var swStart: Date?
-    @State private var swAccum: TimeInterval = 0     // 暂停累计
+    @State private var swAccum: TimeInterval = 0
     @State private var laps: [TimeInterval] = []
 
-    // 倒计时
+    // 倒计时：end/remain 沿用墙钟派生，后台不漂移。
     @State private var cdMinutes = 10
     @State private var cdEnd: Date?
     @State private var cdPausedRemain: TimeInterval?
@@ -27,43 +27,56 @@ struct FreeTimerPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 30) {
-                underTab("秒表", mode == .stopwatch)
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.22)) { mode = .stopwatch }
-                        Haptic.tick()
-                    }
-                underTab("倒计时", mode == .countdown)
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.22)) { mode = .countdown }
-                        Haptic.tick()
-                    }
+            modeTabs
+                .padding(.top, 14)
+
+            Spacer(minLength: DS.S.sm)
+
+            Group {
+                switch mode {
+                case .stopwatch: stopwatchBody
+                case .countdown: countdownBody
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 14)
+            .animation(DS.Motion.soft, value: mode)
 
-            Spacer()
-
-            switch mode {
-            case .stopwatch: stopwatchBody
-            case .countdown: countdownBody
-            }
-
-            Spacer()
+            Spacer(minLength: DS.S.sm)
         }
     }
 
-    private func underTab(_ title: String, _ selected: Bool) -> some View {
-        VStack(spacing: 6) {
+    private var modeTabs: some View {
+        HStack(spacing: 4) {
+            tabButton("秒表", .stopwatch)
+            tabButton("倒计时", .countdown)
+        }
+        .padding(5)
+        .background(
+            Capsule()
+                .fill(Color.primary.opacity(0.05))
+                .overlay(Capsule().stroke(Color.primary.opacity(0.04), lineWidth: 0.5))
+        )
+        .animation(DS.Motion.soft, value: mode)
+    }
+
+    private func tabButton(_ title: String, _ target: Mode) -> some View {
+        let selected = mode == target
+        return Button {
+            Haptic.light()
+            withAnimation(DS.Motion.soft) { mode = target }
+        } label: {
             Text(title)
                 .font(DS.F.bodySb)
-                .foregroundColor(selected ? DS.accent : .secondary)
-            Capsule()
-                .fill(selected ? DS.accent : Color.clear)
-                .frame(width: 26, height: 3)
+                .foregroundColor(selected ? .white : .secondary)
+                .padding(.horizontal, 22)
+                .frame(height: DS.H.segInner)
+                .background(
+                    Capsule()
+                        .fill(selected ? AnyShapeStyle(DS.accent) : AnyShapeStyle(Color.clear))
+                        .shadow(color: selected ? DS.accent.opacity(0.24) : .clear,
+                                radius: 12, y: 4)
+                )
         }
-        .frame(minHeight: DS.H.touchMin - 8)
-        .contentShape(Rectangle())
+        .buttonStyle(PressStyle())
     }
 
     // MARK: 秒表
@@ -73,97 +86,107 @@ struct FreeTimerPane: View {
     }
 
     private var stopwatchBody: some View {
-        VStack(spacing: 28) {
-            TimelineView(.animation(minimumInterval: 0.05)) { _ in
-                Text(Self.format(swElapsed))
-                    .font(.system(size: 62, weight: .light, design: .rounded))
-                    .monospacedDigit()
-                    .kerning(-1)
+        VStack(spacing: 26) {
+            VStack(spacing: 8) {
+                TimelineView(.animation(minimumInterval: 0.05)) { _ in
+                    Text(Self.format(swElapsed))
+                        .font(DS.F.timerLg)
+                        .monospacedDigit()
+                        .kerning(-1)
+                        .foregroundColor(.primary)
+                }
+                Text("秒表")
+                    .font(DS.F.microCaps)
+                    .kerning(1.5)
+                    .foregroundColor(.secondary)
             }
 
-            HStack(spacing: 14) {
-                Button {
-                    Haptic.medium()
+            HStack(spacing: 16) {
+                circularControl(icon: swRunning ? "pause.fill" : "play.fill",
+                                size: DS.H.circleMain,
+                                tint: DS.accent,
+                                filled: true) {
                     if swRunning {
-                        swAccum = swElapsed; swRunning = false; swStart = nil
+                        swAccum = swElapsed
+                        swRunning = false
+                        swStart = nil
                     } else {
-                        swStart = Date(); swRunning = true
+                        swStart = Date()
+                        swRunning = true
                     }
-                } label: {
-                    Image(systemName: swRunning ? "pause.fill" : "play.fill")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(width: 76, height: 76)
-                        .background(Circle().fill(Color(hex: "#5865F2")))
-                        .shadow(color: Color(hex: "#5865F2").opacity(0.35),
-                                radius: 14, y: 6)
                 }
 
-                Button {
-                    Haptic.tick()
-                    if swRunning { laps.insert(swElapsed, at: 0) }
-                    else if swElapsed > 0 { swAccum = 0; swStart = nil; laps = [] }
-                    else { laps.insert(0, at: 0); swRunning = true; swStart = Date() }
-                } label: {
-                    Image(systemName: swRunning ? "flag.fill"
-                          : (swElapsed > 0 ? "arrow.counterclockwise" : "play.fill"))
-                        .font(.system(size: 19, weight: .medium))
-                        .foregroundColor(swElapsed > 0 || swRunning ? Color(hex: "#E5573F") : Color(hex: "#5865F2"))
-                        .frame(width: 56, height: 56)
-                        .background(Circle()
-                            .stroke((swElapsed > 0 || swRunning
-                                     ? Color(hex: "#E5573F") : Color(hex: "#5865F2"))
-                                    .opacity(0.30), lineWidth: 1.5))
+                circularControl(icon: swRunning ? "flag.fill"
+                                      : (swElapsed > 0 ? "arrow.counterclockwise" : "play.fill"),
+                                size: 56,
+                                tint: swElapsed > 0 || swRunning ? DS.danger : DS.accent,
+                                filled: false) {
+                    if swRunning {
+                        laps.insert(swElapsed, at: 0)
+                    } else if swElapsed > 0 {
+                        swAccum = 0
+                        swStart = nil
+                        laps = []
+                    } else {
+                        laps.insert(0, at: 0)
+                        swRunning = true
+                        swStart = Date()
+                    }
                 }
             }
 
             if !laps.isEmpty {
-                let fastest = laps.min()
-                let slowest = laps.count > 1 ? laps.max() : nil
-                ScrollView {
-                    VStack(spacing: 2) {
-                        ForEach(laps.indices.reversed(), id: \.self) { i in
-                            HStack {
-                                Text(laps[i] == fastest && laps.count > 1 ? "最快"
-                                     : laps[i] == slowest ? "最慢"
-                                     : "Lap \(i + 1)")
-                                    .font(DS.F.subhead)
-                                    .foregroundColor(laps[i] == fastest && laps.count > 1
-                                                     ? Color(hex: "#2FA84F")
-                                                     : laps[i] == slowest
-                                                     ? Color(hex: "#E5573F") : .secondary)
-                                Spacer()
-                                Text(Self.format(laps[i]))
-                                    .font(DS.F.bodyMd.monospacedDigit())
-                                    .foregroundColor(laps[i] == fastest && laps.count > 1
-                                                     ? Color(hex: "#2FA84F")
-                                                     : laps[i] == slowest
-                                                     ? Color(hex: "#E5573F") : .primary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 11)
-                            .contentShape(Rectangle())
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    withAnimation(.easeOut(duration: 0.22)) {
-                                        _ = laps.remove(at: i)
-                                    }
-                                    Haptic.tick()
-                                } label: {
-                                    Label("删除此计次", systemImage: "trash")
-                                }
-                            }
-                            if i > 0 { Divider() }
-                        }
-                    }
-                }
-                .frame(maxHeight: 190)
-                .background(
-                    RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
-                        .fill(Color(.secondarySystemGroupedBackground)))
+                lapList
             }
         }
         .padding(.horizontal, 24)
+    }
+
+    private var lapList: some View {
+        let fastest = laps.min()
+        let slowest = laps.count > 1 ? laps.max() : nil
+
+        return ScrollView {
+            VStack(spacing: 0) {
+                ForEach(laps.indices.reversed(), id: \.self) { i in
+                    lapRow(i,
+                           fastest: fastest,
+                           slowest: slowest)
+                    if i > 0 { Divider().opacity(0.45) }
+                }
+            }
+        }
+        .frame(maxHeight: 210)
+        .hubSurface(.inset)
+    }
+
+    private func lapRow(_ i: Int, fastest: TimeInterval?, slowest: TimeInterval?) -> some View {
+        let isFast = laps[i] == fastest && laps.count > 1
+        let isSlow = laps[i] == slowest && laps.count > 1
+        let color: Color = isFast ? DS.success : isSlow ? DS.danger : .primary
+
+        return HStack(spacing: DS.S.md) {
+            Text(isFast ? "最快" : isSlow ? "最慢" : "Lap \(i + 1)")
+                .font(DS.F.subheadSb)
+                .foregroundColor(isFast || isSlow ? color : .secondary)
+            Spacer()
+            Text(Self.format(laps[i]))
+                .font(DS.F.bodySb.monospacedDigit())
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, DS.S.lg)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button(role: .destructive) {
+                withAnimation(DS.Motion.quick) {
+                    _ = laps.remove(at: i)
+                }
+                Haptic.light()
+            } label: {
+                Label("删除此计次", systemImage: "trash")
+            }
+        }
     }
 
     // MARK: 倒计时
@@ -174,109 +197,109 @@ struct FreeTimerPane: View {
     }
 
     private var countdownBody: some View {
-        VStack(spacing: 26) {
-            TimelineView(.animation) { _ in
-                let remain = cdRemaining
-                Text(Self.format(remain, forceHours: true))
-                    .font(.system(size: 62, weight: .light, design: .rounded))
-                    .monospacedDigit()
-                    .kerning(-1)
-                    .foregroundColor(cdFinished ? Color(hex: "#E5573F") : .primary)
-                    .onChange(of: remain) { v in
-                        if v <= 0 && !cdFinished && (cdEnd != nil || cdPausedRemain != nil) {
-                            cdFinished = true
-                            SoundPlayer.shared.playTone(Prefs.shared.toneType)
-                            Haptic.medium()
-                        }
-                    }
-            }
-
-            if !cdRunningOrPaused {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(chipMinutes, id: \.self) { m in
-                            Button {
-                                Haptic.tick(); cdMinutes = m
-                            } label: {
-                                Text("\(m)分")
-                                    .font(.system(size: 15, weight: cdMinutes == m ? .bold : .medium))
-                                    .monospacedDigit()
-                                    .foregroundColor(cdMinutes == m ? .white : Color(hex: "#5865F2"))
-                                    .padding(.horizontal, 17).frame(height: 35)
-                                    .background(Capsule().fill(cdMinutes == m ? AnyShapeStyle(Color(hex: "#5865F2"))
-                                                                              : AnyShapeStyle(Color(hex: "#5865F2").opacity(0.12))))
+        VStack(spacing: 24) {
+            VStack(spacing: 8) {
+                TimelineView(.animation) { _ in
+                    let remain = cdRemaining
+                    Text(Self.format(remain, forceHours: true))
+                        .font(DS.F.timerLg)
+                        .monospacedDigit()
+                        .kerning(-1)
+                        .foregroundColor(cdFinished ? DS.danger : .primary)
+                        .onChange(of: remain) { v in
+                            if v <= 0 && !cdFinished && (cdEnd != nil || cdPausedRemain != nil) {
+                                cdFinished = true
+                                SoundPlayer.shared.playTone(Prefs.shared.toneType)
+                                Haptic.medium()
                             }
                         }
-                    }
-                    .padding(.horizontal, 24)
                 }
+                Text(cdFinished ? "时间到" : "倒计时")
+                    .font(DS.F.microCaps)
+                    .kerning(1.5)
+                    .foregroundColor(cdFinished ? DS.danger : .secondary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(chipMinutes, id: \.self) { minutes in
+                        countdownChip(minutes)
+                    }
+                }
+                .padding(.horizontal, 24)
             }
 
             HStack(spacing: 14) {
                 Button {
                     Haptic.medium()
                     if cdRunningOrPaused {
-                        if cdEnd != nil { cdPausedRemain = cdRemaining; cdEnd = nil }
-                        else { cdEnd = Date().addingTimeInterval(cdPausedRemain ?? 1) }
+                        if cdEnd != nil {
+                            cdPausedRemain = cdRemaining
+                            cdEnd = nil
+                        } else {
+                            cdEnd = Date().addingTimeInterval(cdPausedRemain ?? 1)
+                        }
                     } else {
                         cdFinished = false
                         cdPausedRemain = nil
                         cdEnd = Date().addingTimeInterval(TimeInterval(cdMinutes * 60))
-                        Notifications.schedule(in: cdMinutes * 60, phase: .focus, taskName: "倒计时")
+                        Notifications.schedule(in: cdMinutes * 60,
+                                               phase: .focus,
+                                               taskName: "倒计时")
                     }
                 } label: {
                     Text(!cdRunningOrPaused ? "开始"
                          : (cdEnd != nil ? "暂停" : "继续"))
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(DS.F.headline)
                         .foregroundColor(.white)
-                        .padding(.horizontal, 38).frame(height: 52)
-                        .background(Capsule().fill(Color(hex: "#5865F2")))
-                        .shadow(color: Color(hex: "#5865F2").opacity(0.35), radius: 14, y: 6)
+                        .frame(minWidth: 168, minHeight: DS.H.primaryButton)
+                        .background(
+                            Capsule()
+                                .fill(DS.accent)
+                                .shadow(color: DS.accent.opacity(0.26), radius: 20, y: 8)
+                        )
                 }
+                .buttonStyle(PressStyle())
 
                 if cdRunningOrPaused || cdFinished {
                     Button {
-                        Haptic.tick()
-                        cdEnd = nil; cdPausedRemain = nil; cdFinished = false
+                        Haptic.light()
+                        cdEnd = nil
+                        cdPausedRemain = nil
+                        cdFinished = false
                         Notifications.cancelAll()
                     } label: {
                         Text("重置")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(DS.F.subheadSb)
                             .foregroundColor(.secondary)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 11)
-                            .background(Capsule().stroke(Color.secondary.opacity(0.4), lineWidth: 1.2))
+                            .padding(.horizontal, 24)
+                            .frame(minHeight: DS.H.primaryButton - 14)
+                            .background(
+                                Capsule()
+                                    .stroke(Color.secondary.opacity(0.28), lineWidth: 1.2)
+                            )
                     }
+                    .buttonStyle(PressStyle())
                 }
-            }
-
-            if cdFinished {
-                Text("时间到 ✅").font(.system(size: 13)).foregroundColor(.secondary)
             }
         }
         .padding(.horizontal, 24)
     }
 
-    private var cdRunningOrPaused: Bool { cdEnd != nil || cdPausedRemain != nil }
-
-    /// 统计页同款时间卡：大数字 + 状态副标题
-    private func timeCard<Content: View>(caption: String,
-                                         tint: Color? = nil,
-                                         @ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: 10) {
-            content()
-            Text(caption)
-                .font(DS.F.microCaps)
-                .kerning(1.5)
-                .foregroundColor(tint ?? .secondary)
+    private func countdownChip(_ minutes: Int) -> some View {
+        let selected = cdMinutes == minutes
+        return Button {
+            Haptic.light()
+            cdMinutes = minutes
+        } label: {
+            PillControl(isSelected: selected) {
+                Text("\(minutes)分")
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 30)
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
+        .buttonStyle(PressStyle())
     }
+
+    private var cdRunningOrPaused: Bool { cdEnd != nil || cdPausedRemain != nil }
 
     static func format(_ t: TimeInterval, forceHours: Bool = false) -> String {
         let s = max(0, Int(t))
@@ -285,5 +308,32 @@ struct FreeTimerPane: View {
             return String(format: "%d:%02d:%02d", h, m, sec)
         }
         return String(format: "%02d:%02d.%02d", m, sec, cs)
+    }
+
+    // MARK: 控件
+
+    private func circularControl(icon: String,
+                                 size: CGFloat,
+                                 tint: Color,
+                                 filled: Bool,
+                                 action: @escaping () -> Void) -> some View {
+        Button {
+            if filled { Haptic.medium() } else { Haptic.light() }
+            action()
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: size > 64 ? 25 : 19, weight: .medium))
+                .foregroundColor(filled ? .white : tint)
+                .frame(width: size, height: size)
+                .background(
+                    Circle()
+                        .fill(filled ? AnyShapeStyle(tint) : AnyShapeStyle(Color.clear))
+                        .overlay(Circle().stroke(tint.opacity(filled ? 0 : 0.28), lineWidth: 1.5))
+                        .shadow(color: filled ? tint.opacity(0.24) : .clear,
+                                radius: size > 64 ? 20 : 10,
+                                y: size > 64 ? 8 : 4)
+                )
+        }
+        .buttonStyle(PressStyle())
     }
 }

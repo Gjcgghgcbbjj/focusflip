@@ -92,12 +92,40 @@ enum Backup {
         }
     }
 
+    // MARK: 摘要 / 两步导入
+
+    struct Summary {
+        let tasks: Int
+        let countdowns: Int
+        let sessions: Int
+        var total: Int { tasks + countdowns + sessions }
+    }
+
+    static func currentSummary() -> Summary {
+        let store = Store.shared
+        return Summary(tasks: store.tasks().count,
+                       countdowns: store.countdowns().count,
+                       sessions: fetchSessions().count)
+    }
+
+    static func summary(of data: Data) -> Summary? {
+        guard let payload = try? decoder().decode(Payload.self, from: data) else { return nil }
+        return Summary(tasks: payload.tasks.count,
+                       countdowns: payload.countdowns.count,
+                       sessions: payload.sessions.count)
+    }
+
     // MARK: 导入（按 ID 去重合并）
 
     /// 返回新增条数；-1 表示失败
     static func restore(from url: URL) -> Int {
-        guard let data = try? Data(contentsOf: url),
-              let payload = try? decoder().decode(Payload.self, from: data) else { return -1 }
+        guard let data = try? Data(contentsOf: url) else { return -1 }
+        return restore(data: data)
+    }
+
+    /// 返回新增条数；-1 表示失败
+    static func restore(data: Data) -> Int {
+        guard let payload = try? decoder().decode(Payload.self, from: data) else { return -1 }
 
         let store = Store.shared
         var added = 0
