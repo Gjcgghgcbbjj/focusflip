@@ -1,227 +1,82 @@
 # 🍅 FocusFlip
 
-> iOS 番茄钟 App · 支持巨魔商店(TrollStore)自签 · 翻页时钟 · Live Activity · App 屏蔽
+> Flow 风格极简番茄钟 · SwiftUI · iOS 15+ · 个人自用
+> 通过 [TrollStore](https://github.com/opa334/TrollStore) 安装 GitHub Releases 的 IPA 即可使用
 
-原生 SwiftUI 构建，iOS 15.0+，通过 TrollStore 安装获得平台应用权限，支持专注期间屏蔽干扰 App。
+**最新版本：[v2.5.0](https://github.com/Gjcgghgcbbjj/focusflip/releases/download/v2.5.0/FocusFlip-2.5.0.ipa)**
+（任意版本：`https://github.com/Gjcgghgcbbjj/focusflip/releases/download/vX.Y.Z/FocusFlip-X.Y.Z.ipa`）
 
 ---
 
-## ✨ 功能特性
+## 核心体验（Flow 三要素）
 
-| 功能 | 说明 |
+1. **色即界面** —— 选中任务的颜色铺满整屏（上浅下深渐变），阶段切换平滑过渡；
+   未选任务=靛蓝 `#5865F2`，小憩=绿，长歇=蓝。浅色任务色自动切换深墨文字（WCAG 亮度感知）
+2. **大圆环细字** —— 大圆环 + 56pt 圆体时间；点环暂停/继续，长按呼出快捷菜单
+3. **时长快选 chips** —— 常用时长一排胶囊 + `···` 精调面板
+
+## 功能总览
+
+| 模块 | 能力 |
 |------|------|
-| 🍅 **专注/休息循环** | 经典番茄工作法：25分钟专注 + 5分钟休息，4个后长休息 |
-| ⏱️ **自定义时长** | 自由设置专注/休息时长、循环次数，支持快速预设 |
-| 📋 **任务管理** | 创建任务、预估番茄数、卡片化展示、颜色标记 |
-| 📊 **数据统计** | 今日/本周专注时间、7天趋势图、连续打卡天数 |
-| 🎨 **设计系统** | Catppuccin Mocha 配色，SF Pro Rounded 字体，4pt 间距网格 |
-| 🎵 **白噪音** | 雨声/海浪/森林/风扇，运行时合成无需音频文件 |
-| 📱 **Live Activity** | iOS 16.1+ 锁屏实时显示倒计时 + 灵动岛交互 |
-| 🛡️ **App 屏蔽** | 专注期间隐藏选定 App（需 TrollStore 提权） |
-| 💾 **本地持久化** | CoreData 存储，支持 JSON 导出 |
+| ⏱ 专注 | 番茄循环（长歇间隔可设）/ 自动接续开关 / 完成光晕仪式 / 全屏结算卡 |
+| 🕐 自由计时 | 秒表（最快最慢圈高亮·计次可删）+ 任意倒计时（chips/通知/提示音） |
+| ✅ 任务 | Things 式列表（色圈勾选弹簧反馈/已完成折叠）/ 快速添加自动聚焦 / 右滑设当前 · 左滑删除(可撤销) / 行尾累计投入 |
+| 📊 统计 | 渐变英雄卡（番茄数滚动/连续天数🔥/日均/最常投入）/ 日柱图(均值虚线) / 24h 时段 / 任务占比环形图 / **点图例按任务下钻过滤** / 今日时间线+备注 |
+| 🎯 目标 | 日期倒计时三档形态卡（≤7天火焰徽章 / >30天横条 / 过期灰卡）/ 8 色自选 / 可编辑 / 紧急置顶 |
+| ⚙️ 设置 | 卡片化分组（默认折叠）/ 行为·声音·时长·数据·关于 |
+| 🔊 声音 | 真实环境音（雨/海浪/森林/风扇，BBC Rewind RemArc 许可）+ 白粉棕噪声 + 4 种完成提示音，均带试听 |
+| 💾 数据 | CSV 导出（BOM 兼容中文 Excel）/ **JSON 全量备份与导入**（按 ID 去重合并） |
 
-## 📸 界面预览
+### 可靠性设计
 
-```
-┌─────────────────────────────┐
-│  🧠 专注                     │  ← 阶段标签 + 图标
-│  第 1 轮 · 0 番茄        🔊  │
-│                             │
-│         ╭─────────╮         │
-│        ╱           ╲        │  ← 进度环 (6pt, 语义色)
-│       │             │       │
-│       │   24:53     │       │  ← SF Pro Rounded ultraLight
-│       │   专注中     │       │
-│        ╲           ╱        │
-│         ╰─────────╯         │
-│                             │
-│      ● 写论文  2/4          │  ← 任务 chip
-│                             │
-│    ↻      ▶      ⏭         │  ← 控制按钮
-└─────────────────────────────┘
+- **墙钟引擎**：`startedAt + totalSeconds` 单一真相源，后台不漂移
+- **杀后台恢复**：状态快照落盘（`eng.snapshot.v1`），重进无缝续跑；后台走完自动结算推进
+- **通知预约**：仅专注/倒计时阶段，权限只在首次询问时记录
+- **URL Scheme**：`focusflip://start|pause|resume|skip`
+- **沉浸模式**：可选"计时中隐藏底部标签栏"
 
-背景: #1e1e2e (Catppuccin Mocha)
-专注色: #f38ba8  短休色: #a6e3a1  长休色: #89b4fa
-```
-
-## 🏗️ 架构设计
-
-```
-focusflip/
-├── Makefile                          # theos 构建配置
-├── control                           # deb 元信息
-├── FocusFlip.plist                   # Info.plist（权限、URL Scheme）
-├── FocusFlip.entitlements            # TrollStore 提权 entitlements
-├── Sources/
-│   ├── Theme/
-│   │   └── DesignSystem.swift        # 设计 token（配色/间距/字体/动画）
-│   ├── App/
-│   │   └── FocusFlipApp.swift        # @main 入口 + TabView
-│   ├── Models/
-│   │   ├── FocusSession.swift        # 专注会话 CoreData 模型
-│   │   ├── TaskItem.swift           # 任务 CoreData 模型
-│   │   ├── AppSettings.swift        # UserDefaults 设置中心
-│   │   └── PersistenceController.swift # CoreData 栈 + JSON 导出
-│   ├── Engine/
-│   │   ├── PomodoroEngine.swift     # 计时状态机
-│   │   ├── TimerService.swift       # 后台计时（DispatchSourceTimer + 静音保活）
-│   │   └── NotificationService.swift # 本地通知
-│   ├── Features/
-│   │   ├── FlipClock/
-│   │   │   ├── FlipClockView.swift   # 简约数字显示
-│   │   │   ├── FlipDigitView.swift  # 单数字过渡
-│   │   │   └── FlipTransition.swift # 过渡修饰器
-│   │   ├── Timer/TimerView.swift    # 计时主屏
-│   │   ├── Tasks/TasksView.swift    # 任务卡片列表
-│   │   ├── Stats/StatsView.swift    # 统计图表
-│   │   ├── Sound/SoundPlayer.swift  # 白噪音 + 提醒音合成
-│   │   └── Settings/SettingsView.swift # 设置页
-│   ├── FocusShield/
-│   │   └── FocusShieldManager.swift # App 屏蔽（LSApplicationWorkspace）
-│   └── Utils/
-│       ├── HapticManager.swift      # 触感反馈
-│       └── DateUtils.swift          # 日期工具
-├── Widget/
-│   ├── FocusFlipWidget.swift        # 锁屏小组件
-│   ├── LockScreenWidget.swift       # Live Activity + 灵动岛
-│   └── LiveActivityAttributes.swift # ActivityKit 属性定义
-├── Resources/
-│   ├── Assets.xcassets/             # 图标资源
-│   └── Sounds/                      # 音频资源（运行时合成，通常为空）
-└── Scripts/
-    ├── build-ipa.sh                 # 一键构建 IPA
-    └── install-trollstore.md        # 安装指南
-```
-
-### 核心模块说明
-
-#### 🔄 PomodoroEngine（计时引擎）
-
-状态机驱动，管理完整的番茄工作法循环：
-
-```
-idle → focusing → shortBreak → focusing → ... → longBreak → focusReady
-                    ↓ pause                          ↓ pause
-                 paused                           paused
-                    ↓ resume                        ↓ resume
-                 shortBreak                        longBreak
-```
-
-- 发布 `@Published` 属性，SwiftUI 视图自动响应
-- 通过 `TimerService` 获取 1 秒 tick
-- 完成时自动记录到 CoreData
-
-#### ⏱️ TimerService（后台计时）
-
-```
-┌──────────────────────────────────────────┐
-│  DispatchSourceTimer (1s tick)            │
-│         ↓                                 │
-│  AVAudioSession (.playback)               │
-│         ↓                                 │
-│  Silent Audio Loop (1s WAV, volume=0.01)  │  ← 防止后台被挂起
-│         ↓                                 │
-│  PomodoroEngine.handleTick()              │
-└──────────────────────────────────────────┘
-```
-
-iOS 后台保活策略：播放近乎静音的音频循环，使系统认为 App 在播放音频，从而保持后台运行。
-
-#### 🎴 FlipDigitView（翻页时钟）
-
-每个数字位由 4 层视图组成：
-1. **底部静态卡** — 新数字的下半部分
-2. **顶部静态卡** — 旧数字的上半部分
-3. **翻转上卡** — 旧数字下半部分翻转（rotation3D 0→90°）
-4. **翻转下卡** — 新数字上半部分翻转（rotation3D -90→0°）
-
-通过 `rotation3DEffect` + `perspective` 实现 3D 翻牌效果。
-
-#### 🛡️ FocusShieldManager（App 屏蔽）
-
-```
-TrollStore 安装 → platform-application entitlement
-         ↓
-LSApplicationWorkspace (私有框架 FrontBoard)
-         ↓
-setApplicationHidden:forBundleIdentifier:
-         ↓
-专注期间隐藏选定 App，休息时恢复
-```
-
-使用 NSClassFromString + perform selector 调用私有 API，避免编译时依赖。
-
-#### 🎵 SoundPlayer（音频合成）
-
-白噪音和提醒音均在运行时用 AVAudioEngine 合成，**无需打包音频文件**：
-
-| 类型 | 合成方式 |
-|------|---------|
-| 雨声 | 白噪声 + 高通滤波 |
-| 海浪 | 棕噪声 + 低频 LFO |
-| 森林 | 滤波噪声 + 随机鸟鸣正弦波 |
-| 风扇 | 棕噪声（低通） |
-| 提醒音 | 多频率正弦波 + 包络 |
-
-## 🚀 快速开始
-
-### 构建环境准备
+## 从源码构建
 
 ```bash
-# 1. 安装 theos
-git clone --recursive https://github.com/theos/theos.git /opt/theos
-export THEOS=/opt/theos
-
-# 2. 安装 ldid
-# macOS:
-brew install ldid
-# Linux:
-# 见 https://github.com/ProcursusTeam/ldid
-
-# 3. 下载 iOS SDK
-git clone https://github.com/theos/sdks.git $THEOS/sdks
+brew install xcodegen
+cd focusflip && xcodegen generate
+open FocusFlip.xcodeproj   # 选好签名 Team 后 Cmd+R
 ```
 
-### 构建并安装
+CI：推 tag `vX.Y.Z` → GitHub Actions（macos-15）约 7 分钟产出未签名 IPA 并挂到 Releases。
 
-```bash
-# 构建 IPA
-cd focusflip
-chmod +x Scripts/build-ipa.sh
-./Scripts/build-ipa.sh
+发版流程（本地）：`python3 tmp/bump.py X.Y.Z`（参数化改三处版本号）→ commit → push master → 打 tag。
 
-# 产物: build/FocusFlip-1.0.0.ipa
+## 工程结构
+
+```
+Sources/
+├── App/FlowSimApp.swift        # 入口·五 Tab·URL Scheme·TabBar 外观
+├── Core/
+│   ├── Theme.swift             # Palette/场景渐变/亮度墨色/Layout
+│   ├── DS.swift                # 设计令牌(字号阶梯/间距/圆角/组件高度)+SheetDetents+RollText
+│   ├── Prefs.swift             # UserDefaults 偏好
+│   ├── Engine.swift            # 墙钟状态机 + 快照恢复 + 完成事件发布
+│   ├── Store.swift             # CoreData 程序化模型(Task/Session/Countdown)+CRUD+CSV
+│   ├── SoundPlayer.swift       # 环境音/提示音
+│   ├── Services.swift          # KeepAlive(静音WAV保活)+Notifications
+│   ├── Toast.swift             # 全局撤销 Toast
+│   └── Backup.swift            # JSON 备份/恢复
+└── Features/
+    ├── HomeView.swift          # 主屏(模式切换/圆环/chips/结算卡/沉浸钩子)
+    ├── TodoView.swift          # 任务 tab
+    ├── StatsView.swift         # 统计 tab(下钻过滤)
+    ├── TargetView.swift        # 目标 tab(+编辑 sheet)
+    ├── SettingsView.swift      # 设置(卡片化折叠分组)
+    ├── FreeTimerView.swift     # 自由计时面板(下划线标签)
+    ├── SettleCard.swift        # 阶段完成全屏结算卡
+    └── Sheets.swift            # 任务选择/时长微调
+Resources/Sounds/               # BBC 真录音 m4a ×4 + 合成 wav
 ```
 
-详细的安装步骤见 [Scripts/install-trollstore.md](Scripts/install-trollstore.md)。
+完整演进史与工程纪律见 [HANDOFF.md](HANDOFF.md)。
 
-## 📱 系统要求
+## 许可
 
-| 特性 | 最低版本 |
-|------|---------|
-| 基本功能 | iOS 15.0+ |
-| Live Activity | iOS 16.1+ |
-| 灵动岛交互 | iOS 16.1+ (iPhone 14 Pro+) |
-| App 屏蔽 | TrollStore 安装（iOS 15.0-17.0） |
-| 锁屏小组件 | iOS 16.0+ |
-
-## 🛠️ 技术栈
-
-- **UI 框架**：SwiftUI
-- **数据持久化**：CoreData（程序化模型，无 .xcdatamodeld）
-- **后台保活**：AVAudioSession + DispatchSourceTimer
-- **音频合成**：AVAudioEngine
-- **Live Activity**：ActivityKit
-- **小组件**：WidgetKit
-- **图表**：Charts framework
-- **构建工具**：theos
-- **签名**：ldid (fake-sign) + TrollStore (platform re-sign)
-- **App 屏蔽**：LSApplicationWorkspace (FrontBoard 私有框架)
-
-## 📄 许可证
-
-MIT License — 自由使用、修改、分发。
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 PR。
+个人自用项目。环境音采样来自 BBC Sound Effects (RemArc Licence)，仅限个人非商用。

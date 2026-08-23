@@ -62,3 +62,118 @@ Sources/Features/SettingsView.swift 行为/时长/概览/关于
   loudnorm -22LUFS + acrossfade 无缝循环 + AAC96k; 白粉棕保留合成
 - URL Scheme: focusflip://start|pause|resume|skip
 - 教训: heredoc 里写 re.sub 的 \d 会被双转义失效 → 版本补丁走 tmp/bump.py 文件方式
+
+---
+
+# v1.4 → v2.5.0 演进全记录（2026-08-22 收官文档）
+
+## 版本线
+
+| 版本 | 主题 | 要点 |
+|------|------|------|
+| v1.4.0 | 三问题修复 | 倒计时常驻入口(轮播)/TODO 首次重做/界面精修；确立 **patch 必 assert** 纪律 |
+| v1.5.0 | 信息架构重组 | 四 tab 定位：番茄/自由并入专注页、声音归设置、倒计时归统计页顶、任务选择器纯选、CSV 导出 |
+| v1.6.0 | 目标独立 tab | 模式切换外提(修"回不去")、渐变顶部减浅提对比度、TODO 添加常驻、目标大卡+空态 |
+| v1.7.0 | 崩溃与墨色 | 删任务闪退首修(wasCurrent 时序)；**亮度感知墨色体系**(luminance/ink/inkSoft/panel)——浅色任务色全场景自动深字；设置折叠分组 |
+| v1.8.0 | 按钮体量升级 | 对标 Apple Timer/Flow/Things/HIG：热区≥44pt 全覆盖、裸文字→幽灵胶囊/淡底药丸 |
+| v1.9.0 | UI 规范化 | **设计令牌 DS.swift 落地**（字号阶梯14种收敛为规范集合/圆角家族 card20/tile7/composer14/组件高度规格）；自由面板改下划线标签；设置图标色块 |
+| v2.0.0 | 统计页语言统一 | 任务 tab→insetGrouped 卡片组；自由时间入"统计同款卡"+状态副标题；非沉浸页全部= groupedBackground + R.card 家族 |
+| v2.1.0 | 五问题修复 | TabBar 不透明底；模式切换双配色方案(场景墨色/中性)；TODO 行放大+完成三重反馈；目标三档形态+8色自选；**设置整体脱离 Form 重写为卡片家族** |
+| v2.2.0 | 闪退根治 | **CoreData 删除崩溃真因**：withAnimation 包 save→diffing 重渲染已删实体。全 App 统一：无动画事务+异步 reload+行构建器 managedObjectContext 守卫；手势语义重排(右滑设当前/左滑全划删除) |
+| v2.3.0 | 主流交互包 | **计时器杀后台快照恢复**(eng.snapshot.v1, 后台走完自动结算推进)；5 sheet 半高化(iOS15 桥接 detents+抓手)；阶段完成光晕仪式；删除撤销 Toast(5s)；英雄数字滚动 RollText；PressStyle 升级；触感分级 |
+| v2.4.0 | 交互深挖 | 目标可编辑 sheet；秒表最快/最慢圈(Apple Stopwatch 标准)+长按删圈；圆环长按菜单(暂停/跳过/放弃)；目标紧急置顶 |
+| v2.5.0 | 数据与下钻 | 统计图例点选按任务下钻过滤；**全屏结算卡**(引擎 lastCompletion 事件驱动)；沉浸模式(tabBar 动画隐藏)；JSON 备份导出/导入(按 ID 合并) |
+
+## 当前文件地图（v2.5.0）
+
+```
+Sources/App/FlowSimApp.swift      入口·五Tab(专注/任务/统计/目标/设置)·URL Scheme·不透明TabBar
+Sources/Core/
+  Theme.swift                     Palette(sceneGradient/deepVariant/taskPalette8)
+                                  luminance/ink/inkSoft/panel(亮度感知墨色) · Layout(ringSize/ringWidth)
+  DS.swift                        设计令牌: F(字号阶梯)/S(间距)/R(card20,tile7,composer14)/H(组件高度44底线)
+                                  SheetDetents(iOS15半高桥) · RollText(数字tween) · Haptic.light()
+  Prefs.swift                     autoStart×2/keepAwake/immersive/时长×4/sound×3/tone
+  Engine.swift                    墙钟状态机 + saveState/restoreState(eng.snapshot.v1)
+                                  + @Published lastCompletion(PhaseCompletion)
+  Store.swift                     TaskEntity(id,name,colorHex,isDone,sortOrder,createdAt)
+                                  SessionEntity(phaseRaw,start,end,durationSeconds,completed,taskId,note)
+                                  CountdownEntity(title,targetDate,colorHex,createdAt)
+                                  CRUD+addTaskRaw(撤销重建用)+exportCSV(BOM)
+  SoundPlayer.swift               ambientTypes(rain/ocean/forest/fan真实录音+white/pink/brown合成) tones×4
+  Services.swift                  KeepAlive(silentWAV+PassthroughSubject tick) Notifications(notifAsked纪律)
+  Toast.swift                     ToastCenter(show/undo 5s) + ToastOverlay(底部胶囊)
+  Backup.swift                    Payload{tasks,countdowns,sessions} ISO日期 导出/restore按ID合并
+Sources/Features/
+  HomeView.swift                  homeMode双方案切换/亮度墨色fg族/bloom光晕/SettleCard挂载/
+                                  沉浸模式applyImmersive+setTabBar/contextMenu长按/PressStyle定义/Haptic枚举
+  TodoView.swift                  insetGrouped卡片组/metaHeader(RollText进度)/快速添加(FocusState自动聚焦+
+                                  nextColorHex预览)/行守卫AnyView收口/swipe语义(右设当前左删撤销)/TaskEditSheet
+  StatsView.swift                 RangeKind(today/week/month)/英雄RollText/柱图/hourBins/donutCard
+                                  (filterChip+donutCardContent)/timelineCard/TimelineAllSheet/ChartCard通用头
+  TargetView.swift                countdownCard三档分发(bigCard urgent/pastCard/slimCard)/编辑EditCountdownSheet
+  SettingsView.swift              groupCard折叠(iconTile30pt)/自定义行控件(menuButton药丸/stepperRow胶囊±)/
+                                  CSV/Backup导入导出(fileImporter)
+  FreeTimerView.swift             下划线underTab/stopwatch(laps最快最慢+contextMenu删)/countdown(chips35h)
+  SettleCard.swift                全屏结算(对勾弹入/RollText分钟/开始下一阶段/稍后再说)
+  Sheets.swift                    TaskPickerSheet(纯选+footer指引)/DurationTuneSheet
+```
+
+## 设计系统速查
+
+- 字号只从 `DS.F` 取：display56 / timerLg62 / title1_30 / title2_22 / numberM17 / headline16 / body15×3 / subhead13×2 / caption11 / microCaps10(kerning1.5)
+- 圆角：卡片 R.card=20 一律；tile7；composer14
+- 高度：主按钮54 / 大圆76 / 幽灵胶囊40 / chips38 / 分段内高34 / 触控≥44(DS.H.touchMin)
+- 场景色墨水：`Palette.ink/inkSoft/panel(baseColor)` 按 WCAG 亮度自动黑白翻转——新元素禁止硬编码 .white
+- 半透明层：场景上用 panel()，中性页用 secondarySystemGroupedBackground
+- 弹层：一律 `.background(SheetDetents())` 挂 navigationTitle 链尾(medium/large+抓手)
+
+## 关键机制备忘
+
+### 引擎持久化（v2.3）
+- 键 `eng.snapshot.v1`：state/phase/total/remain/startedAt/taskID
+- 写入点：begin/pause/resume/prepare/goIdle 尾部
+- 恢复：running→墙钟补偿续跑(重挂KeepAlive+环境音+通知)；remain≤0→finishCurrent(true)+advanceToNext(后台走完自动推进)；paused/prepared 原样；其余 idle
+- 完成事件：completePhase() 尾发 `lastCompletion`(minutes/wasFocus/nextPrepared)，HomeView 据此挂 SettleCard；skip/giveUp 不触发
+
+### CoreData 变更纪律（v2.2 血泪）
+任何 delete/save 后紧跟 UI 的路径必须：
+```swift
+var tx = Transaction(); tx.disablesAnimations = true
+withTransaction(tx) { Store.shared.deleteX(obj) }
+DispatchQueue.main.async { reload() }
+```
+行构建器头部守卫：`guard obj.managedObjectContext != nil else { return AnyView(EmptyView()) }`（函数签名显式 `-> AnyView`，闭合括号挂在修饰链最末）。
+撤销删除用 `Store.addTaskRaw(name:colorHex:)`（不走色轮换），Toast 回调里重建。
+
+### iOS15 兼容红线（持续有效）
+无 contentTransition / fontWeight(View版) / scrollContentBackground / TextField(axis:) / NavigationStack / Section(isExpanded:) / .spring(damping:)【要用 dampingFraction】/ onChange 双参数闭包【iOS17】/ presentationDetents【用 SheetDetents 桥】
+
+### 发布流程（现行）
+```bash
+python3 tmp/bump.py X.Y.Z     # 参数化写 project.yml/plist/workflow 三处, build号自增
+git commit + push master      # CI 编译验证
+git tag vX.Y.Z && git push origin vX.Y.Z   # 若撞旧项目tag: gh release delete X --yes; git push origin :refs/tags/X
+验证: gh release view vX --json assets   # FocusFlip-X.Y.Z.ipa ~5.4MB
+```
+
+## 工程血泪清单（新会话必读）
+
+1. **patch 必 assert**——静默 no-op 是两次"发布缺功能"事故根因
+2. heredoc 内写 re.sub 的 `\d` 会双重转义 → 版本补丁走 tmp/*.py 文件方式（bump.py 已参数化，勿再硬编码版本）
+3. AnyView 包裹多返回路径时，闭合括号必须在**全部修饰链(含 swipeActions/contextMenu)** 之后；中间提前 `)` 会把后续链变孤儿表达式
+4. Text+Text 拼接要求两侧都是 Text（.frame 会破坏）；复杂行内组合用 HStack
+5. iOS15 spring 参数名是 dampingFraction 不是 damping
+6. tag 冲突旧项目遗留 v1.x/v2.x/v3.x——打 tag 前 `git ls-remote --tags | grep` 检查
+7. tmp 目录每 bash 调用即焚；持久脚本放 `/root/dsphn/tmp/`
+8. 用户反馈的"闪退"优先怀疑：已保存删除实体的属性访问（本仓两大崩溃皆此）
+
+## Backlog（远期，均未开工）
+
+- 动态字体适配关键文本（现全固定字号，个人自用可接受）
+- Live Activity / 锁屏组件（需 iOS16.1+ 与扩展 target，与 iOS15 底线冲突，需条件编译）
+- 统计周/月对比视图深化、任务维度时间线复用下钻
+- 完成提示音换真录音（用户可随时点名需求）
+
+---
+*收官时点：v2.5.0 (build 16)，master=3edfcab。*
