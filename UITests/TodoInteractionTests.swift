@@ -44,7 +44,7 @@ final class TodoInteractionTests: XCTestCase {
             let start = reading.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
             let end = reading.coordinate(withNormalizedOffset: CGVector(dx: -0.3, dy: 0.5))
             start.press(forDuration: 0.02, thenDragTo: end,
-                        withVelocity: .fast, thenHoldFor: 0.1)
+                        withVelocity: .fast, thenHoldForDuration: 0.1)
         }
         XCTAssertEqual(app.state, .runningForeground, "右滑删除后 app 存活")
         let gone = XCTNSPredicateExpectation(
