@@ -44,7 +44,11 @@ final class TodoInteractionTests: XCTestCase {
             }
             let deleteBtn = app.buttons["删除"].firstMatch
             if deleteBtn.waitForExistence(timeout: 1.5) {
-                deleteBtn.tap()
+                // 全扫可能已直接删除：给行 0.5s 离场窗口；行真还在才是露出删除场景。
+                // 否则点到的会是退场按钮（tap 落到上移补位卡片的其他控件上）
+                if reading.waitForExistence(timeout: 0.5) {
+                    deleteBtn.tap()
+                }
                 deleted = true
                 break
             }

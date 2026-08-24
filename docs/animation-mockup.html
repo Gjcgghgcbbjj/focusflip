@@ -92,7 +92,8 @@
   }
   /* 滑动容器 */
   .swipe-wrap { position:relative; margin:5px 0; }
-  .swipe-wrap .slot-inner { position:relative; overflow:visible; }
+  .swipe-wrap .slot-inner { position:relative; overflow:visible; pointer-events:none; }
+  .swipe-wrap .slot-inner .card { pointer-events:auto; }
   .actions-l, .actions-r {
     position:absolute; top:5px; bottom:5px; display:flex; align-items:center;
     border-radius:22px; overflow:hidden; width:0;
@@ -353,7 +354,7 @@ function bindCard(wrap, card, t) {
   const actsL = wrap.querySelector(".actions-l"), actsR = wrap.querySelector(".actions-r");
   const W = () => card.offsetWidth || 340;
   let sx = 0, sy = 0, dx = 0, dragging = false, moved = false, samples = [];
-  let cancelAnim = null, suppressClickUntil = 0, downCtl = false;
+  let cancelAnim = null, suppressClickUntil = 0, downCtl = false, revealed = false;
 
   function onMove(e) {
     if (!dragging) return;
@@ -383,11 +384,29 @@ function bindCard(wrap, card, t) {
     const W_ = W();
     if (dx < -W_*.4 || vx < -.45) { fullDelete(); return; }
     if (dx > W_*.4 || vx > .45) { setCurrent(); return; }
+    if (dx < -56) { settleReveal(dx); return; }     // 部分滑动 → 停在露出位（与 app 一致）
     springBack();
+  }
+  // 停在露出位：卡片与背后动作层同步弹到 -128px，删除按钮可点
+  function settleReveal(from) {
+    animate("quick", p => {
+      const v = from + (-128 - from) * p;
+      card.style.transform = `translateX(${v}px)`;
+      actsR.style.width = `${-v}px`;
+    }, () => {
+      card.style.transform = "translateX(-128px)";
+      actsR.style.width = "128px";
+      revealed = true;
+    });
   }
 
   // 控件(色圈/播放)上起手也可拖拽：移动取消点击、静止算点击（与 iOS 手势语义一致）
   card.addEventListener("pointerdown", e => {
+    if (revealed) {   // 已露出时再按卡片：先收起，本次不作为拖拽起点
+      revealed = false;
+      springBack(-128);
+      return;
+    }
     sx = e.clientX; sy = e.clientY; dx = 0; moved = false; dragging = true; samples = [];
     downCtl = !!(e.target.closest(".disc") || e.target.closest(".play"));
     const onCtl = downCtl;
@@ -399,10 +418,11 @@ function bindCard(wrap, card, t) {
   window.addEventListener("pointerup", onUp);
   card.addEventListener("pointercancel", () => { dragging=false; card.classList.remove("pressing"); springBack(); });
 
-  function springBack() {
-    const from = dx;
-    cancelAnim = animate("quick", p => { card.style.transform = `translateX(${from*(1-p)}px)`;
-      actsR.style.width = `${from<0?-from*(1-p):0}px`; actsL.style.width = `${from>0?from*(1-p):0}px`; },
+  function springBack(from) {
+    revealed = false;
+    const start = from ?? dx;
+    cancelAnim = animate("quick", p => { card.style.transform = `translateX(${start*(1-p)}px)`;
+      actsR.style.width = `${start<0?-start*(1-p):0}px`; actsL.style.width = `${start>0?start*(1-p):0}px`; },
       () => { card.style.transform=""; actsR.style.width="0"; actsL.style.width="0"; });
   }
   function setCurrent() {
