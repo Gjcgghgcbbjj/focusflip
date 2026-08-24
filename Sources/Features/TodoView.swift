@@ -71,7 +71,7 @@ struct TodoView: View {
                 }
                 .padding(.bottom, 24)
             }
-            .background(DS.pageBackground.ignoresSafeArea())
+            .background(DS.canvas.ignoresSafeArea())
             .navigationTitle("任务")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
