@@ -17,7 +17,8 @@ struct TodoView: View {
     @State private var todaySecondsByTask: [UUID: Int] = [:]
     @State private var todayCountByTask: [UUID: Int] = [:]
     @State private var totalSecondsByTask: [UUID: Int] = [:]
-    @State private var editMode: EditMode = .inactive
+    // 拖拽排序已撤（iOS15 List editMode+swipeActions 崩溃族，PR#2 真机闪退主嫌）；
+    // sortOrder 字段与 Store.setOrder 保留，拿到崩溃日志或升基线再做
 
     private var active: [TaskEntity] { tasks.filter { !$0.isDone } }
     private var done: [TaskEntity] { tasks.filter { $0.isDone } }
@@ -42,7 +43,6 @@ struct TodoView: View {
                 if !active.isEmpty {
                     Section {
                         ForEach(active) { card($0) }
-                            .onMove(perform: moveActive)
                     } header: {
                         Text("\(active.count) 项待办")
                     }
@@ -63,21 +63,9 @@ struct TodoView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .environment(\.editMode, $editMode)
             .navigationTitle("任务")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    if !active.isEmpty {
-                        Button(editMode == .active ? "完成" : "排序") {
-                            Haptic.light()
-                            withAnimation(DS.Motion.quick) {
-                                editMode = editMode == .active ? .inactive : .active
-                            }
-                        }
-                        .font(DS.F.subheadSb)
-                    }
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         Haptic.light()
