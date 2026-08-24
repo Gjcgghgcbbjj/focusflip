@@ -30,39 +30,48 @@ struct TodoView: View {
 
     var body: some View {
         NavigationView {
-            List {
-                if currentTask != nil || engine.isRunning || engine.isPaused {
-                    Section {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    if currentTask != nil || engine.isRunning || engine.isPaused {
                         currentLine
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 2, trailing: 16))
+                            .padding(.horizontal, 16)
+                            .padding(.top, 6)
+                            .padding(.bottom, 2)
                     }
-                }
 
-                if !active.isEmpty {
-                    Section {
-                        ForEach(active) { card($0) }
-                    } header: {
-                        Text("\(active.count) 项待办")
-                    }
-                }
-
-                if !done.isEmpty {
-                    Section {
-                        doneToggle
-                        if showDone {
-                            ForEach(done) { card($0) }
-                                .transition(.opacity.combined(with: .move(edge: .top)))
+                    if !active.isEmpty {
+                        sectionHeader("\(active.count) 项待办")
+                        ForEach(active) { t in
+                            card(t)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 5)
+                                .transition(Self.cardTransition)
                         }
                     }
-                }
 
-                if active.isEmpty && done.isEmpty {
-                    grandEmpty
+                    if !done.isEmpty {
+                        doneToggle
+                            .padding(.horizontal, 20)
+                            .padding(.top, active.isEmpty ? 14 : 8)
+                        if showDone {
+                            ForEach(done) { t in
+                                card(t)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 5)
+                                    .transition(Self.cardTransition)
+                            }
+                        }
+                    }
+
+                    if active.isEmpty && done.isEmpty {
+                        grandEmpty
+                            .padding(.horizontal, 16)
+                            .padding(.top, 12)
+                    }
                 }
+                .padding(.bottom, 24)
             }
-            .listStyle(.insetGrouped)
+            .background(DS.pageBackground.ignoresSafeArea())
             .navigationTitle("任务")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -150,22 +159,47 @@ struct TodoView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: 大卡片
+    // MARK: 大卡片（自定义滑动，动画与模拟器同源）
+
+    static let cardTransition = AnyTransition.asymmetric(
+        insertion: .scale(scale: 0.92).combined(with: .opacity).combined(with: .offset(y: 14)),
+        removal: .move(edge: .leading).combined(with: .opacity))
+
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(DS.F.subheadSb)
+            .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+            .padding(.bottom, 6)
+    }
 
     @ViewBuilder
     private func card(_ t: TaskEntity) -> some View {
         if t.managedObjectContext == nil {
             EmptyView()
         } else {
-            let isActive = engine.currentTaskID == t.id
-            let tint = Color(hex: t.colorHex)
-            let todaySec = todaySecondsByTask[t.id] ?? 0
-            let totalSec = totalSecondsByTask[t.id] ?? 0
+            SwipeableCard(
+                canSetCurrent: !t.isDone,
+                onSetCurrent: { setCurrent(t) },
+                onDelete: { delete(t) }
+            ) {
+                cardBody(t)
+            }
+        }
+    }
 
-            Button {
-                Haptic.light()
-                editing = t
-            } label: {
+    private func cardBody(_ t: TaskEntity) -> some View {
+        let isActive = engine.currentTaskID == t.id
+        let tint = Color(hex: t.colorHex)
+        let todaySec = todaySecondsByTask[t.id] ?? 0
+        let totalSec = totalSecondsByTask[t.id] ?? 0
+
+        return Button {
+            Haptic.light()
+            editing = t
+        } label: {
             HStack(spacing: DS.S.md) {
                 // 色圈即完成勾选（点切 done）
                 Button { toggleDone(t) } label: {
@@ -224,40 +258,24 @@ struct TodoView: View {
             }
             .padding(14)
             .hubSurface(.standard)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .contextMenu {
-                Button { Haptic.light(); editing = t } label: {
-                    Label("编辑", systemImage: "pencil")
+            Button { Haptic.light(); editing = t } label: {
+                Label("编辑", systemImage: "pencil")
+            }
+            if !t.isDone {
+                Button { setCurrent(t) } label: {
+                    Label("设为当前", systemImage: "timer")
                 }
-                if !t.isDone {
-                    Button { setCurrent(t) } label: {
-                        Label("设为当前", systemImage: "timer")
-                    }
-                    Button { quickStart(t) } label: {
-                        Label("设为当前并开始", systemImage: "play.fill")
-                    }
-                }
-                Button(role: .destructive) { delete(t) } label: {
-                    Label("删除", systemImage: "trash")
+                Button { quickStart(t) } label: {
+                    Label("设为当前并开始", systemImage: "play.fill")
                 }
             }
-            .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                if !t.isDone {
-                    Button { setCurrent(t) } label: {
-                        Label("设为当前", systemImage: "timer")
-                    }
-                    .tint(DS.accent)
-                }
+            Button(role: .destructive) { delete(t) } label: {
+                Label("删除", systemImage: "trash")
             }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button(role: .destructive) { delete(t) } label: {
-                    Label("删除", systemImage: "trash")
-                }
-            }
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
         }
     }
 
@@ -345,32 +363,27 @@ struct TodoView: View {
     // MARK: 空态
 
     private var grandEmpty: some View {
-        Section {
-            VStack(spacing: DS.S.md) {
-                ZStack {
-                    Circle()
-                        .fill(DS.accent.opacity(0.07))
-                        .frame(width: 76, height: 76)
-                    Circle()
-                        .stroke(DS.accent.opacity(0.16), lineWidth: 1.5)
-                        .frame(width: 76, height: 76)
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 25, weight: .light))
-                        .foregroundColor(DS.accent.opacity(0.62))
-                }
-                Text("今天想专注点什么？")
-                    .font(DS.F.headline)
-                Text("点右上角 ＋ 添加第一个任务")
-                    .font(DS.F.subhead)
-                    .foregroundColor(.secondary)
+        VStack(spacing: DS.S.md) {
+            ZStack {
+                Circle()
+                    .fill(DS.accent.opacity(0.07))
+                    .frame(width: 76, height: 76)
+                Circle()
+                    .stroke(DS.accent.opacity(0.16), lineWidth: 1.5)
+                    .frame(width: 76, height: 76)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 25, weight: .light))
+                    .foregroundColor(DS.accent.opacity(0.62))
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, DS.S.card)
-            .hubCard(.standard)
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 16, trailing: 16))
+            Text("今天想专注点什么？")
+                .font(DS.F.headline)
+            Text("点右上角 ＋ 添加第一个任务")
+                .font(DS.F.subhead)
+                .foregroundColor(.secondary)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DS.S.card)
+        .hubCard(.standard)
     }
 
     // MARK: 数据
@@ -683,5 +696,103 @@ struct TaskEditSheet: View {
                 isDone = task.isDone
             }
         }
+    }
+}
+
+// MARK: - 可滑动卡片（左滑删除 / 右滑设当前，动画与 docs/animation-mockup.html 同源）
+
+private struct SwipeableCard<Content: View>: View {
+    var canSetCurrent: Bool
+    var onSetCurrent: () -> Void
+    var onDelete: () -> Void
+    @ViewBuilder var content: () -> Content
+
+    @State private var offset: CGFloat = 0
+    private let revealWidth: CGFloat = 128          // 部分露出时按钮停留位
+    private var cardWidth: CGFloat { UIScreen.main.bounds.width - 32 }
+
+    var body: some View {
+        ZStack {
+            // 背后动作层：右缘删除、左缘设当前
+            HStack(spacing: 0) {
+                if canSetCurrent { actionButton(tint: DS.accent, icon: "timer",
+                                                title: "设为当前", role: .current) }
+                Spacer(minLength: 0)
+                actionButton(tint: DS.danger, icon: "trash",
+                             title: "删除", role: .delete)
+            }
+            // 前景卡
+            content()
+                .offset(x: offset)
+                .gesture(dragGesture)
+        }
+    }
+
+    private enum ActionRole { case `delete`, current }
+
+    private func actionButton(tint: Color, icon: String, title: String,
+                              role: ActionRole) -> some View {
+        Button {
+            switch role {
+            case .delete:
+                Haptic.warning()
+                onDelete()
+            case .current:
+                Haptic.medium()
+                withAnimation(DS.Motion.quick) { offset = 0 }
+                onSetCurrent()
+            }
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: icon).font(.system(size: 15, weight: .semibold))
+                Text(title).font(DS.F.microCaps)
+            }
+            .foregroundColor(.white)
+            .frame(width: revealWidth - 12)
+            .frame(maxHeight: .infinity)
+            .background(RoundedRectangle(cornerRadius: DS.R.card, style: .continuous)
+                .fill(tint))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
+    /// 拖拽：橡皮筋限幅；松手按位移+甩动速度判定（阈值同模拟器：40% 宽或 flick）
+    private var dragGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { g in
+                var dx = g.translation.width
+                let limit = cardWidth * 0.55
+                if abs(dx) > limit {
+                    dx = (dx > 0 ? 1 : -1) * (limit + (abs(dx) - limit) * 0.25)
+                }
+                offset = dx
+            }
+            .onEnded { g in
+                let dx = g.translation.width
+                let flick = g.predictedEndTranslation.width - dx   // 甩动趋势
+                if dx < -cardWidth * 0.4 || flick < -cardWidth * 0.6 {
+                    performDelete()
+                } else if canSetCurrent,
+                          dx > cardWidth * 0.4 || flick > cardWidth * 0.6 {
+                    withAnimation(DS.Motion.quick) { offset = 0 }
+                    Haptic.medium()
+                    onSetCurrent()
+                } else if offset < -56 {
+                    withAnimation(DS.Motion.quick) { offset = -revealWidth }  // 停在露出位
+                } else {
+                    springBack()
+                }
+            }
+    }
+
+    private func performDelete() {
+        Haptic.warning()
+        withAnimation(DS.Motion.quick) { offset = -(UIScreen.main.bounds.width) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { onDelete() }
+    }
+
+    private func springBack() {
+        withAnimation(DS.Motion.quick) { offset = 0 }
     }
 }
