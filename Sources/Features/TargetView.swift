@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 /// 目标页 —— 紧急度分层的日期卡系统。
 struct TargetView: View {
@@ -6,6 +7,7 @@ struct TargetView: View {
     @State private var items: [CountdownEntity] = []
     @State private var showManager = false
     @State private var editing: CountdownEntity?
+    @State private var investedByTask: [UUID: Int] = [:]
 
     var body: some View {
         NavigationView {
@@ -142,6 +144,13 @@ struct TargetView: View {
                 Text(CountdownSheet.dateText(item.targetDate))
                     .font(DS.F.caption)
                     .foregroundColor(.secondary)
+                if let line = linkedLine(item) {
+                    Text(line)
+                        .font(DS.F.caption)
+                        .monospacedDigit()
+                        .foregroundColor(.secondary.opacity(0.8))
+                        .lineLimit(1)
+                }
             }
 
             Spacer()
@@ -187,6 +196,14 @@ struct TargetView: View {
                     Text(CountdownSheet.dateText(item.targetDate))
                         .font(DS.F.subhead)
                         .foregroundColor(.white.opacity(0.76))
+
+                    if let line = linkedLine(item) {
+                        Text(line)
+                            .font(DS.F.caption)
+                            .monospacedDigit()
+                            .foregroundColor(.white.opacity(0.66))
+                            .lineLimit(1)
+                    }
                 }
 
                 Spacer(minLength: DS.S.md)
@@ -339,6 +356,26 @@ struct TargetView: View {
         items = Store.shared.countdowns().sorted {
             CountdownSheet.daysLeft($0.targetDate) < CountdownSheet.daysLeft($1.targetDate)
         }
+        // 一次 fetch 聚合各任务累计投入（供关联任务展示，避免每卡一查）
+        let req: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
+        req.predicate = NSPredicate(format: "phaseRaw == %@ AND completed == YES",
+                                    Phase.focus.rawValue)
+        var agg: [UUID: Int] = [:]
+        for s in (try? Store.shared.context.fetch(req)) ?? [] {
+            guard let id = s.taskId else { continue }
+            agg[id, default: 0] += max(0, Int(s.durationSeconds))
+        }
+        investedByTask = agg
+    }
+
+    /// 关联任务的投入行（无关联或无投入时为 nil）
+    private func linkedLine(_ item: CountdownEntity) -> String? {
+        guard let s = Prefs.shared.targetLinkedTask[item.id.uuidString],
+              let id = UUID(uuidString: s),
+              let sec = investedByTask[id], sec > 60 else { return nil }
+        let name = Store.shared.task(id: id)?.name
+        let time = TodoView.durationText(sec)
+        return name.map { "已投入 \($0) · \(time)" } ?? "已投入 \(time)"
     }
 }
 

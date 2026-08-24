@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 enum AppTab: Hashable {
     case focus, tasks, stats, targets, settings
@@ -11,8 +12,43 @@ final class AppRouter: ObservableObject {
     func showFocus() { tab = .focus }
 }
 
+/// 通知操作按钮响应（点「开始下一阶段」→ 直接开跑）
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        Notifications.registerCategories()
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.actionIdentifier == Notifications.actionStartNext {
+            DispatchQueue.main.async {
+                if case .prepared = FocusEngine.shared.state {
+                    FocusEngine.shared.startPreparedPhase()
+                } else if FocusEngine.shared.state == .idle {
+                    FocusEngine.shared.startFocus()
+                } else if FocusEngine.shared.isPaused {
+                    FocusEngine.shared.resume()
+                }
+            }
+        }
+        completionHandler()
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+}
+
 @main
 struct FlowSimApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var router = AppRouter.shared
 
     init() {

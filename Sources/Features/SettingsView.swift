@@ -95,7 +95,11 @@ struct SettingsView: View {
             toggleRow("专注时保持屏幕常亮", $prefs.keepAwake)
             divider
             toggleRow("计时中隐藏底部标签栏", $prefs.immersive)
-        } footer: { Text("阶段结束后自动进入下一阶段。") }
+            divider
+            stepperRow("每日番茄目标", $prefs.dailyGoal, 0...20, 1, unit: "个")
+            divider
+            toggleRow("自由倒计时计入统计", $prefs.countdownCounts)
+        } footer: { Text("阶段结束后自动进入下一阶段。每日目标 0 = 不设目标，达成时专注页与结算卡会提醒你。") }
     }
 
     @ViewBuilder private var soundCard: some View {

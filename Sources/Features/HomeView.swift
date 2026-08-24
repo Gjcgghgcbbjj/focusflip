@@ -42,7 +42,8 @@ struct HomeView: View {
             if let done = engine.lastCompletion {
                 SettleCard(info: done,
                            taskColor: baseColor,
-                           todayCount: engine.todayPomodoros) {
+                           todayCount: engine.todayPomodoros,
+                           dailyGoal: prefs.dailyGoal) {
                     engine.startPreparedPhase()
                     engine.lastCompletion = nil
                 } later: {
@@ -258,7 +259,7 @@ struct HomeView: View {
 
     private var ringBlock: some View {
         TimelineView(.animation) { ctx in
-            let remaining = engine.remaining(at: ctx.date)
+            let remaining = engine.displayRemaining(at: ctx.date)
             let fraction = displayFraction(remaining: remaining)
             ZStack {
                 Circle()
@@ -291,6 +292,16 @@ struct HomeView: View {
                         .foregroundColor(fg)
                         .scaleEffect(bloom ? 1.05 : 1.0)
                         .animation(.easeInOut(duration: 0.25), value: remaining)
+                    if prefs.dailyGoal > 0 {
+                        let done = engine.todayPomodoros
+                        Text(done >= prefs.dailyGoal
+                             ? "今日 \(done)/\(prefs.dailyGoal) 🎉"
+                             : "今日 \(done)/\(prefs.dailyGoal)")
+                            .font(.system(size: 12, weight: .medium))
+                            .monospacedDigit()
+                            .kerning(0.5)
+                            .foregroundColor(fgSoft)
+                    }
                 }
             }
             .frame(width: Layout.ringSize, height: Layout.ringSize)

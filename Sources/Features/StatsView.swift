@@ -34,6 +34,8 @@ struct StatsView: View {
     @State private var noteText = ""
     @State private var showAllTimeline = false
     @State private var filterName: String?
+    @State private var yearDays: [(day: Date, minutes: Int)] = []
+    @State private var yearHasData = false
 
     private let accent = Color(hex: "#5865F2")
 
@@ -51,6 +53,7 @@ struct StatsView: View {
                     } else {
                         emptyView.padding(.top, 30)
                     }
+                    if yearHasData { heatmapCard }
                 }
                 .padding(.vertical, 12)
             }
@@ -481,6 +484,89 @@ struct StatsView: View {
         let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: d)
     }
 
+    // MARK: 全年热力
+
+    private var heatmapCard: some View {
+        ChartCard(title: "全年热力", subtitle: "过去一年，每个专注的日子") {
+            VStack(alignment: .leading, spacing: 10) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 3) {
+                        let cols = yearDays.count / 7
+                        ForEach(0..<max(cols, 1), id: \.self) { c in
+                            VStack(spacing: 3) {
+                                ForEach(0..<7, id: \.self) { r in
+                                    let idx = c * 7 + r
+                                    heatCell(idx < yearDays.count ? yearDays[idx].minutes : 0)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 1)
+                }
+                HStack(spacing: 4) {
+                    Text("少")
+                        .font(DS.F.caption)
+                        .foregroundColor(.secondary)
+                    ForEach([0, 20, 45, 90, 150], id: \.self) { m in
+                        heatCell(m)
+                    }
+                    Text("多")
+                        .font(DS.F.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("近 12 个月 · 每格一天")
+                        .font(DS.F.caption)
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
+            }
+        }
+    }
+
+    private func heatCell(_ minutes: Int) -> some View {
+        RoundedRectangle(cornerRadius: 2.5)
+            .fill(heatColor(minutes))
+            .frame(width: 11, height: 11)
+    }
+
+    private func heatColor(_ minutes: Int) -> Color {
+        switch minutes {
+        case 0: return Color.primary.opacity(0.06)
+        case ..<25: return DS.accent.opacity(0.25)
+        case ..<50: return DS.accent.opacity(0.5)
+        case ..<100: return DS.accent.opacity(0.75)
+        default: return DS.accent
+        }
+    }
+
+    private func refreshYearHeat() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        guard var gridStart = cal.date(byAdding: .day, value: -364, to: today) else { return }
+        // 对齐周一开头（isoWeekday: 周一=2 → 回退 iso-1 天）
+        let iso = (cal.component(.weekday, from: gridStart) + 5) % 7
+        gridStart = cal.date(byAdding: .day, value: -iso, to: gridStart) ?? gridStart
+
+        let req: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
+        req.predicate = NSPredicate(format: "phaseRaw == %@ AND completed == YES AND startDate >= %@",
+                                    Phase.focus.rawValue, gridStart as NSDate)
+        let sessions = (try? Store.shared.context.fetch(req)) ?? []
+        var byDay: [Date: Int] = [:]
+        for s in sessions {
+            byDay[cal.startOfDay(for: s.startDate), default: 0] += max(0, Int(s.durationSeconds))
+        }
+
+        var cells: [(day: Date, minutes: Int)] = []
+        var cursor = gridStart
+        while cursor <= today {
+            cells.append((cursor, byDay[cursor] ?? 0))
+            cursor = cal.date(byAdding: .day, value: 1, to: cursor) ?? cursor.addingTimeInterval(86400)
+        }
+        while cells.count % 7 != 0 { cells.append((cursor, 0)) }  // 末周补齐（未来格）
+
+        yearDays = cells
+        yearHasData = byDay.values.contains { $0 > 0 }
+    }
+
     // MARK: 派生文本
 
     private var hoursText: String {
@@ -499,6 +585,7 @@ struct StatsView: View {
         let cal = Calendar.current
         let now = Date()
 
+        refreshYearHeat()
         let rangeStart: Date
         let dayCount: Int
         switch range {

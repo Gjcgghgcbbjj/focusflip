@@ -11,6 +11,17 @@ final class Prefs: ObservableObject {
     @Published var autoStartFocus: Bool   { didSet { d.set(autoStartFocus, forKey: "autoStartFocus") } }
     @Published var keepAwake: Bool        { didSet { d.set(keepAwake, forKey: "keepAwake") } }
     @Published var immersive: Bool        { didSet { d.set(immersive, forKey: "immersive") } }
+    @Published var dailyGoal: Int         { didSet { d.set(dailyGoal, forKey: "dailyGoal") } }
+    @Published var countdownCounts: Bool  { didSet { d.set(countdownCounts, forKey: "countdownCounts") } }
+
+    /// 目标倒计时：id → 提前提醒天数（0=不提醒）。放 UserDefaults 避免动 CoreData 模型
+    @Published var targetReminderDays: [String: Int] {
+        didSet { d.set(targetReminderDays, forKey: "targetReminderDays") }
+    }
+    /// 目标倒计时：id → 关联任务 id 字符串
+    @Published var targetLinkedTask: [String: String] {
+        didSet { d.set(targetLinkedTask, forKey: "targetLinkedTask") }
+    }
 
     @Published var focusMinutes: Int      { didSet { d.set(focusMinutes, forKey: "focusMinutes") } }
     @Published var shortMinutes: Int      { didSet { d.set(shortMinutes, forKey: "shortMinutes") } }
@@ -27,6 +38,10 @@ final class Prefs: ObservableObject {
         autoStartFocus  = d.object(forKey: "autoStartFocus") as? Bool ?? false
         keepAwake       = d.object(forKey: "keepAwake") as? Bool ?? true
         immersive       = d.object(forKey: "immersive") as? Bool ?? false
+        dailyGoal       = d.object(forKey: "dailyGoal") as? Int ?? 8
+        countdownCounts = d.object(forKey: "countdownCounts") as? Bool ?? false
+        targetReminderDays = (d.object(forKey: "targetReminderDays") as? [String: Int]) ?? [:]
+        targetLinkedTask   = (d.object(forKey: "targetLinkedTask") as? [String: String]) ?? [:]
         focusMinutes    = d.object(forKey: "focusMinutes") as? Int ?? 25
         shortMinutes    = d.object(forKey: "shortMinutes") as? Int ?? 5
         longMinutes     = d.object(forKey: "longMinutes") as? Int ?? 15

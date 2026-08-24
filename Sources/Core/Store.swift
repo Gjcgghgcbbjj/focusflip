@@ -157,6 +157,12 @@ final class Store {
         save()
     }
 
+    /// 拖拽排序：按传入顺序写 sortOrder
+    func setOrder(_ ordered: [TaskEntity]) {
+        for (i, t) in ordered.enumerated() { t.sortOrder = Int32(i) }
+        save()
+    }
+
     // MARK: 会话
 
     func record(phase: Phase, seconds: Int, start: Date, completed: Bool, taskId: UUID?) {

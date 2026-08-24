@@ -17,6 +17,7 @@ struct TodoView: View {
     @State private var todaySecondsByTask: [UUID: Int] = [:]
     @State private var todayCountByTask: [UUID: Int] = [:]
     @State private var totalSecondsByTask: [UUID: Int] = [:]
+    @State private var editMode: EditMode = .inactive
 
     private var active: [TaskEntity] { tasks.filter { !$0.isDone } }
     private var done: [TaskEntity] { tasks.filter { $0.isDone } }
@@ -41,6 +42,7 @@ struct TodoView: View {
                 if !active.isEmpty {
                     Section {
                         ForEach(active) { card($0) }
+                            .onMove(perform: moveActive)
                     } header: {
                         Text("\(active.count) 项待办")
                     }
@@ -61,9 +63,21 @@ struct TodoView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .environment(\.editMode, $editMode)
             .navigationTitle("任务")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if !active.isEmpty {
+                        Button(editMode == .active ? "完成" : "排序") {
+                            Haptic.light()
+                            withAnimation(DS.Motion.quick) {
+                                editMode = editMode == .active ? .inactive : .active
+                            }
+                        }
+                        .font(DS.F.subheadSb)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         Haptic.light()
@@ -249,6 +263,13 @@ struct TodoView: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
         }
+    }
+
+    private func moveActive(from source: IndexSet, to destination: Int) {
+        var arr = active
+        arr.move(fromOffsets: source, toOffset: destination)
+        Store.shared.setOrder(arr)
+        reload()
     }
 
     private func quickStart(_ t: TaskEntity) {
