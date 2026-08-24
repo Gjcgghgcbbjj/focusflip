@@ -176,7 +176,18 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # 若撞旧项目tag: gh release dele
 - `FF_UI_TOUR=1`（SIMCTL_CHILD_ 前缀注入）：跳过通知权限弹窗——弹窗会挡导航与截图主体
 - 键盘态：任务页输入框 onAppear 0.3s 自动聚焦（TodoView.swift:420），02-tasks 天然带键盘；完整键盘截图看 12-tasks-dark。idb 点按仅 `INSTALL_IDB=1` 时启用——**idb-companion 已移出 homebrew-core，须 `brew tap facebook/fb` 再装**（skill §六的 `brew install idb-companion` 裸命令已失效）
 - 巡游是证据不是门禁（continue-on-error）；坐标一律屏幕百分比
-- 巡游发现待办：①首页浮动 tab bar 暗色下仍浅色胶囊，与其他页暗色不一致；②任务页日期 zh_CN 硬编码（StatsView:781 / TodoView:549）在英文设备直出中文
+- 巡游发现待办：①首页浮动 tab bar 暗色发亮 = iOS 26 Liquid Glass 拾取场景色（其他页正常，观察不盲改）；②任务页日期 zh_CN 硬编码（StatsView:781 / TodoView:549）在英文设备直出中文
+
+## 交互批次（PR#2 后半，2026-08-24）
+
+- **每日番茄目标**：`prefs.dailyGoal`（0=关）；环心「今日 n/goal」、结算卡目标行、达成 Toast（Engine.completePhase 判 `==` 只响一次）
+- **通知操作按钮**：FOCUS_DONE/BREAK_DONE category + START_NEXT action；响应在 AppDelegate（@UIApplicationDelegateAdaptor），冷启动也能开跑
+- **目标关联任务 + DDL 提醒**：`prefs.targetLinkedTask / targetReminderDays`（UserDefaults 映射，**故意不动 CoreData 模型避免迁移**）；提醒=目标日前 N 天 9 点，删除即取消；目标卡「已投入」用单次 fetch 聚合
+- **自由计时落盘**：`FreeTimerModel`（freetimer.snapshot.v1），didSet persist / init restore；倒计时可计入统计（prefs.countdownCounts，默认关，走完记 focus 会话）
+- **全年热力图**：StatsView 53 周格子（周一对齐、五档色阶）；⚠️ 巡游截不到（在首屏下方），真机待确认
+- **任务拖拽排序**：editMode + onMove → Store.setOrder
+- **idle 环预览**：`Engine.displayRemaining` idle 态显示所选时长（25:00），空环语义不变
+- 种子钩子：`FF_SEED_DEMO=1` 空库种 3 任务+7 天会话（Store.seedDemoIfEmpty），巡游从此截到有数据的真实形态
 
 ## Backlog（远期，均未开工）
 
