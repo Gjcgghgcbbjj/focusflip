@@ -185,9 +185,19 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # 若撞旧项目tag: gh release dele
 - **目标关联任务 + DDL 提醒**：`prefs.targetLinkedTask / targetReminderDays`（UserDefaults 映射，**故意不动 CoreData 模型避免迁移**）；提醒=目标日前 N 天 9 点，删除即取消；目标卡「已投入」用单次 fetch 聚合
 - **自由计时落盘**：`FreeTimerModel`（freetimer.snapshot.v1），didSet persist / init restore；倒计时可计入统计（prefs.countdownCounts，默认关，走完记 focus 会话）
 - **全年热力图**：StatsView 53 周格子（周一对齐、五档色阶）；⚠️ 巡游截不到（在首屏下方），真机待确认
-- **任务拖拽排序**：editMode + onMove → Store.setOrder
+- **任务拖拽排序**：已撤（editMode+onMove 与 swipeActions 在 iOS15 List 是崩溃族）；sortOrder 字段与 Store.setOrder 保留待后用
 - **idle 环预览**：`Engine.displayRemaining` idle 态显示所选时长（25:00），空环语义不变
 - 种子钩子：`FF_SEED_DEMO=1` 空库种 3 任务+7 天会话（Store.seedDemoIfEmpty），巡游从此截到有数据的真实形态
+
+## 闪退/手势事故复盘（2026-08-24，已修）
+
+- **症状**：任务页左滑/右滑/添加/删除全坏 + 闪退感 + 动画怪；新旧构建都复现
+- **根因**：行级 `.contentShape+.onTapGesture`（旧）/整行 Button（新）与 List swipeActions **手势歧义**——短滑被识别成点击 → 误开编辑页，滑动露出时灵时坏。XCUITest 截屏实锤（滑动后编辑页开着）
+- **修复**：整卡 `Button`（点卡=编辑）+ 色圈/播放嵌套 Button（内层在自己范围内优先）；编辑页删除加已删实体守卫（血泪#8）
+- **复现环**：`UITests/TodoInteractionTests`（XCUITest + FF_SEED_DEMO）驱动 删除→撤销→设当前→快捷开始→添加→编辑 全叙事，已全绿；CI 非门禁但红了必须看
+- **测试基建坑**：嵌套按钮对 XCUITest 不可 hittable → 用坐标点击；跨 tab 用 FF_TAB 冷启动，别点 tab 栏（离屏元素 exists 但不 hittable）
+- **教训**：List 行上永远别用裸 onTapGesture 抢点击——用 Button；「旧版也崩」= 根因在共享路径，先 diff 新旧差异集再下结论
+- 真机待复验：iOS 15/16 实机手势（模拟器是 iOS 26）
 
 ## Backlog（远期，均未开工）
 
