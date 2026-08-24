@@ -714,12 +714,17 @@ private struct SwipeableCard<Content: View>: View {
     var body: some View {
         ZStack {
             // 背后动作层：右缘删除、左缘设当前
+            // 未露出时对辅助功能隐藏（否则 XCUITest/VoiceOver 会命中被盖住的按钮）
             HStack(spacing: 0) {
-                if canSetCurrent { actionButton(tint: DS.accent, icon: "timer",
-                                                title: "设为当前", role: .current) }
+                if canSetCurrent {
+                    actionButton(tint: DS.accent, icon: "timer",
+                                 title: "设为当前", role: .current)
+                        .accessibilityHidden(offset < 40)
+                }
                 Spacer(minLength: 0)
                 actionButton(tint: DS.danger, icon: "trash",
                              title: "删除", role: .delete)
+                    .accessibilityHidden(offset > -40)
             }
             // 前景卡
             content()
@@ -727,6 +732,11 @@ private struct SwipeableCard<Content: View>: View {
                 // highPriorityGesture：位移超 8pt 后拖拽优先于内嵌 Button 的 tap，
                 // 快速滑动不会被误判成点击（静止点按仍归按钮）
                 .highPriorityGesture(dragGesture)
+                // VoiceOver 用户不靠滑动：自定义动作直达
+                .accessibilityAction(named: Text("删除")) { onDelete() }
+                .accessibilityAction(named: Text(canSetCurrent ? "设为当前" : "当前")) {
+                    if canSetCurrent { onSetCurrent() }
+                }
         }
     }
 
