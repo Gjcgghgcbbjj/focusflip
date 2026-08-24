@@ -90,11 +90,11 @@ struct TodoView: View {
             .confirmationDialog("清空已完成任务？", isPresented: $showClearDone,
                                 titleVisibility: .visible) {
                 Button("清空 \(done.count) 个已完成", role: .destructive) {
-                    var tx = Transaction(); tx.disablesAnimations = true
-                    withTransaction(tx) {
+                    withAnimation(DS.Motion.soft) {
                         done.forEach { Store.shared.deleteTask($0) }
+                        tasks = Store.shared.tasks()
                     }
-                    DispatchQueue.main.async { reload() }
+                    refreshTotals()
                 }
                 Button("取消", role: .cancel) {}
             } message: {
@@ -102,7 +102,7 @@ struct TodoView: View {
             }
             .onAppear(perform: reload)
             .sheet(item: $editing) { t in
-                TaskEditSheet(task: t) { reload() }
+                TaskEditSheet(task: t) { withAnimation(DS.Motion.soft) { reload() } }
                     .onDisappear { reload() }
             }
             .sheet(isPresented: $showAdd) {
@@ -663,9 +663,16 @@ struct TaskEditSheet: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         // 血泪#8：实体可能已被别的路径删除，访问即崩
                         guard task.managedObjectContext != nil else { onDone(); return }
-                        var tx = Transaction(); tx.disablesAnimations = true
-                        withTransaction(tx) { Store.shared.deleteTask(task) }
-                        onDone()
+                        let name = task.name, hex = task.colorHex, order = task.sortOrder
+                        Store.shared.deleteTask(task)
+                        onDone()   // 父页动画化刷新（接线处已包 withAnimation）
+                        ToastCenter.shared.show("已删除「\(name)」") {
+                            if let restored = Store.shared.addTaskRaw(name: name, colorHex: hex) {
+                                restored.sortOrder = order
+                                Store.shared.save()
+                                onDone()
+                            }
+                        }
                     }
                 }
                 Button("取消", role: .cancel) {}
