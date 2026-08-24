@@ -162,6 +162,10 @@ struct TodoView: View {
             let todaySec = todaySecondsByTask[t.id] ?? 0
             let totalSec = totalSecondsByTask[t.id] ?? 0
 
+            Button {
+                Haptic.light()
+                editing = t
+            } label: {
             HStack(spacing: DS.S.md) {
                 // 色圈即完成勾选（点切 done）
                 Button { toggleDone(t) } label: {
