@@ -163,14 +163,19 @@ struct TodoView: View {
             let totalSec = totalSecondsByTask[t.id] ?? 0
 
             HStack(spacing: DS.S.md) {
-                RoundedRectangle(cornerRadius: DS.R.tile, style: .continuous)
-                    .fill(tint.opacity(t.isDone ? 0.07 : 0.13))
-                    .frame(width: 46, height: 46)
-                    .overlay(
-                        Image(systemName: t.isDone ? "checkmark" : "timer")
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundColor(t.isDone ? tint.opacity(0.5) : tint)
-                    )
+                // 色圈即完成勾选（点切 done）
+                Button { toggleDone(t) } label: {
+                    RoundedRectangle(cornerRadius: DS.R.tile, style: .continuous)
+                        .fill(tint.opacity(t.isDone ? 0.07 : 0.13))
+                        .frame(width: 46, height: 46)
+                        .overlay(
+                            Image(systemName: t.isDone ? "checkmark" : "timer")
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundColor(t.isDone ? tint.opacity(0.5) : tint)
+                        )
+                }
+                .buttonStyle(PressStyle())
+                .accessibilityLabel(t.isDone ? "标记未完成" : "标记完成")
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
@@ -215,12 +220,9 @@ struct TodoView: View {
             }
             .padding(14)
             .hubSurface(.standard)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                Haptic.light()
-                editing = t
-            }
-            .contextMenu {
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
                 Button { Haptic.light(); editing = t } label: {
                     Label("编辑", systemImage: "pencil")
                 }
@@ -255,11 +257,12 @@ struct TodoView: View {
         }
     }
 
-    private func moveActive(from source: IndexSet, to destination: Int) {
-        var arr = active
-        arr.move(fromOffsets: source, toOffset: destination)
-        Store.shared.setOrder(arr)
-        reload()
+    private func toggleDone(_ t: TaskEntity) {
+        guard t.managedObjectContext != nil else { return }
+        var tx = Transaction(); tx.disablesAnimations = true
+        withTransaction(tx) { Store.shared.setDone(t, !t.isDone) }
+        if !t.isDone { showDone = true; Haptic.light() } else { Haptic.tick() }
+        DispatchQueue.main.async { reload() }
     }
 
     private func quickStart(_ t: TaskEntity) {
@@ -642,6 +645,8 @@ struct TaskEditSheet: View {
                 Button("删除", role: .destructive) {
                     dismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        // 血泪#8：实体可能已被别的路径删除，访问即崩
+                        guard task.managedObjectContext != nil else { onDone(); return }
                         var tx = Transaction(); tx.disablesAnimations = true
                         withTransaction(tx) { Store.shared.deleteTask(task) }
                         onDone()

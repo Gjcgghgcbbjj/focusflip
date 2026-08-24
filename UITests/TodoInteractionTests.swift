@@ -32,11 +32,19 @@ final class TodoInteractionTests: XCTestCase {
         let deleteBtn = app.buttons["删除"].firstMatch
         if deleteBtn.waitForExistence(timeout: 2) {
             deleteBtn.tap()
+            // 判别假设：行的 tap 手势抢走删除按钮点击 → 误开编辑页
+            let editSheet = app.navigationBars["编辑任务"]
+            if editSheet.waitForExistence(timeout: 2) {
+                XCTFail("点「删除」误开编辑页 —— 行 onTapGesture 吃掉了 swipe 按钮点击")
+                app.buttons["关闭"].firstMatch.tap()
+                return
+            }
         } else {
-            // 未露出按钮则做全扫拖拽
-            let start = reading.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5))
+            // 未露出按钮则做快速全扫拖拽（带速度才有 full-swipe）
+            let start = reading.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
             let end = reading.coordinate(withNormalizedOffset: CGVector(dx: -0.3, dy: 0.5))
-            start.press(forDuration: 0.05, thenDragTo: end)
+            start.press(forDuration: 0.02, thenDragTo: end,
+                        withVelocity: .fast, thenHoldFor: 0.1)
         }
         XCTAssertEqual(app.state, .runningForeground, "右滑删除后 app 存活")
         let gone = XCTNSPredicateExpectation(
@@ -59,6 +67,12 @@ final class TodoInteractionTests: XCTestCase {
         let setCurrent = app.buttons["设为当前"].firstMatch
         if setCurrent.waitForExistence(timeout: 2) {
             setCurrent.tap()
+            let editSheet = app.navigationBars["编辑任务"]
+            if editSheet.waitForExistence(timeout: 2) {
+                XCTFail("点「设为当前」误开编辑页 —— 行 tap 手势抢点击")
+                app.buttons["关闭"].firstMatch.tap()
+                return
+            }
         }
         XCTAssertEqual(app.state, .runningForeground, "左滑设当前后 app 存活")
 
