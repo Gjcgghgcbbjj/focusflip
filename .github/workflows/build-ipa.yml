@@ -142,8 +142,9 @@ jobs:
           xcrun simctl boot "$DEVICE" 2>/dev/null || true
           xcrun simctl bootstatus "$DEVICE" -b
           xcrun simctl install "$DEVICE" "$APP"
-          # Launch and check it stays alive
-          LAUNCH_OUT=$(xcrun simctl launch "$DEVICE" com.focusflip.app 2>&1)
+          # Launch and check it stays alive.
+          # SIMCTL_CHILD_FF_UI_TOUR=1 注入 app 环境：跳过通知权限弹窗（会挡 openurl 与截图主体）
+          LAUNCH_OUT=$(SIMCTL_CHILD_FF_UI_TOUR=1 xcrun simctl launch "$DEVICE" com.focusflip.app 2>&1)
           echo "Launch output: $LAUNCH_OUT"
           # First launch after cold boot can be slow (SpringBoard warm-up)
           sleep 10

@@ -16,7 +16,11 @@ struct FlowSimApp: App {
     @StateObject private var router = AppRouter.shared
 
     init() {
-        Notifications.requestOnce()
+        // CI 截图巡游逃生门（skill §六）：FF_UI_TOUR=1 时不请求通知权限，
+        // 系统弹窗会挡住 openurl 导航与截图主体。真机路径不受影响。
+        if ProcessInfo.processInfo.environment["FF_UI_TOUR"] != "1" {
+            Notifications.requestOnce()
+        }
 
         let tab = UITabBarAppearance()
         tab.configureWithOpaqueBackground()

@@ -66,6 +66,7 @@ detect_tap_backend() {
      && python3 -m pip install --break-system-packages -q fb-idb >/dev/null 2>&1; then
     TAP_BACKEND="idb-shim"; return 0
   fi
+  { echo "--- idb-companion install tail ---"; tail -5 < <(brew install idb-companion 2>&1) || true; } >> "$LOG"
   TAP_BACKEND="none"
   log "[tap] WARN no tap backend available; navigation falls back to URL scheme only"
 }
@@ -92,9 +93,23 @@ tap_pct() { # $1=x% $2=y%  (0-100, 屏幕百分比换机型不失效)
 }
 
 # ---------------------------------------------------------------- 导航
-goto_tab() { # $1=tab名  $2=截图名
+_last_nav_md5=""
+goto_tab() { # $1=tab名
   sim openurl "$DEVICE" "focusflip://tab/$1" >/dev/null 2>&1 || log "[nav] WARN openurl tab/$1 failed"
   sleep 1.4
+  # 自愈：warm openurl 被 modal 弹窗吞掉时不换页 → terminate 冷启动带 URL 再试
+  local f md5; f="$(mktemp /tmp/ff-nav-XXXXXX).png"
+  sim io "$DEVICE" screenshot "$f" >/dev/null 2>&1
+  md5=$(md5 -q "$f" 2>/dev/null || md5sum "$f" | awk '{print $1}')
+  rm -f "$f"
+  if [ -n "$_last_nav_md5" ] && [ "$md5" = "$_last_nav_md5" ]; then
+    log "[nav] warm openurl no-op (screen unchanged) → cold relaunch with URL"
+    sim terminate "$DEVICE" "$BUNDLE_ID" >/dev/null 2>&1 || true
+    sleep 1
+    sim openurl "$DEVICE" "focusflip://tab/$1" >/dev/null 2>&1 || true
+    sleep 3
+  fi
+  _last_nav_md5="$md5"
 }
 
 # ---------------------------------------------------------------- md5 对比记录
@@ -120,9 +135,14 @@ echo "== FocusFlip UI tour =="
 detect_tap_backend
 log "[tour] tap backend: $TAP_BACKEND"
 
-# 1) 权限弹窗处理：通知授权 Allow 在 (69.5%, 56.8%)；无弹窗时该点为环右侧空白，无害
+# 1) 权限弹窗处理：FF_UI_TOUR=1 时 app 不请求权限，弹窗根本不出现（构造性避开）；
+#    否则点 Allow 在 (69.5%, 56.8%)，无弹窗时该点为环右侧空白，无害
 sleep 2
-if tap_pct 69 57; then :; else log "[alert] WARN tap unavailable, alert may persist in shots"; fi
+if [ "${FF_UI_TOUR:-}" = "1" ] || [ "${SIMCTL_CHILD_FF_UI_TOUR:-}" = "1" ]; then
+  log "[alert] FF_UI_TOUR active — permission alert suppressed in app, skip tap"
+elif ! tap_pct 69 57; then
+  log "[alert] WARN tap unavailable, alert may persist in shots"
+fi
 sleep 1.2
 
 # 2) 亮色巡游
