@@ -89,12 +89,16 @@ final class TodoInteractionTests: XCTestCase {
             _ = app.staticTexts["写代码"].waitForExistence(timeout: 5)
         }
 
-        // --- 添加任务 ---
+        // --- 添加任务：显式切回任务 tab（快捷开始后当前在专注页）---
+        let tasksTab2 = app.tabBars.buttons["任务"]
+        XCTAssertTrue(tasksTab2.waitForExistence(timeout: 5))
+        tasksTab2.tap()
         let add = app.buttons["todo.add"]
         XCTAssertTrue(add.waitForExistence(timeout: 5), "未找到 + 按钮")
+        XCTAssertTrue(add.isHittable, "+ 按钮不可点击（可能仍在专注页）")
         add.tap()
         let field = app.textFields.firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 5), "添加页输入框未出现")
+        XCTAssertTrue(field.waitForExistence(timeout: 6), "添加页输入框未出现")
         field.tap()
         field.typeText("测试任务A")
         let addBtn = app.buttons["添加"].firstMatch
