@@ -352,6 +352,18 @@ function cardNode(t) {
 /* ================= 手势：左滑删除 / 右滑设当前 / 点按完成 ================= */
 function bindCard(wrap, card, t) {
   const actsL = wrap.querySelector(".actions-l"), actsR = wrap.querySelector(".actions-r");
+  // 露出位按钮 = 真实操作（与 SwiftUI SwipeableCard 的 actionButton 对齐）
+  wrap.querySelector(".action-btn.del").addEventListener("click", () => {
+    if (performance.now() < suppressClickUntil) return;
+    dx = -128;            // 从露出位起滑
+    fullDelete();
+  });
+  wrap.querySelector(".action-btn.cur").addEventListener("click", () => {
+    if (performance.now() < suppressClickUntil) return;
+    tasks.forEach(x => x.current = false); t.current = true;
+    render();   // 重建即回正位
+    toast(`已设「${t.name}」为当前`);
+  });
   const W = () => card.offsetWidth || 340;
   let sx = 0, sy = 0, dx = 0, dragging = false, moved = false, samples = [];
   let cancelAnim = null, suppressClickUntil = 0, downCtl = false, revealed = false;
