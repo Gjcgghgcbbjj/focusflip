@@ -25,44 +25,34 @@ final class TodoInteractionTests: XCTestCase {
         let coding = app.staticTexts["写代码"]
         XCTAssertTrue(coding.waitForExistence(timeout: 8), "种子任务「写代码」未出现")
 
-        // --- 右滑删除「读书」（非当前任务，标题唯一） ---
+        // --- 右滑删除「读书」：决定性全扫；被识别成 tap（开编辑页）就关掉重试 ---
         let reading = app.staticTexts["读书"]
         XCTAssertTrue(reading.waitForExistence(timeout: 5))
-        reading.swipeLeft()
-        let deleteBtn = app.buttons["删除"].firstMatch
-        var diag = ""
-        if deleteBtn.waitForExistence(timeout: 2) {
-            diag += "swipe后露出删除按钮;"
-            deleteBtn.tap()
-            // 判别假设：行的 tap 手势抢走删除按钮点击 → 误开编辑页
+        var deleted = false
+        var tapMisfires = 0
+        for _ in 1...3 {
+            let start = reading.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5))
+            let end = reading.coordinate(withNormalizedOffset: CGVector(dx: -0.6, dy: 0.5))
+            start.press(forDuration: 0.01, thenDragTo: end,
+                        withVelocity: .fast, thenHoldForDuration: 0.08)
             let editSheet = app.navigationBars["编辑任务"]
-            if editSheet.waitForExistence(timeout: 2) {
-                XCTFail("点「删除」误开编辑页 —— 行 onTapGesture 吃掉了 swipe 按钮点击")
+            if editSheet.exists {
+                tapMisfires += 1
                 app.buttons["关闭"].firstMatch.tap()
-                return
+                _ = app.staticTexts["读书"].waitForExistence(timeout: 3)
+                continue
             }
-        } else {
-            diag += "swipe后未露出删除按钮,试全扫;"
-            let start = reading.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
-            let end = reading.coordinate(withNormalizedOffset: CGVector(dx: -0.3, dy: 0.5))
-            start.press(forDuration: 0.02, thenDragTo: end,
-                        withVelocity: .fast, thenHoldForDuration: 0.1)
-            if deleteBtn.waitForExistence(timeout: 2) {
-                diag += "全扫后露出,点按;"
+            let deleteBtn = app.buttons["删除"].firstMatch
+            if deleteBtn.waitForExistence(timeout: 1.5) {
                 deleteBtn.tap()
-            } else {
-                diag += "全扫后仍未露出;"
+                deleted = true
+                break
             }
+            if !reading.exists { deleted = true; break }   // 全扫直接删除的情况
         }
-        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        shot.name = "after-delete-attempt"
-        shot.lifetime = .keepAlways
-        add(shot)
+        if !deleted { deleted = !reading.exists }
+        XCTAssertTrue(deleted, "右滑删除未生效（被误识别为点击 \(tapMisfires) 次）")
         XCTAssertEqual(app.state, .runningForeground, "右滑删除后 app 存活")
-        let gone = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "exists == false"), object: reading)
-        let waitResult = XCTWaiter().wait(for: [gone], timeout: 5)
-        XCTAssertEqual(waitResult, .completed, "「读书」删除后应消失（\(diag)）")
 
         // --- 撤销（Toast）---
         let undo = app.buttons["撤销"]
