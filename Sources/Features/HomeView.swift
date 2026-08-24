@@ -487,7 +487,7 @@ struct HomeView: View {
                 if engine.phase == .focus { showGiveUpConfirm = true }
                 else { engine.skip() }
             } label: {
-                Text("放弃")
+                Text(engine.phase == .focus ? "放弃" : "跳过休息")
                     .font(DS.F.subheadSb)
                     .padding(.horizontal, 24)
                     .frame(minHeight: DS.H.ghostPill)

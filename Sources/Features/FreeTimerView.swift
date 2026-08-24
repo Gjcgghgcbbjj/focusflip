@@ -243,9 +243,7 @@ struct FreeTimerPane: View {
                         cdFinished = false
                         cdPausedRemain = nil
                         cdEnd = Date().addingTimeInterval(TimeInterval(cdMinutes * 60))
-                        Notifications.schedule(in: cdMinutes * 60,
-                                               phase: .focus,
-                                               taskName: "倒计时")
+                        Notifications.scheduleCountdown(in: cdMinutes * 60)
                     }
                 } label: {
                     Text(!cdRunningOrPaused ? "开始"

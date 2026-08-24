@@ -1,20 +1,22 @@
 import SwiftUI
 import CoreData
 
-/// 任务页 —— Today 锚点 + Things 式安静列表。
+/// 任务页 —— 大卡片清单。
+/// 身份：诚实的长期任务总清单（无"今日"外衣）；
+/// 联动：每张卡可直接开始专注，当前任务色即首页场景色。
 struct TodoView: View {
 
     @ObservedObject private var engine = FocusEngine.shared
     @ObservedObject private var router = AppRouter.shared
 
     @State private var tasks: [TaskEntity] = []
-    @State private var newText = ""
-    @FocusState private var addFocused: Bool
     @State private var editing: TaskEntity?
+    @State private var showAdd = false
     @State private var showDone = false
     @State private var showClearDone = false
     @State private var todaySecondsByTask: [UUID: Int] = [:]
     @State private var todayCountByTask: [UUID: Int] = [:]
+    @State private var totalSecondsByTask: [UUID: Int] = [:]
 
     private var active: [TaskEntity] { tasks.filter { !$0.isDone } }
     private var done: [TaskEntity] { tasks.filter { $0.isDone } }
@@ -27,31 +29,20 @@ struct TodoView: View {
     var body: some View {
         NavigationView {
             List {
-                Section {
-                    progressHeader
-                    todayFocusCard
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-
-                Section {
-                    addFieldRow
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-
-                if active.isEmpty && done.isEmpty {
-                    grandEmpty
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 16, trailing: 16))
+                if currentTask != nil || engine.isRunning || engine.isPaused {
+                    Section {
+                        currentLine
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 2, trailing: 16))
+                    }
                 }
 
                 if !active.isEmpty {
                     Section {
-                        ForEach(active) { row($0) }
+                        ForEach(active) { card($0) }
+                    } header: {
+                        Text("\(active.count) 项待办")
                     }
                 }
 
@@ -59,16 +50,29 @@ struct TodoView: View {
                     Section {
                         doneToggle
                         if showDone {
-                            ForEach(done) { row($0) }
+                            ForEach(done) { card($0) }
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
+                }
+
+                if active.isEmpty && done.isEmpty {
+                    grandEmpty
                 }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("任务")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        Haptic.light()
+                        showAdd = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 17, weight: .semibold))
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if !done.isEmpty {
                         Button("清空") {
@@ -98,255 +102,165 @@ struct TodoView: View {
                 TaskEditSheet(task: t) { reload() }
                     .onDisappear { reload() }
             }
+            .sheet(isPresented: $showAdd) {
+                AddTaskSheet { _ in
+                    withAnimation(DS.Motion.soft) { reload() }
+                }
+            }
         }
     }
 
-    // MARK: 今日概览
+    // MARK: 当前投入（一行条，点击回专注页）
 
-    private var progressHeader: some View {
-        let total = tasks.count
-        let fraction = total > 0 ? Double(done.count) / Double(total) : 0
-
-        return VStack(alignment: .leading, spacing: DS.S.md) {
-            Text(Self.dateLine)
-                .font(DS.F.microCaps)
-                .kerning(1.2)
-                .foregroundColor(.secondary)
-
-            HStack(alignment: .firstTextBaseline) {
-                Text(active.isEmpty && !tasks.isEmpty ? "全部完成" : "\(active.count) 项待办")
-                    .font(DS.F.title2)
-                Spacer()
-                if total > 0 {
-                    Text("\(Int(fraction * 100))%")
-                        .font(DS.F.subheadSb)
-                        .monospacedDigit()
-                        .foregroundColor(fraction >= 1 ? DS.success : DS.accent)
-                }
-            }
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.07))
-                    Capsule()
-                        .fill(fraction >= 1 ? AnyShapeStyle(DS.success) : AnyShapeStyle(DS.accent))
-                        .frame(width: max(0, geo.size.width * CGFloat(fraction)))
-                        .animation(DS.Motion.soft, value: fraction)
-                }
-            }
-            .frame(height: 5)
-        }
-        .padding(DS.S.card)
-        .hubSurface(.hero)
-    }
-
-    private var todayFocusCard: some View {
+    private var currentLine: some View {
         let task = currentTask
-        let hex = task?.colorHex ?? "#5865F2"
-        let color = Color(hex: hex)
-        let taskSeconds = task.flatMap { todaySecondsByTask[$0.id] } ?? 0
-        let taskCount = task.flatMap { todayCountByTask[$0.id] } ?? 0
-        let allSeconds = todaySecondsByTask.values.reduce(0, +)
-        let title = task?.name ?? "选择一个任务开始"
-        let subtitle = task == nil
-            ? "今天已专注 \(Self.durationText(allSeconds)) · \(engine.todayPomodoros) 个番茄"
-            : "今天 \(Self.durationText(taskSeconds)) · \(taskCount) 个番茄"
+        let tint = Color(hex: task?.colorHex ?? "#5865F2")
+        let seconds = task.flatMap { todaySecondsByTask[$0.id] } ?? 0
 
-        return VStack(alignment: .leading, spacing: DS.S.lg) {
-            HStack(spacing: DS.S.xs) {
-                Image(systemName: "target")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(DS.accent)
-                Text("当前投入")
-                    .font(DS.F.microCaps)
-                    .kerning(1.2)
-                    .foregroundColor(.secondary)
-                Spacer()
-                if engine.isRunning || engine.isPaused {
-                    Label(engine.isRunning ? "进行中" : "已暂停",
-                          systemImage: engine.isRunning ? "circle.fill" : "pause.circle")
+        return Button {
+            Haptic.light()
+            router.showFocus()
+        } label: {
+            HStack(spacing: DS.S.sm + 2) {
+                Circle().fill(tint).frame(width: 8, height: 8)
+                Text(task?.name ?? "选择一个任务开始")
+                    .font(DS.F.subheadSb)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                if seconds > 0 {
+                    Text("今天 \(Self.durationText(seconds))")
                         .font(DS.F.caption)
-                        .foregroundColor(engine.isRunning ? DS.success : .secondary)
+                        .monospacedDigit()
+                        .foregroundColor(.secondary)
                 }
+                Spacer()
+                Text(engine.isRunning ? "进行中 ›"
+                     : engine.isPaused ? "已暂停 ›" : "去专注 ›")
+                    .font(DS.F.caption)
+                    .foregroundColor(DS.accent)
             }
+            .padding(.horizontal, DS.S.md + 2)
+            .padding(.vertical, 11)
+            .hubSurface(.standard)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: 大卡片
+
+    @ViewBuilder
+    private func card(_ t: TaskEntity) -> some View {
+        if t.managedObjectContext == nil {
+            EmptyView()
+        } else {
+            let isActive = engine.currentTaskID == t.id
+            let tint = Color(hex: t.colorHex)
+            let todaySec = todaySecondsByTask[t.id] ?? 0
+            let todayCount = todayCountByTask[t.id] ?? 0
+            let totalSec = totalSecondsByTask[t.id] ?? 0
 
             HStack(spacing: DS.S.md) {
                 RoundedRectangle(cornerRadius: DS.R.tile, style: .continuous)
-                    .fill(color.opacity(0.13))
+                    .fill(tint.opacity(t.isDone ? 0.07 : 0.13))
                     .frame(width: 46, height: 46)
                     .overlay(
-                        Image(systemName: "timer")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(color)
+                        Image(systemName: t.isDone ? "checkmark" : "timer")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(t.isDone ? tint.opacity(0.5) : tint)
                     )
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(DS.F.headline)
-                        .lineLimit(1)
-                    Text(subtitle)
-                        .font(DS.F.subhead)
+                    HStack(spacing: 6) {
+                        Text(t.name)
+                            .font(DS.F.headline)
+                            .strikethrough(t.isDone, color: .secondary)
+                            .foregroundColor(t.isDone ? .secondary : .primary)
+                            .lineLimit(2)
+                        if isActive && !t.isDone {
+                            Text("当前")
+                                .font(DS.F.microCaps)
+                                .foregroundColor(tint)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(tint.opacity(0.10)))
+                        }
+                    }
+
+                    Text(Self.metaLine(today: todaySec, todayCount: todayCount,
+                                       total: totalSec, isDone: t.isDone))
+                        .font(DS.F.caption)
                         .monospacedDigit()
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.secondary.opacity(0.85))
                         .lineLimit(1)
                 }
 
                 Spacer(minLength: DS.S.sm)
-            }
 
-            Button(action: startCurrentTask) {
-                HStack(spacing: DS.S.sm) {
-                    Image(systemName: actionIcon)
-                    Text(actionTitle)
-                }
-                .font(DS.F.bodySb)
-                .foregroundColor(actionTitle == "回到专注" ? DS.accent : .white)
-                .frame(maxWidth: .infinity, minHeight: DS.H.touchMin)
-                .background(
-                    Capsule().fill(actionTitle == "回到专注"
-                                   ? AnyShapeStyle(DS.accent.opacity(0.11))
-                                   : AnyShapeStyle(DS.accent))
-                )
-            }
-            .buttonStyle(PressStyle())
-        }
-        .padding(DS.S.card)
-        .hubSurface(.hero)
-    }
-
-    private var actionTitle: String {
-        if engine.isRunning { return "回到专注" }
-        if engine.isPaused { return "继续专注" }
-        if case .prepared(let phase) = engine.state, phase != .focus { return "开始休息" }
-        return "开始专注"
-    }
-
-    private var actionIcon: String {
-        if engine.isRunning { return "arrow.right.circle" }
-        if engine.isPaused { return "play.fill" }
-        return "play.fill"
-    }
-
-    private func startCurrentTask() {
-        switch engine.state {
-        case .running:
-            Haptic.light()
-        case .paused:
-            Haptic.medium()
-            engine.resume()
-        case .prepared(let phase):
-            Haptic.medium()
-            if phase != .focus { engine.startPreparedPhase() } else { engine.startFocus() }
-        default:
-            Haptic.medium()
-            engine.startFocus()
-        }
-        router.showFocus()
-    }
-
-    // MARK: 行
-
-    private func row(_ t: TaskEntity) -> AnyView {
-        if t.managedObjectContext == nil { return AnyView(EmptyView().frame(height: 0)) }
-        let isActive = engine.currentTaskID == t.id
-        let tint = Color(hex: t.colorHex)
-
-        return AnyView(AnyView(HStack(spacing: DS.S.md) {
-            Button {
-                var tx = Transaction(); tx.disablesAnimations = true
-                withTransaction(tx) { Store.shared.setDone(t, !t.isDone) }
                 if !t.isDone {
-                    showDone = true
-                    Haptic.light()
-                } else {
-                    Haptic.tick()
+                    Button { quickStart(t) } label: {
+                        Image(systemName: engine.isRunning && isActive
+                              ? "arrow.right.circle.fill" : "play.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(tint)
+                            .frame(width: 38, height: 38)
+                            .background(Circle().fill(tint.opacity(0.12)))
+                    }
+                    .buttonStyle(PressStyle())
                 }
-                DispatchQueue.main.async { reload() }
-            } label: {
-                ZStack {
-                    Circle()
-                        .stroke(tint.opacity(t.isDone ? 1 : 0.55), lineWidth: 2)
-                        .frame(width: 28, height: 28)
-
-                    if t.isDone {
-                        Circle()
-                            .fill(tint)
-                            .frame(width: 28, height: 28)
-                            .transition(.scale(scale: 0.6).combined(with: .opacity))
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .heavy))
-                            .foregroundColor(.white)
-                            .transition(.scale(scale: 0.5).combined(with: .opacity))
+            }
+            .padding(14)
+            .hubSurface(.standard)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                Haptic.light()
+                editing = t
+            }
+            .contextMenu {
+                Button { Haptic.light(); editing = t } label: {
+                    Label("编辑", systemImage: "pencil")
+                }
+                if !t.isDone {
+                    Button { setCurrent(t) } label: {
+                        Label("设为当前", systemImage: "timer")
+                    }
+                    Button { quickStart(t) } label: {
+                        Label("设为当前并开始", systemImage: "play.fill")
                     }
                 }
-                .scaleEffect(t.isDone ? 1.05 : 1)
-                .animation(.spring(response: 0.30, dampingFraction: 0.58), value: t.isDone)
-                .frame(width: DS.H.touchMin, height: DS.H.touchMin)
-                .contentShape(Rectangle())
+                Button(role: .destructive) { delete(t) } label: {
+                    Label("删除", systemImage: "trash")
+                }
             }
-            .buttonStyle(.plain)
-
-            Text(t.name)
-                .font(DS.F.headline)
-                .strikethrough(t.isDone, color: .secondary)
-                .foregroundColor(t.isDone ? .secondary : .primary)
-                .lineLimit(1)
-
-            Spacer(minLength: DS.S.sm)
-
-            if isActive {
-                Text("当前")
-                    .font(DS.F.microCaps)
-                    .foregroundColor(tint)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(tint.opacity(0.10)))
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                if !t.isDone {
+                    Button { setCurrent(t) } label: {
+                        Label("设为当前", systemImage: "timer")
+                    }
+                    .tint(DS.accent)
+                }
             }
-
-            if let total = Self.totalText(t.id) {
-                Text(total)
-                    .font(DS.F.caption.monospacedDigit())
-                    .foregroundColor(.secondary.opacity(0.68))
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) { delete(t) } label: {
+                    Label("删除", systemImage: "trash")
+                }
             }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
         }
-        .padding(.horizontal, DS.S.md)
-        .padding(.vertical, DS.S.sm + 3)
-        .contentShape(Rectangle())
-        .onTapGesture {
+    }
+
+    private func quickStart(_ t: TaskEntity) {
+        if engine.isRunning || engine.isPaused {
             Haptic.light()
-            editing = t
+            router.showFocus()
+            return
         }
-        .contextMenu {
-            Button { Haptic.light(); editing = t } label: {
-                Label("编辑", systemImage: "pencil")
-            }
-            if !t.isDone {
-                Button { setCurrent(t) } label: {
-                    Label("设为当前", systemImage: "timer")
-                }
-            }
-            Button(role: .destructive) { delete(t) } label: {
-                Label("删除", systemImage: "trash")
-            }
-        }
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            if !t.isDone {
-                Button { setCurrent(t) } label: {
-                    Label("设为当前", systemImage: "timer")
-                }
-                .tint(DS.accent)
-            }
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) { delete(t) } label: {
-                Label("删除", systemImage: "trash")
-            }
-        }
-        )
-        .hubSurface(.standard)
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16)))
+        Haptic.medium()
+        if engine.currentTaskID != t.id { engine.select(taskID: t.id) }
+        engine.startFocus()
+        router.showFocus()
     }
 
     private func setCurrent(_ t: TaskEntity) {
@@ -394,91 +308,9 @@ struct TodoView: View {
                 Spacer()
             }
             .padding(.vertical, DS.S.sm)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: 快速添加
-
-    private var addFieldRow: some View {
-        HStack(spacing: DS.S.md) {
-            Image(systemName: "plus.circle.fill")
-                .font(.system(size: 19))
-                .foregroundStyle(
-                    LinearGradient(colors: [Color(hex: "#6A79FF"), DS.accentDeep],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing))
-
-            Circle()
-                .fill(Color(hex: Self.nextColorHex()))
-                .frame(width: 8, height: 8)
-
-            TextField("想到什么就记下来…", text: $newText)
-                .font(DS.F.bodyMd)
-                .focused($addFocused)
-                .submitLabel(.done)
-                .onSubmit(add)
-                .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        addFocused = true
-                    }
-                }
-
-            if !newText.isEmpty {
-                Button {
-                    newText = ""
-                    Haptic.light()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
-                        .foregroundColor(.secondary.opacity(0.5))
-                }
-                .buttonStyle(.plain)
-            }
-
-            if newText.trimmingCharacters(in: .whitespaces).isEmpty {
-                Text("回车")
-                    .font(DS.F.caption)
-                    .foregroundColor(.secondary.opacity(0.62))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .overlay(Capsule().stroke(Color.secondary.opacity(0.24), lineWidth: 1))
-            } else {
-                Button(action: add) {
-                    Text("添加")
-                        .font(DS.F.subheadSb)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 14)
-                        .frame(minHeight: 30)
-                        .background(Capsule().fill(DS.accent))
-                }
-                .buttonStyle(PressStyle())
-            }
-        }
-        .padding(.horizontal, DS.S.md + 2)
-        .padding(.vertical, DS.S.sm + 3)
-        .background(
-            RoundedRectangle(cornerRadius: DS.R.composer, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-    }
-
-    private func add() {
-        let name = newText.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        withAnimation(DS.Motion.soft) {
-            Store.shared.addTask(name: name)
-        }
-        newText = ""
-        Haptic.light()
-        addFocused = true
-        reload()
-    }
-
-    static func nextColorHex() -> String {
-        let palette = ["#5865F2", "#E5573F", "#2FA84F", "#1E88C7",
-                       "#9C27B0", "#F08A24", "#2AA198", "#D81B60"]
-        let count = (try? Store.shared.context.count(for: TaskEntity.fetchRequest())) ?? 0
-        return palette[count % palette.count]
     }
 
     // MARK: 空态
@@ -499,7 +331,7 @@ struct TodoView: View {
                 }
                 Text("今天想专注点什么？")
                     .font(DS.F.headline)
-                Text("在上方输入框直接添加，右滑设为当前")
+                Text("点右上角 ＋ 添加第一个任务")
                     .font(DS.F.subhead)
                     .foregroundColor(.secondary)
             }
@@ -507,33 +339,49 @@ struct TodoView: View {
             .padding(.vertical, DS.S.card)
             .hubCard(.standard)
             .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 16, trailing: 16))
         }
     }
+
+    // MARK: 数据
 
     private func reload() {
         tasks = Store.shared.tasks()
-        refreshTodayTotals()
+        refreshTotals()
         engine.refreshToday()
     }
 
-    private func refreshTodayTotals() {
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: Date())
+    /// 一次 fetch 取全量完成会话，按任务聚合（替代旧的每行一查 N+1）
+    private func refreshTotals() {
         let request: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
-        request.predicate = NSPredicate(format: "phaseRaw == %@ AND startDate >= %@ AND completed == YES",
-                                        Phase.focus.rawValue, start as NSDate)
+        request.predicate = NSPredicate(format: "phaseRaw == %@ AND completed == YES",
+                                        Phase.focus.rawValue)
         let sessions = (try? Store.shared.context.fetch(request)) ?? []
-        var seconds: [UUID: Int] = [:]
-        var counts: [UUID: Int] = [:]
+        let startOfDay = Calendar.current.startOfDay(for: Date())
 
-        for session in sessions {
-            guard let id = session.taskId else { continue }
-            seconds[id, default: 0] += max(0, Int(session.durationSeconds))
-            counts[id, default: 0] += 1
+        var todaySeconds: [UUID: Int] = [:]
+        var todayCounts: [UUID: Int] = [:]
+        var totals: [UUID: Int] = [:]
+        for s in sessions {
+            guard let id = s.taskId else { continue }
+            let d = max(0, Int(s.durationSeconds))
+            totals[id, default: 0] += d
+            if let sd = s.startDate, sd >= startOfDay {
+                todaySeconds[id, default: 0] += d
+                todayCounts[id, default: 0] += 1
+            }
         }
+        todaySecondsByTask = todaySeconds
+        todayCountByTask = todayCounts
+        totalSecondsByTask = totals
+    }
 
-        todaySecondsByTask = seconds
-        todayCountByTask = counts
+    static func nextColorHex() -> String {
+        let palette = ["#5865F2", "#E5573F", "#2FA84F", "#1E88C7",
+                       "#9C27B0", "#F08A24", "#2AA198", "#D81B60"]
+        let count = (try? Store.shared.context.count(for: TaskEntity.fetchRequest())) ?? 0
+        return palette[count % palette.count]
     }
 
     static func durationText(_ seconds: Int) -> String {
@@ -544,26 +392,175 @@ struct TodoView: View {
         return "\(minutes) 分钟"
     }
 
-    static var dateLine: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日 EEEE"
-        return formatter.string(from: Date()).uppercased()
-    }
-
-    static func totalText(_ id: UUID?) -> String? {
-        guard let id = id else { return nil }
-        let request: NSFetchRequest<SessionEntity> = SessionEntity.fetchRequest()
-        request.predicate = NSPredicate(format: "taskId == %@ AND completed == YES", id as CVarArg)
-        let seconds = ((try? Store.shared.context.fetch(request)) ?? [])
-            .reduce(0) { $0 + Int($1.durationSeconds) }
-        guard seconds > 60 else { return nil }
-        let hours = seconds / 3600, minutes = (seconds % 3600) / 60
-        return hours > 0 ? String(format: "%.1fh", Double(seconds) / 3600) : "\(minutes) 分钟"
+    static func metaLine(today: Int, todayCount: Int, total: Int, isDone: Bool) -> String {
+        var parts: [String] = []
+        if today > 0 {
+            var s = "今天 \(durationText(today))"
+            if todayCount > 0 { s += " · \(todayCount) 个番茄" }
+            parts.append(s)
+        }
+        if total > 60 { parts.append("累计 \(durationText(total))") }
+        if parts.isEmpty { parts.append(isDone ? "已完成" : "还没投入过") }
+        return parts.joined(separator: " · ")
     }
 }
 
-/// 任务编辑（沿用）
+// MARK: - 新任务（精致添加页）
+
+struct AddTaskSheet: View {
+    var onAdd: (TaskEntity) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var colorHex: String = TodoView.nextColorHex()
+    @State private var appear = false
+    @FocusState private var nameFocused: Bool
+
+    private let palette = ["#5865F2", "#E5573F", "#2FA84F", "#1E88C7",
+                           "#9C27B0", "#F08A24", "#2AA198", "#D81B60"]
+
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+
+                    // 输入区：大字、无框、聚焦即写
+                    HStack(spacing: DS.S.md) {
+                        Circle()
+                            .fill(Color(hex: colorHex))
+                            .frame(width: 10, height: 10)
+                        TextField("想到什么就记下来…", text: $name)
+                            .font(.system(size: 22, weight: .semibold))
+                            .focused($nameFocused)
+                            .submitLabel(.done)
+                            .onSubmit(add)
+                    }
+                    .padding(.vertical, 18)
+
+                    Divider().opacity(0.5)
+
+                    Text("颜色")
+                        .font(DS.F.microCaps)
+                        .kerning(1.2)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 20)
+
+                    HStack(spacing: 13) {
+                        ForEach(palette, id: \.self) { hex in
+                            colorDot(hex)
+                        }
+                    }
+                    .padding(.top, 12)
+
+                    Text("预览")
+                        .font(DS.F.microCaps)
+                        .kerning(1.2)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 24)
+
+                    previewCard
+                        .opacity(appear ? 1 : 0)
+                        .offset(y: appear ? 0 : 8)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, DS.S.screen)
+                .padding(.top, 6)
+            }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .navigationTitle("新任务")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("添加", action: add)
+                        .font(.system(size: 17, weight: .semibold))
+                        .disabled(trimmedName.isEmpty)
+                }
+            }
+            .background(SheetDetents())
+            .onAppear {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { appear = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    nameFocused = true
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    private func colorDot(_ hex: String) -> some View {
+        let selected = colorHex == hex
+        return Button {
+            Haptic.tick()
+            withAnimation(DS.Motion.quick) { colorHex = hex }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color(hex: hex))
+                    .frame(width: 30, height: 30)
+                if selected {
+                    Circle()
+                        .stroke(Color.primary.opacity(0.65), lineWidth: 2)
+                        .frame(width: 38, height: 38)
+                }
+            }
+            .frame(width: 40, height: 40)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 即时预览：所见即所得的任务卡
+    private var previewCard: some View {
+        HStack(spacing: DS.S.md) {
+            RoundedRectangle(cornerRadius: DS.R.tile, style: .continuous)
+                .fill(Color(hex: colorHex).opacity(0.13))
+                .frame(width: 46, height: 46)
+                .overlay(
+                    Image(systemName: "timer")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(Color(hex: colorHex))
+                )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(trimmedName.isEmpty ? "任务名" : trimmedName)
+                    .font(DS.F.headline)
+                    .foregroundColor(trimmedName.isEmpty ? .secondary : .primary)
+                    .lineLimit(1)
+                Text("还没投入过")
+                    .font(DS.F.caption)
+                    .foregroundColor(.secondary.opacity(0.85))
+            }
+
+            Spacer(minLength: DS.S.sm)
+
+            Image(systemName: "play.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(Color(hex: colorHex))
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(Color(hex: colorHex).opacity(0.12)))
+        }
+        .padding(14)
+        .hubSurface(.standard)
+        .padding(.top, 12)
+    }
+
+    private func add() {
+        guard !trimmedName.isEmpty else { return }
+        guard let t = Store.shared.addTaskRaw(name: trimmedName, colorHex: colorHex) else { return }
+        Haptic.success()
+        onAdd(t)
+        dismiss()
+    }
+}
+
+// MARK: - 任务编辑（沿用）
+
 struct TaskEditSheet: View {
     let task: TaskEntity
     let onDone: () -> Void
@@ -616,7 +613,7 @@ struct TaskEditSheet: View {
                 }
             }
             .navigationTitle("编辑任务")
-.background(SheetDetents())
+            .background(SheetDetents())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

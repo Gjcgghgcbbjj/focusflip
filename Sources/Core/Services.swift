@@ -96,6 +96,17 @@ enum Notifications {
             }
     }
 
+    static func scheduleCountdown(in seconds: Int) {
+        guard UserDefaults.standard.object(forKey: "notifEnabled") as? Bool ?? true else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "时间到 ⏰"
+        content.body = "倒计时结束，回来看看吧"
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false)
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger))
+    }
+
     static func schedule(in seconds: Int, phase: Phase, taskName: String?) {
         guard UserDefaults.standard.object(forKey: "notifEnabled") as? Bool ?? true else { return }
 
