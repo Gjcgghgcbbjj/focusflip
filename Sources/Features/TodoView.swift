@@ -261,6 +261,7 @@ struct TodoView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("task.card.\(t.name)")
         .contextMenu {
             Button { Haptic.light(); editing = t } label: {
                 Label("编辑", systemImage: "pencil")

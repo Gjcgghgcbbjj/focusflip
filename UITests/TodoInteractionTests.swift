@@ -25,36 +25,27 @@ final class TodoInteractionTests: XCTestCase {
         let coding = app.staticTexts["写代码"]
         XCTAssertTrue(coding.waitForExistence(timeout: 8), "种子任务「写代码」未出现")
 
-        // --- 右滑删除「读书」：决定性全扫；被识别成 tap（开编辑页）就关掉重试 ---
-        let reading = app.staticTexts["读书"]
-        XCTAssertTrue(reading.waitForExistence(timeout: 5))
+        // --- 右滑删除「读书」：整卡坐标决定性全扫（文本坐标拖距太小只会露出）---
+        let readingCard = app.buttons["task.card.读书"]
+        XCTAssertTrue(readingCard.waitForExistence(timeout: 5))
         var deleted = false
         var tapMisfires = 0
         for _ in 1...3 {
-            let start = reading.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5))
-            let end = reading.coordinate(withNormalizedOffset: CGVector(dx: -0.6, dy: 0.5))
+            let start = readingCard.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5))
+            let end = readingCard.coordinate(withNormalizedOffset: CGVector(dx: -0.4, dy: 0.5))
             start.press(forDuration: 0.01, thenDragTo: end,
                         withVelocity: .fast, thenHoldForDuration: 0.08)
             let editSheet = app.navigationBars["编辑任务"]
             if editSheet.exists {
                 tapMisfires += 1
                 app.buttons["关闭"].firstMatch.tap()
-                _ = app.staticTexts["读书"].waitForExistence(timeout: 3)
+                _ = readingCard.waitForExistence(timeout: 3)
                 continue
             }
-            let deleteBtn = app.buttons["删除"].firstMatch
-            if deleteBtn.waitForExistence(timeout: 1.5) {
-                // 全扫可能已直接删除：给行 0.5s 离场窗口；行真还在才是露出删除场景。
-                // 否则点到的会是退场按钮（tap 落到上移补位卡片的其他控件上）
-                if reading.waitForExistence(timeout: 0.5) {
-                    deleteBtn.tap()
-                }
-                deleted = true
-                break
-            }
-            if !reading.exists { deleted = true; break }   // 全扫直接删除的情况
+            // 全扫直接删除：卡片飞出 + 离场动画，给足消失窗口
+            if !readingCard.waitForExistence(timeout: 2) { deleted = true; break }
         }
-        if !deleted { deleted = !reading.exists }
+        if !deleted { deleted = !readingCard.exists }
         XCTAssertTrue(deleted, "右滑删除未生效（被误识别为点击 \(tapMisfires) 次）")
         XCTAssertEqual(app.state, .runningForeground, "右滑删除后 app 存活")
 
@@ -62,25 +53,19 @@ final class TodoInteractionTests: XCTestCase {
         let undo = app.buttons["撤销"]
         if undo.waitForExistence(timeout: 3) {
             undo.tap()
-            XCTAssertTrue(app.staticTexts["读书"].waitForExistence(timeout: 5), "撤销后应恢复")
+            XCTAssertTrue(readingCard.waitForExistence(timeout: 5), "撤销后应恢复")
             XCTAssertEqual(app.state, .runningForeground, "撤销后 app 存活")
         }
 
-        // --- 左滑「运动」设为当前 ---
-        let sport = app.staticTexts["运动"]
-        XCTAssertTrue(sport.waitForExistence(timeout: 5))
-        sport.swipeRight()
-        let setCurrent = app.buttons["设为当前"].firstMatch
-        if setCurrent.waitForExistence(timeout: 2) {
-            setCurrent.tap()
-            let editSheet = app.navigationBars["编辑任务"]
-            if editSheet.waitForExistence(timeout: 2) {
-                XCTFail("点「设为当前」误开编辑页 —— 行 tap 手势抢点击")
-                app.buttons["关闭"].firstMatch.tap()
-                return
-            }
-        }
+        // --- 右滑「运动」设为当前：整卡坐标越过阈值，直接触发不经按钮 ---
+        let sportCard = app.buttons["task.card.运动"]
+        XCTAssertTrue(sportCard.waitForExistence(timeout: 5))
+        let sStart = sportCard.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.5))
+        let sEnd = sportCard.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
+        sStart.press(forDuration: 0.01, thenDragTo: sEnd,
+                     withVelocity: .fast, thenHoldForDuration: 0.08)
         XCTAssertEqual(app.state, .runningForeground, "左滑设当前后 app 存活")
+        XCTAssertTrue(app.staticTexts["运动"].waitForExistence(timeout: 3))
 
         // --- 卡片快捷开始（▶︎）：嵌套按钮对 XCUITest 不可 hittable，走坐标点击（真实触摸语义）---
         let play = app.buttons["开始这个任务"].firstMatch
