@@ -169,6 +169,15 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # 若撞旧项目tag: gh release dele
 7. tmp 目录每 bash 调用即焚；持久脚本放 `/root/dsphn/tmp/`
 8. 用户反馈的"闪退"优先怀疑：已保存删除实体的属性访问（本仓两大崩溃皆此）
 
+## UI 截图巡游（skill §六闭环，PR#2）
+
+- 每次推送自动产出 `focusflip-ui-tour` artifact：5 tab × 亮/暗共 10 张 + `tour.log`（每张 md5 对比上一 run 打 changed/UNCHANGED，基线走 actions/cache 跨 run）
+- **导航：`SIMCTL_CHILD_FF_TAB=<focus|tasks|stats|targets|settings>` 冷启动**（FlowSimApp 读 env 设初始 tab）。**不要用 simctl openurl**——iOS 26 模拟器实测 warm openurl 不投递、冷启动弹「Open in FocusFlip?」确认框；快捷指令深链（focusflip://tab/…）真机待复验
+- `FF_UI_TOUR=1`（SIMCTL_CHILD_ 前缀注入）：跳过通知权限弹窗——弹窗会挡导航与截图主体
+- 键盘态：任务页输入框 onAppear 0.3s 自动聚焦（TodoView.swift:420），02-tasks 天然带键盘；完整键盘截图看 12-tasks-dark。idb 点按仅 `INSTALL_IDB=1` 时启用——**idb-companion 已移出 homebrew-core，须 `brew tap facebook/fb` 再装**（skill §六的 `brew install idb-companion` 裸命令已失效）
+- 巡游是证据不是门禁（continue-on-error）；坐标一律屏幕百分比
+- 巡游发现待办：①首页浮动 tab bar 暗色下仍浅色胶囊，与其他页暗色不一致；②任务页日期 zh_CN 硬编码（StatsView:781 / TodoView:549）在英文设备直出中文
+
 ## Backlog（远期，均未开工）
 
 - 动态字体适配关键文本（现全固定字号，个人自用可接受）
