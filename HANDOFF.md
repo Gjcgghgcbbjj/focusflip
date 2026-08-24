@@ -199,6 +199,12 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # 若撞旧项目tag: gh release dele
 - **教训**：List 行上永远别用裸 onTapGesture 抢点击——用 Button；「旧版也崩」= 根因在共享路径，先 diff 新旧差异集再下结论
 - 真机待复验：iOS 15/16 实机手势（模拟器是 iOS 26）
 
+## 任务卡片动画架构（2026-08-25，List → SwipeableCard）
+
+- List 给不出卡片动画（行高瞬塌、无入场），任务页换 `ScrollView+LazyVStack+SwipeableCard`（TodoView.swift 尾部）：拖拽橡皮筋限幅、40%宽/甩动阈值、全扫飞出、露出 128pt 停留可点、插入 scale(.92)+fade+y14 弹簧、移除 slide-fade，事务全在 withAnimation(DS.Motion.soft/quick)
+- **动效设计原型**：`docs/animation-mockup.html`（纯前端，弹簧物理与 DS.Motion 同源 k=(2π/r)² c=2ζ√k），playwright 真鼠标验证 20 断言（/root/dsphn/tmp/mocktest/test.mjs+test2.mjs）——**改动画先过模拟器再看真机**
+- 踩坑：①.highPriorityGesture 否则快滑被内嵌 Button 抢成 tap ②动作钮必须 accessibilityHidden(未露出)+accessibilityAction，否则常驻 a11y 树，XCUITest firstMatch 点到盖住的钮穿透成卡 tap ③XCUITest 滑动坐标用整卡（task.card.<名>），文本坐标拖距只有几十 pt 只够露出 ④HTML mockup 的 transform 容器要 pointer-events:none 否则挡背后按钮
+
 ## Backlog（远期，均未开工）
 
 - 动态字体适配关键文本（现全固定字号，个人自用可接受）
