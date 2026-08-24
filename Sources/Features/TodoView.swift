@@ -724,7 +724,9 @@ private struct SwipeableCard<Content: View>: View {
             // 前景卡
             content()
                 .offset(x: offset)
-                .gesture(dragGesture)
+                // highPriorityGesture：位移超 8pt 后拖拽优先于内嵌 Button 的 tap，
+                // 快速滑动不会被误判成点击（静止点按仍归按钮）
+                .highPriorityGesture(dragGesture)
         }
     }
 
