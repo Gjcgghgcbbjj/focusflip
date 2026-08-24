@@ -78,13 +78,13 @@ final class TodoInteractionTests: XCTestCase {
         }
         XCTAssertEqual(app.state, .runningForeground, "左滑设当前后 app 存活")
 
-        // --- 卡片快捷开始（▶︎）---
+        // --- 卡片快捷开始（▶︎）：嵌套按钮对 XCUITest 不可 hittable，走坐标点击（真实触摸语义）---
         let play = app.buttons["开始这个任务"].firstMatch
         if play.waitForExistence(timeout: 3) {
-            play.tap()
+            play.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
             XCTAssertEqual(app.state, .runningForeground, "快捷开始后 app 存活")
             let focusTab = app.tabBars.buttons["专注"]
-            XCTAssertTrue(focusTab.waitForExistence(timeout: 5))
+            XCTAssertTrue(focusTab.waitForExistence(timeout: 5), "快捷开始应跳到专注页")
             focusTab.tap()   // 回任务页继续
             _ = app.staticTexts["写代码"].waitForExistence(timeout: 5)
         }
