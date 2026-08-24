@@ -233,15 +233,27 @@ struct PillControl<Label: View>: View {
 // MARK: - iOS15 half-height sheet bridge（medium/large detents + grabber）
 
 struct SheetDetents: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> DetentVC { DetentVC() }
+    /// true = 只用 large 档（带键盘的输入页用：iOS15/16 medium 档不随键盘顶起）
+    var largeOnly = false
+
+    func makeUIViewController(context: Context) -> DetentVC { DetentVC(largeOnly: largeOnly) }
     func updateUIViewController(_ vc: DetentVC, context: Context) {}
 
     final class DetentVC: UIViewController {
+        private let largeOnly: Bool
+
+        init(largeOnly: Bool) {
+            self.largeOnly = largeOnly
+            super.init(nibName: nil, bundle: nil)
+        }
+
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
         override func willMove(toParent parent: UIViewController?) {
             super.willMove(toParent: parent)
             guard let sheet = parent?.presentationController
                     as? UISheetPresentationController else { return }
-            sheet.detents = [.medium(), .large()]
+            sheet.detents = largeOnly ? [.large()] : [.medium(), .large()]
             sheet.prefersGrabberVisible = true
         }
     }

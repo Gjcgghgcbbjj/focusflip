@@ -263,10 +263,14 @@ struct TodoView: View {
 
     private func toggleDone(_ t: TaskEntity) {
         guard t.managedObjectContext != nil else { return }
-        var tx = Transaction(); tx.disablesAnimations = true
-        withTransaction(tx) { Store.shared.setDone(t, !t.isDone) }
-        if !t.isDone { showDone = true; Haptic.light() } else { Haptic.tick() }
-        DispatchQueue.main.async { reload() }
+        let willDone = !t.isDone
+        withAnimation(DS.Motion.soft) {
+            Store.shared.setDone(t, willDone)
+            tasks = Store.shared.tasks()
+        }
+        if willDone { showDone = true; Haptic.light() } else { Haptic.tick() }
+        refreshTotals()
+        engine.refreshToday()
     }
 
     private func quickStart(_ t: TaskEntity) {
@@ -293,21 +297,28 @@ struct TodoView: View {
         let hex = t.colorHex
         let wasDone = t.isDone
         let wasCurrent = engine.currentTaskID == t.id
+        let order = t.sortOrder
 
-        var tx = Transaction(); tx.disablesAnimations = true
-        withTransaction(tx) {
+        // 动画化移除：先改存储，再在同一动画块里刷新 @State（卡片平滑收起）
+        withAnimation(DS.Motion.soft) {
             Store.shared.deleteTask(t)
             if wasCurrent { engine.select(taskID: nil) }
+            tasks = Store.shared.tasks()
         }
+        refreshTotals()
+        engine.refreshToday()
 
         Haptic.warning()
         ToastCenter.shared.show("已删除「\(name)」") {
-            if let restored = Store.shared.addTaskRaw(name: name, colorHex: hex), wasDone {
-                Store.shared.setDone(restored, true)
+            // 撤销还原：位置(sortOrder) + 完成态 + 当前任务，一样不少
+            if let restored = Store.shared.addTaskRaw(name: name, colorHex: hex) {
+                restored.sortOrder = order
+                if wasDone { Store.shared.setDone(restored, true) }
+                Store.shared.save()
+                if wasCurrent { engine.select(taskID: restored.id) }
+                withAnimation(DS.Motion.soft) { reload() }
             }
-            reload()
         }
-        DispatchQueue.main.async { reload() }
     }
 
     private var doneToggle: some View {
@@ -496,7 +507,7 @@ struct AddTaskSheet: View {
                         .disabled(trimmedName.isEmpty)
                 }
             }
-            .background(SheetDetents())
+            .background(SheetDetents(largeOnly: true))
             .onAppear {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { appear = true }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
@@ -632,7 +643,8 @@ struct TaskEditSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        task.name = name.isEmpty ? task.name : name
+                        let trimmed = name.trimmingCharacters(in: .whitespaces)
+                        task.name = trimmed.isEmpty ? task.name : trimmed
                         task.colorHex = colorHex
                         if task.isDone != isDone { Store.shared.setDone(task, isDone) }
                         else { Store.shared.save() }

@@ -91,7 +91,8 @@ final class Store {
         guard !name.isEmpty else { return nil }
         let t = TaskEntity(context: context)
         t.id = UUID(); t.name = name; t.colorHex = colorHex
-        t.sortOrder = Int32(tasks().count); t.createdAt = Date()
+        t.sortOrder = Int32((tasks().map(\.sortOrder).max() ?? -1) + 1)  // max+1，删除后不与现存撞号
+        t.createdAt = Date()
         save(); return t
     }
 
