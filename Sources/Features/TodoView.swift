@@ -367,7 +367,7 @@ struct TodoView: View {
             guard let id = s.taskId else { continue }
             let d = max(0, Int(s.durationSeconds))
             totals[id, default: 0] += d
-            if let sd = s.startDate, sd >= startOfDay {
+            if s.startDate >= startOfDay {
                 todaySeconds[id, default: 0] += d
                 todayCounts[id, default: 0] += 1
             }
