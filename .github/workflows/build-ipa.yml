@@ -173,6 +173,13 @@ jobs:
           grep -E "Test Case|error:|Fatal|crashed" build/uitest.log | head -30 || true
           tail -15 build/uitest.log
 
+      - name: Export UI test attachments (screenshots)
+        if: always()
+        run: |
+          xcrun xcresulttool export attachments --path build/ui-tests.xcresult \
+            --output-path build/attachments || true
+          ls -R build/attachments 2>/dev/null || true
+
       - name: Upload UI test evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -181,6 +188,7 @@ jobs:
           path: |
             build/ui-tests.xcresult
             build/uitest.log
+            build/attachments
           retention-days: 14
           if-no-files-found: ignore
 
