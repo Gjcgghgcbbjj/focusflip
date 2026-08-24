@@ -394,27 +394,27 @@ final class FreeTimerModel: ObservableObject {
     // MARK: 快照
 
     private func persist() {
-        d.set(swRunning, forKey: key + ".swRunning")
-        d.set(swAccum, forKey: key + ".swAccum")
-        d.set(swStart?.timeIntervalSince1970 ?? 0, forKey: key + ".swStart")
-        d.set(laps, forKey: key + ".laps")
-        d.set(cdMinutes, forKey: key + ".cdMinutes")
-        d.set(cdEnd?.timeIntervalSince1970 ?? 0, forKey: key + ".cdEnd")
-        d.set(cdPausedRemain ?? -1, forKey: key + ".cdPaused")
-        d.set(cdFinished, forKey: key + ".cdFinished")
+        d.set(swRunning, forKey: Self.key + ".swRunning")
+        d.set(swAccum, forKey: Self.key + ".swAccum")
+        d.set(swStart?.timeIntervalSince1970 ?? 0, forKey: Self.key + ".swStart")
+        d.set(laps, forKey: Self.key + ".laps")
+        d.set(cdMinutes, forKey: Self.key + ".cdMinutes")
+        d.set(cdEnd?.timeIntervalSince1970 ?? 0, forKey: Self.key + ".cdEnd")
+        d.set(cdPausedRemain ?? -1, forKey: Self.key + ".cdPaused")
+        d.set(cdFinished, forKey: Self.key + ".cdFinished")
     }
 
     private func restore() {
-        swRunning = d.bool(forKey: key + ".swRunning")
-        swAccum = d.object(forKey: key + ".swAccum") as? TimeInterval ?? 0
-        let s = d.double(forKey: key + ".swStart")
+        swRunning = d.bool(forKey: Self.key + ".swRunning")
+        swAccum = d.object(forKey: Self.key + ".swAccum") as? TimeInterval ?? 0
+        let s = d.double(forKey: Self.key + ".swStart")
         swStart = s > 0 ? Date(timeIntervalSince1970: s) : nil
-        laps = d.object(forKey: key + ".laps") as? [TimeInterval] ?? []
-        cdMinutes = d.object(forKey: key + ".cdMinutes") as? Int ?? 10
-        let e = d.double(forKey: key + ".cdEnd")
+        laps = d.object(forKey: Self.key + ".laps") as? [TimeInterval] ?? []
+        cdMinutes = d.object(forKey: Self.key + ".cdMinutes") as? Int ?? 10
+        let e = d.double(forKey: Self.key + ".cdEnd")
         cdEnd = e > Date().timeIntervalSince1970 ? Date(timeIntervalSince1970: e) : nil
-        let p = d.double(forKey: key + ".cdPaused")
+        let p = d.double(forKey: Self.key + ".cdPaused")
         cdPausedRemain = p > 0 ? p : nil
-        cdFinished = d.bool(forKey: key + ".cdFinished")
+        cdFinished = d.bool(forKey: Self.key + ".cdFinished")
     }
 }
