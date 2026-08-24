@@ -59,6 +59,17 @@ struct FlowSimApp: App {
                 case "pause": FocusEngine.shared.pause()
                 case "resume": FocusEngine.shared.resume()
                 case "skip": FocusEngine.shared.skip()
+                case "tab":
+                    // focusflip://tab/{focus|tasks|stats|targets|settings}
+                    // 供 CI 截图巡游与快捷指令确定性导航，避免坐标点按漂移
+                    switch url.pathComponents.last ?? "" {
+                    case "focus": router.tab = .focus
+                    case "tasks": router.tab = .tasks
+                    case "stats": router.tab = .stats
+                    case "targets": router.tab = .targets
+                    case "settings": router.tab = .settings
+                    default: break
+                    }
                 default: break
                 }
             }
