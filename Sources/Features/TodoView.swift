@@ -157,7 +157,6 @@ struct TodoView: View {
             let isActive = engine.currentTaskID == t.id
             let tint = Color(hex: t.colorHex)
             let todaySec = todaySecondsByTask[t.id] ?? 0
-            let todayCount = todayCountByTask[t.id] ?? 0
             let totalSec = totalSecondsByTask[t.id] ?? 0
 
             HStack(spacing: DS.S.md) {
@@ -187,12 +186,13 @@ struct TodoView: View {
                         }
                     }
 
-                    Text(Self.metaLine(today: todaySec, todayCount: todayCount,
+                    Text(Self.metaLine(today: todaySec,
                                        total: totalSec, isDone: t.isDone))
                         .font(DS.F.caption)
                         .monospacedDigit()
                         .foregroundColor(.secondary.opacity(0.85))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.78)
                 }
 
                 Spacer(minLength: DS.S.sm)
@@ -392,13 +392,9 @@ struct TodoView: View {
         return "\(minutes) 分钟"
     }
 
-    static func metaLine(today: Int, todayCount: Int, total: Int, isDone: Bool) -> String {
+    static func metaLine(today: Int, total: Int, isDone: Bool) -> String {
         var parts: [String] = []
-        if today > 0 {
-            var s = "今天 \(durationText(today))"
-            if todayCount > 0 { s += " · \(todayCount) 个番茄" }
-            parts.append(s)
-        }
+        if today > 0 { parts.append("今天 \(durationText(today))") }
         if total > 60 { parts.append("累计 \(durationText(total))") }
         if parts.isEmpty { parts.append(isDone ? "已完成" : "还没投入过") }
         return parts.joined(separator: " · ")
