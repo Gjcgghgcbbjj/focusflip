@@ -98,7 +98,7 @@ tap_pct() { # $1=x% $2=y%
 goto_tab() { # $1=tab名
   sim terminate "$DEVICE" "$BUNDLE_ID" >/dev/null 2>&1 || true
   sleep 0.8
-  SIMCTL_CHILD_FF_UI_TOUR=1 SIMCTL_CHILD_FF_TAB="$1" \
+  SIMCTL_CHILD_FF_UI_TOUR=1 SIMCTL_CHILD_FF_TAB="$1" SIMCTL_CHILD_FF_SEED_DEMO=1 \
     sim launch "$DEVICE" "$BUNDLE_ID" >/dev/null 2>&1 \
     || log "[nav] WARN launch tab/$1 failed"
   sleep 2.6

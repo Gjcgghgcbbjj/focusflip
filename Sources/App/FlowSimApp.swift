@@ -27,6 +27,10 @@ struct FlowSimApp: App {
         if let t = ProcessInfo.processInfo.environment["FF_TAB"] {
             AppRouter.shared.tab = Self.tourTab(t) ?? .focus
         }
+        // CI 巡游演示数据（库为空才种），让截图呈现有数据的真实形态
+        if ProcessInfo.processInfo.environment["FF_SEED_DEMO"] == "1" {
+            Store.shared.seedDemoIfEmpty()
+        }
 
         let tab = UITabBarAppearance()
         tab.configureWithOpaqueBackground()
