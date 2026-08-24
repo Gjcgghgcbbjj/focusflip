@@ -374,7 +374,7 @@ final class FreeTimerModel: ObservableObject {
         cdEnd = nil
         cdPausedRemain = nil
         cdFinished = false
-        Notifications.cancelAll()
+        Notifications.cancelCountdown()
     }
 
     /// 自然走完：提示音 + 触觉 +（可选）计入今日统计

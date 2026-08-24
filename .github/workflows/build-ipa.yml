@@ -161,6 +161,38 @@ jobs:
             exit 1
           fi
 
+      - name: UI interaction tests (swipe/add/delete reproduction loop)
+        run: |
+          xcodebuild test \
+            -project FocusFlip.xcodeproj \
+            -scheme FocusFlip \
+            -destination "platform=iOS Simulator,id=$DEVICE" \
+            -only-testing:FocusFlipUITests \
+            -resultBundlePath build/ui-tests.xcresult \
+            CODE_SIGNING_ALLOWED=NO > build/uitest.log 2>&1 || true
+          grep -E "Test Case|error:|Fatal|crashed" build/uitest.log | head -30 || true
+          tail -15 build/uitest.log
+
+      - name: Upload UI test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: |
+            build/ui-tests.xcresult
+            build/uitest.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload simulator crash reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-crash-reports
+          path: ~/Library/Logs/DiagnosticReports/FocusFlip*
+          retention-days: 14
+          if-no-files-found: ignore
+
       - name: Restore previous tour screenshots (md5 baseline)
         uses: actions/cache/restore@v4
         with:

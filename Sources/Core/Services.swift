@@ -120,7 +120,13 @@ enum Notifications {
         content.sound = .default
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false)
         UNUserNotificationCenter.current().add(
-            UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger))
+            UNNotificationRequest(identifier: "freetimer-countdown", content: content, trigger: trigger))
+    }
+
+    /// 只取消自由倒计时自己的待发通知——绝不碰番茄引擎的（cancelAll 误伤事故）
+    static func cancelCountdown() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: ["freetimer-countdown"])
     }
 
     static func schedule(in seconds: Int, phase: Phase, taskName: String?) {

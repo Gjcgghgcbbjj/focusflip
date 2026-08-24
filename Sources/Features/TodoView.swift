@@ -74,6 +74,7 @@ struct TodoView: View {
                         Image(systemName: "plus")
                             .font(.system(size: 17, weight: .semibold))
                     }
+                    .accessibilityIdentifier("todo.add")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if !done.isEmpty {
@@ -209,6 +210,7 @@ struct TodoView: View {
                             .background(Circle().fill(tint.opacity(0.12)))
                     }
                     .buttonStyle(PressStyle())
+                    .accessibilityLabel("开始这个任务")
                 }
             }
             .padding(14)
