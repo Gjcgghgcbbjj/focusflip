@@ -1,0 +1,15 @@
+[tour] FF_UI_TOUR=1 INSTALL_IDB=0
+[tour] device points: 402x874
+[changed] 01-home.png md5=adb35fc45475f6f605f5be1188b70d28
+[changed] 02-tasks.png md5=c12292e45601d0b1c38d709b225b645b
+[changed] 03-stats.png md5=c231e837abe1f547dfdbda805d270b85
+[changed] 04-targets.png md5=ce12011dc869c1e4e0c4418387492b0a
+[changed] 05-settings.png md5=ca88e3d20c45e1019b7c7299b4acacc7
+[MISSING] 06-tasks-keyboard.png (INSTALL_IDB!=1)
+[changed] 11-home-dark.png md5=43d785cabd2fccc6a37d48f4358ddddf
+[changed] 12-tasks-dark.png md5=decda4f44cc883b41cfad13e0daed2da
+[changed] 13-stats-dark.png md5=cbeb8d0a1c58d179976b497476d830bc
+[changed] 14-targets-dark.png md5=5215676cb62199ef67ae4031947a5d62
+[changed] 15-settings-dark.png md5=ef106c5986dce99cddd244247deef7b9
+[summary] shots=10 unique=10
+[tour] done
