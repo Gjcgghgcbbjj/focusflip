@@ -170,7 +170,7 @@ jobs:
         continue-on-error: true   # 巡游是证据不是门禁；失败看 tour.log 下一轮修
         run: |
           chmod +x Scripts/ui-tour.sh
-          DEVICE="$DEVICE" BUNDLE_ID="com.focusflip.app" \
+          DEVICE="$DEVICE" BUNDLE_ID="com.focusflip.app" FF_UI_TOUR=1 \
             OUT_DIR=build/tour PREV_DIR=tour-prev \
             ./Scripts/ui-tour.sh
 

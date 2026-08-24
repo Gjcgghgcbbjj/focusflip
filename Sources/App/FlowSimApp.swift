@@ -21,12 +21,29 @@ struct FlowSimApp: App {
         if ProcessInfo.processInfo.environment["FF_UI_TOUR"] != "1" {
             Notifications.requestOnce()
         }
+        // CI 巡游初始 tab：SIMCTL_CHILD_FF_TAB=tasks 等。
+        // 实测 iOS 26 模拟器 simctl openurl 对自定义 scheme 不投递 warm URL、
+        // 冷启动弹确认框，环境变量是唯一免点按的确定性导航。
+        if let t = ProcessInfo.processInfo.environment["FF_TAB"] {
+            AppRouter.shared.tab = Self.tourTab(t) ?? .focus
+        }
 
         let tab = UITabBarAppearance()
         tab.configureWithOpaqueBackground()
         tab.backgroundColor = UIColor.systemBackground
         UITabBar.appearance().standardAppearance = tab
         UITabBar.appearance().scrollEdgeAppearance = tab
+    }
+
+    private static func tourTab(_ name: String) -> AppTab? {
+        switch name {
+        case "focus": return .focus
+        case "tasks": return .tasks
+        case "stats": return .stats
+        case "targets": return .targets
+        case "settings": return .settings
+        default: return nil
+        }
     }
 
     var body: some Scene {
@@ -65,7 +82,8 @@ struct FlowSimApp: App {
                 case "skip": FocusEngine.shared.skip()
                 case "tab":
                     // focusflip://tab/{focus|tasks|stats|targets|settings}
-                    // 供 CI 截图巡游与快捷指令确定性导航，避免坐标点按漂移
+                    // 快捷指令深链。⚠️ iOS 26 模拟器实测 warm openurl 不投递、
+                    // 冷启动弹确认框——真机待验证，CI 巡游走 FF_TAB 环境变量。
                     switch url.pathComponents.last ?? "" {
                     case "focus": router.tab = .focus
                     case "tasks": router.tab = .tasks
