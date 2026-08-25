@@ -205,6 +205,13 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # 若撞旧项目tag: gh release dele
 - **动效设计原型**：`docs/animation-mockup.html`（纯前端，弹簧物理与 DS.Motion 同源 k=(2π/r)² c=2ζ√k），playwright 真鼠标验证 20 断言（/root/dsphn/tmp/mocktest/test.mjs+test2.mjs）——**改动画先过模拟器再看真机**
 - 踩坑：①.highPriorityGesture 否则快滑被内嵌 Button 抢成 tap ②动作钮必须 accessibilityHidden(未露出)+accessibilityAction，否则常驻 a11y 树，XCUITest firstMatch 点到盖住的钮穿透成卡 tap ③XCUITest 滑动坐标用整卡（task.card.<名>），文本坐标拖距只有几十 pt 只够露出 ④HTML mockup 的 transform 容器要 pointer-events:none 否则挡背后按钮
 
+### UIPan 重做（2026-08-25，底层互动改版第一期）
+
+- SwipeableCard 拖拽换 `SwipePanContainer`（UIHostingController + UIPanGestureRecognizer）：`gestureRecognizerShouldBegin` 按速度门控——竖向让路 ScrollView（滚动不再发黏）、横向 1:1 直接变换 layer（无 SwiftUI 逐帧 diff）、原生速度采样（450pt/s 甩动阈值）
+- DragGesture 版的隐藏代价：highPriorityGesture 不分方向，竖滚也被手势吃掉；predictedEnd 的"甩动"与原生速度手感有差
+- **新崩溃（血泪#8 变体）**：UIHostingController.updateUIViewController 无条件重建 rootView → 删除后重渲染他卡时访问已删 NSManagedObject → UUID 桥接 SIGTRAP（Foundation._unconditionallyBridgeFromObjectiveC）。修法：cardBody 入口 `guard t.managedObjectContext != nil`。DragGesture 版没暴露是因为它不强制重建
+- PressStyle v2：pressHaptic 钩子（按下即触觉，原生键盘感）、r.24 ζ.7、加深按压暗化；圆环/倒计时卡/时间线行/色点全部 Button 化（8 处 onTapGesture 清到 2 处刻意保留）
+
 ## Backlog（远期，均未开工）
 
 - 动态字体适配关键文本（现全固定字号，个人自用可接受）
