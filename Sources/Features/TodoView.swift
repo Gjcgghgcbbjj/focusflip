@@ -776,17 +776,19 @@ private struct SwipeableCard<Content: View>: View {
 // MARK: - UIKit 平移手势容器：竖向让路滚动、横向 1:1 跟手、原生速度采样
 // 拖动中直接变换 layer（零 SwiftUI 逐帧开销）；offset 只在结束/露出时回写驱动动作层 a11y
 
-private final class SwipePanCoordinator<Content: View>: NSObject, UIGestureRecognizerDelegate {
+// MARK: - UIKit 平移手势容器：竖向让路滚动、横向 1:1 跟手、原生速度采样
+// 拖动中直接变换 layer（零 SwiftUI 逐帧开销）；offset 只在结束/露出时回写驱动动作层 a11y
+
+private class SwipePanBase: NSObject, UIGestureRecognizerDelegate {
     var canSetCurrent = true
     var onDelete: () -> Void = {}
     var onSetCurrent: () -> Void = {}
-    var onOffsetSettle: (CGFloat) -> Void = {}   // 结束时回写（驱动动作层 accessibilityHidden）
-    weak var gestureView: UIView?
-    var host: UIHostingController<Content>?
+    var onOffsetSettle: (CGFloat) -> Void = { _ in }
+    weak var transformView: UIView?
     private var lastZone = 0
 
     @objc func pan(_ g: UIPanGestureRecognizer) {
-        guard let view = g.view else { return }
+        guard let view = transformView else { return }
         let w = max(view.bounds.width, 1)
         switch g.state {
         case .began:
@@ -837,15 +839,14 @@ private final class SwipePanCoordinator<Content: View>: NSObject, UIGestureRecog
     }
 
     /// DS.Motion.quick 的 UIKit 对应：damping .78 / 约 0.3s
-    private func spring(view: UIView, to x: CGFloat,
-                        finish: @escaping () -> Void = {}) {
+    func spring(view: UIView, to x: CGFloat) {
         UIView.animate(withDuration: 0.3, delay: 0,
                        usingSpringWithDamping: 0.78, initialSpringVelocity: 0,
                        options: [.beginFromCurrentState, .allowUserInteraction],
                        animations: {
                            view.transform = CGAffineTransform(translationX: x, y: 0)
                        },
-                       completion: { _ in finish() })
+                       completion: nil)
     }
 
     // 竖向速度为主时拒绝开始 → 滚动列表完全不受影响
@@ -858,6 +859,10 @@ private final class SwipePanCoordinator<Content: View>: NSObject, UIGestureRecog
                            shouldRecognizeSimultaneouslyWith o: UIGestureRecognizer) -> Bool { false }
 }
 
+private final class SwipePanCoordinator<Content: View>: SwipePanBase {
+    var host: UIHostingController<Content>?
+}
+
 private struct SwipePanContainer<Content: View>: UIViewControllerRepresentable {
     var canSetCurrent: Bool
     @Binding var offset: CGFloat
@@ -865,11 +870,13 @@ private struct SwipePanContainer<Content: View>: UIViewControllerRepresentable {
     var onSetCurrent: () -> Void
     @ViewBuilder var content: () -> Content
 
-    func makeCoordinator() -> SwipePanCoordinator<Content> { SwipePanCoordinator<Content>() }
+    func makeCoordinator() -> SwipePanCoordinator<Content> { SwipePanCoordinator() }
 
     func makeUIViewController(context: Context) -> UIViewController {
+        let vc = UIViewController()
         let container = UIView()
         container.backgroundColor = .clear
+        vc.view = container
         let host = UIHostingController(rootView: content())
         host.view.backgroundColor = .clear
         host.view.translatesAutoresizingMaskIntoConstraints = false
@@ -880,14 +887,15 @@ private struct SwipePanContainer<Content: View>: UIViewControllerRepresentable {
             host.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             host.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
         ])
+        context.coordinator.host = host
+        context.coordinator.transformView = container
         let pan = UIPanGestureRecognizer(target: context.coordinator,
-                                         action: #selector(SwipePanCoordinator.pan(_:)))
+                                         action: #selector(SwipePanBase.pan(_:)))
         pan.delegate = context.coordinator
         pan.cancelsTouchesInView = true
         container.addGestureRecognizer(pan)
-        context.coordinator.gestureView = container
         sync(coordinator: context.coordinator)
-        return container
+        return vc
     }
 
     func updateUIViewController(_ vc: UIViewController, context: Context) {
@@ -895,12 +903,12 @@ private struct SwipePanContainer<Content: View>: UIViewControllerRepresentable {
         sync(coordinator: context.coordinator)
     }
 
-    private func sync(coordinator: SwipePanCoordinator) {
+    private func sync(coordinator: SwipePanCoordinator<Content>) {
         coordinator.canSetCurrent = canSetCurrent
         coordinator.onDelete = onDelete
         coordinator.onSetCurrent = onSetCurrent
-        coordinator.onOffsetSettle = { offset in
-            if offset != -9999 { self.offset = offset }
+        coordinator.onOffsetSettle = { [self] value in
+            if value != -9999 { offset = value }
         }
     }
 }
