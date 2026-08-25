@@ -101,7 +101,21 @@ goto_tab() { # $1=tab名
   SIMCTL_CHILD_FF_UI_TOUR=1 SIMCTL_CHILD_FF_TAB="$1" SIMCTL_CHILD_FF_SEED_DEMO=1 \
     sim launch "$DEVICE" "$BUNDLE_ID" >/dev/null 2>&1 \
     || log "[nav] WARN launch tab/$1 failed"
-  sleep 2.6
+  wait_rendered
+}
+
+# 等首帧渲染完成：白屏 PNG 极小（<100K），渲染后 >=160K；轮询截图字节大小
+wait_rendered() {
+  local tmp="$OUT_DIR/.ready-probe.png" i sz
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    shot_file "$tmp" >/dev/null 2>&1 || { sleep 0.7; continue; }
+    sz=$(stat -f%z "$tmp" 2>/dev/null || stat -c%s "$tmp" 2>/dev/null || echo 999999)
+    if [ "$sz" -gt 120000 ]; then rm -f "$tmp"; sleep 0.3; return 0; fi
+    sleep 0.7
+  done
+  rm -f "$tmp"
+  log "[nav] WARN render probe timeout, continuing"
+  return 0
 }
 
 # ---------------------------------------------------------------- md5 对比记录

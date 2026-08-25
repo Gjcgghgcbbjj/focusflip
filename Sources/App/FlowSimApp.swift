@@ -107,6 +107,12 @@ struct FlowSimApp: App {
             }
             .tint(DS.accent)
             .overlay(ToastOverlay())
+            .onAppear {
+                // 巡游脚本等这个标记再截图（冷启动首帧就绪，替代盲睡）
+                if ProcessInfo.processInfo.environment["FF_UI_TOUR"] == "1" {
+                    DispatchQueue.main.async { print("FF_TOUR_READY") }
+                }
+            }
             .onOpenURL { url in
                 switch url.host ?? "" {
                 case "start":
