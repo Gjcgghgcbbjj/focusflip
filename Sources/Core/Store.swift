@@ -91,8 +91,41 @@ final class Store {
         guard !name.isEmpty else { return nil }
         let t = TaskEntity(context: context)
         t.id = UUID(); t.name = name; t.colorHex = colorHex
-        t.sortOrder = Int32(tasks().count); t.createdAt = Date()
+        t.sortOrder = Int32((tasks().map(\.sortOrder).max() ?? -1) + 1)  // max+1，删除后不与现存撞号
+        t.createdAt = Date()
         save(); return t
+    }
+
+    /// CI 截图巡游用（FF_SEED_DEMO=1 且库为空时）：种 3 个任务 + 近 7 天会话，
+    /// 让 tour 截到有数据的真实形态。真机永不触发。
+    func seedDemoIfEmpty() {
+        guard (try? context.count(for: TaskEntity.fetchRequest())) == 0 else { return }
+        let demo: [(String, String)] = [("写代码", "#5865F2"), ("读书", "#2FA84F"), ("运动", "#E5573F")]
+        var created: [TaskEntity] = []
+        for (i, d) in demo.enumerated() {
+            guard let t = addTaskRaw(name: d.0, colorHex: d.1) else { continue }
+            t.sortOrder = Int32(i)
+            created.append(t)
+        }
+        let cal = Calendar.current
+        // 近 7 天：每天 1-3 个 25 分钟番茄，轮换任务
+        let perDay = [2, 3, 1, 2, 3, 2, 2]
+        for (offset, count) in perDay.enumerated() {
+            guard let day = cal.date(byAdding: .day, value: -(perDay.count - 1 - offset),
+                                     to: cal.startOfDay(for: Date())) else { continue }
+            for k in 0..<count {
+                guard !created.isEmpty else { break }
+                let task = created[(offset + k) % created.count]
+                let start = cal.date(bySettingHour: 9 + k * 2, minute: (k * 17) % 60,
+                                     second: 0, of: day) ?? day
+                let s = SessionEntity(context: context)
+                s.id = UUID(); s.phaseRaw = Phase.focus.rawValue
+                s.startDate = start; s.endDate = start.addingTimeInterval(25 * 60)
+                s.durationSeconds = 25 * 60; s.completed = true; s.taskId = task.id
+                if offset == perDay.count - 1, k == 0 { s.note = "进入状态有点慢" }
+            }
+        }
+        save()
     }
 
     func addTask(name: String) -> TaskEntity {
@@ -122,6 +155,12 @@ final class Store {
 
     func setDone(_ task: TaskEntity, _ done: Bool) {
         task.isDone = done
+        save()
+    }
+
+    /// 拖拽排序：按传入顺序写 sortOrder
+    func setOrder(_ ordered: [TaskEntity]) {
+        for (i, t) in ordered.enumerated() { t.sortOrder = Int32(i) }
         save()
     }
 

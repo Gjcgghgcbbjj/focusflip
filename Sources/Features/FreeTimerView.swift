@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// 自由计时面板 —— 与专注主控共用一套计时/按钮语言。
+/// 状态全部落盘（freetimer.snapshot.v1）：杀后台/切走后无缝恢复，与番茄引擎同标准。
 struct FreeTimerPane: View {
 
     private enum Mode: Int, CaseIterable, Identifiable {
@@ -9,21 +10,8 @@ struct FreeTimerPane: View {
         var label: String { self == .stopwatch ? "秒表" : "倒计时" }
     }
 
+    @ObservedObject private var model = FreeTimerModel.shared
     @State private var mode: Mode = .stopwatch
-
-    // 秒表：startedAt + accumulated 是唯一真相源。
-    @State private var swRunning = false
-    @State private var swStart: Date?
-    @State private var swAccum: TimeInterval = 0
-    @State private var laps: [TimeInterval] = []
-
-    // 倒计时：end/remain 沿用墙钟派生，后台不漂移。
-    @State private var cdMinutes = 10
-    @State private var cdEnd: Date?
-    @State private var cdPausedRemain: TimeInterval?
-    @State private var cdFinished = false
-
-    private let chipMinutes = [3, 5, 10, 15, 20, 30, 45, 60]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -81,9 +69,7 @@ struct FreeTimerPane: View {
 
     // MARK: 秒表
 
-    private var swElapsed: TimeInterval {
-        swAccum + (swRunning ? Date().timeIntervalSince(swStart ?? Date()) : 0)
-    }
+    private var swElapsed: TimeInterval { model.swElapsed }
 
     private var stopwatchBody: some View {
         VStack(spacing: 26) {
@@ -102,40 +88,23 @@ struct FreeTimerPane: View {
             }
 
             HStack(spacing: 16) {
-                circularControl(icon: swRunning ? "pause.fill" : "play.fill",
+                circularControl(icon: model.swRunning ? "pause.fill" : "play.fill",
                                 size: DS.H.circleMain,
                                 tint: DS.accent,
                                 filled: true) {
-                    if swRunning {
-                        swAccum = swElapsed
-                        swRunning = false
-                        swStart = nil
-                    } else {
-                        swStart = Date()
-                        swRunning = true
-                    }
+                    model.toggleRun()
                 }
 
-                circularControl(icon: swRunning ? "flag.fill"
+                circularControl(icon: model.swRunning ? "flag.fill"
                                       : (swElapsed > 0 ? "arrow.counterclockwise" : "play.fill"),
                                 size: 56,
-                                tint: swElapsed > 0 || swRunning ? DS.danger : DS.accent,
+                                tint: swElapsed > 0 || model.swRunning ? DS.danger : DS.accent,
                                 filled: false) {
-                    if swRunning {
-                        laps.insert(swElapsed, at: 0)
-                    } else if swElapsed > 0 {
-                        swAccum = 0
-                        swStart = nil
-                        laps = []
-                    } else {
-                        laps.insert(0, at: 0)
-                        swRunning = true
-                        swStart = Date()
-                    }
+                    model.lapOrReset()
                 }
             }
 
-            if !laps.isEmpty {
+            if !model.laps.isEmpty {
                 lapList
             }
         }
@@ -143,12 +112,12 @@ struct FreeTimerPane: View {
     }
 
     private var lapList: some View {
-        let fastest = laps.min()
-        let slowest = laps.count > 1 ? laps.max() : nil
+        let fastest = model.laps.min()
+        let slowest = model.laps.count > 1 ? model.laps.max() : nil
 
         return ScrollView {
             VStack(spacing: 0) {
-                ForEach(laps.indices.reversed(), id: \.self) { i in
+                ForEach(model.laps.indices.reversed(), id: \.self) { i in
                     lapRow(i,
                            fastest: fastest,
                            slowest: slowest)
@@ -161,8 +130,8 @@ struct FreeTimerPane: View {
     }
 
     private func lapRow(_ i: Int, fastest: TimeInterval?, slowest: TimeInterval?) -> some View {
-        let isFast = laps[i] == fastest && laps.count > 1
-        let isSlow = laps[i] == slowest && laps.count > 1
+        let isFast = model.laps[i] == fastest && model.laps.count > 1
+        let isSlow = model.laps[i] == slowest && model.laps.count > 1
         let color: Color = isFast ? DS.success : isSlow ? DS.danger : .primary
 
         return HStack(spacing: DS.S.md) {
@@ -170,18 +139,25 @@ struct FreeTimerPane: View {
                 .font(DS.F.subheadSb)
                 .foregroundColor(isFast || isSlow ? color : .secondary)
             Spacer()
-            Text(Self.format(laps[i]))
+            Text(Self.format(model.laps[i]))
                 .font(DS.F.bodySb.monospacedDigit())
                 .foregroundColor(color)
+            Button {
+                Haptic.light()
+                withAnimation(DS.Motion.quick) { model.removeLap(at: i) }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary.opacity(0.4))
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, DS.S.lg)
         .padding(.vertical, 12)
         .contentShape(Rectangle())
         .contextMenu {
             Button(role: .destructive) {
-                withAnimation(DS.Motion.quick) {
-                    _ = laps.remove(at: i)
-                }
+                withAnimation(DS.Motion.quick) { model.removeLap(at: i) }
                 Haptic.light()
             } label: {
                 Label("删除此计次", systemImage: "trash")
@@ -191,10 +167,7 @@ struct FreeTimerPane: View {
 
     // MARK: 倒计时
 
-    private var cdRemaining: TimeInterval {
-        guard let end = cdEnd else { return cdPausedRemain ?? TimeInterval(cdMinutes * 60) }
-        return max(0, end.timeIntervalSince(Date()))
-    }
+    private var cdRemaining: TimeInterval { model.cdRemaining }
 
     private var countdownBody: some View {
         VStack(spacing: 24) {
@@ -205,24 +178,22 @@ struct FreeTimerPane: View {
                         .font(DS.F.timerLg)
                         .monospacedDigit()
                         .kerning(-1)
-                        .foregroundColor(cdFinished ? DS.danger : .primary)
+                        .foregroundColor(model.cdFinished ? DS.danger : .primary)
                         .onChange(of: remain) { v in
-                            if v <= 0 && !cdFinished && (cdEnd != nil || cdPausedRemain != nil) {
-                                cdFinished = true
-                                SoundPlayer.shared.playTone(Prefs.shared.toneType)
-                                Haptic.medium()
+                            if v <= 0 && !model.cdFinished && model.cdActive {
+                                model.markCountdownFinished()
                             }
                         }
                 }
-                Text(cdFinished ? "时间到" : "倒计时")
+                Text(model.cdFinished ? "时间到" : "倒计时")
                     .font(DS.F.microCaps)
                     .kerning(1.5)
-                    .foregroundColor(cdFinished ? DS.danger : .secondary)
+                    .foregroundColor(model.cdFinished ? DS.danger : .secondary)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(chipMinutes, id: \.self) { minutes in
+                    ForEach(model.chipMinutes, id: \.self) { minutes in
                         countdownChip(minutes)
                     }
                 }
@@ -232,24 +203,10 @@ struct FreeTimerPane: View {
             HStack(spacing: 14) {
                 Button {
                     Haptic.medium()
-                    if cdRunningOrPaused {
-                        if cdEnd != nil {
-                            cdPausedRemain = cdRemaining
-                            cdEnd = nil
-                        } else {
-                            cdEnd = Date().addingTimeInterval(cdPausedRemain ?? 1)
-                        }
-                    } else {
-                        cdFinished = false
-                        cdPausedRemain = nil
-                        cdEnd = Date().addingTimeInterval(TimeInterval(cdMinutes * 60))
-                        Notifications.schedule(in: cdMinutes * 60,
-                                               phase: .focus,
-                                               taskName: "倒计时")
-                    }
+                    model.startPauseResume()
                 } label: {
-                    Text(!cdRunningOrPaused ? "开始"
-                         : (cdEnd != nil ? "暂停" : "继续"))
+                    Text(!model.cdActive ? "开始"
+                         : (model.cdEnd != nil ? "暂停" : "继续"))
                         .font(DS.F.headline)
                         .foregroundColor(.white)
                         .frame(minWidth: 168, minHeight: DS.H.primaryButton)
@@ -261,13 +218,10 @@ struct FreeTimerPane: View {
                 }
                 .buttonStyle(PressStyle())
 
-                if cdRunningOrPaused || cdFinished {
+                if model.cdActive || model.cdFinished {
                     Button {
                         Haptic.light()
-                        cdEnd = nil
-                        cdPausedRemain = nil
-                        cdFinished = false
-                        Notifications.cancelAll()
+                        model.resetCountdown()
                     } label: {
                         Text("重置")
                             .font(DS.F.subheadSb)
@@ -287,10 +241,10 @@ struct FreeTimerPane: View {
     }
 
     private func countdownChip(_ minutes: Int) -> some View {
-        let selected = cdMinutes == minutes
+        let selected = model.cdMinutes == minutes
         return Button {
             Haptic.light()
-            cdMinutes = minutes
+            model.cdMinutes = minutes
         } label: {
             PillControl(isSelected: selected) {
                 Text("\(minutes)分")
@@ -298,8 +252,6 @@ struct FreeTimerPane: View {
         }
         .buttonStyle(PressStyle())
     }
-
-    private var cdRunningOrPaused: Bool { cdEnd != nil || cdPausedRemain != nil }
 
     static func format(_ t: TimeInterval, forceHours: Bool = false) -> String {
         let s = max(0, Int(t))
@@ -335,5 +287,134 @@ struct FreeTimerPane: View {
                 )
         }
         .buttonStyle(PressStyle())
+    }
+}
+
+// MARK: - 状态模型（落盘）
+
+/// 秒表/倒计时状态快照，杀后台恢复与番茄引擎同标准（墙钟派生不漂移）
+final class FreeTimerModel: ObservableObject {
+
+    static let shared = FreeTimerModel()
+    private static let key = "freetimer.snapshot.v1"
+    private let d = UserDefaults.standard
+
+    let chipMinutes = [3, 5, 10, 15, 20, 30, 45, 60]
+
+    @Published var swRunning = false { didSet { persist() } }
+    @Published var swAccum: TimeInterval = 0 { didSet { persist() } }
+    @Published var swStart: Date? { didSet { persist() } }
+    @Published var laps: [TimeInterval] = [] { didSet { persist() } }
+
+    @Published var cdMinutes = 10 { didSet { persist() } }
+    @Published var cdEnd: Date? { didSet { persist() } }
+    @Published var cdPausedRemain: TimeInterval? { didSet { persist() } }
+    @Published var cdFinished = false { didSet { persist() } }
+
+    private init() { restore() }
+
+    var swElapsed: TimeInterval {
+        swAccum + (swRunning ? Date().timeIntervalSince(swStart ?? Date()) : 0)
+    }
+
+    var cdRemaining: TimeInterval {
+        guard let end = cdEnd else { return cdPausedRemain ?? TimeInterval(cdMinutes * 60) }
+        return max(0, end.timeIntervalSince(Date()))
+    }
+
+    var cdActive: Bool { cdEnd != nil || cdPausedRemain != nil }
+
+    func toggleRun() {
+        if swRunning {
+            swAccum = swElapsed
+            swRunning = false
+            swStart = nil
+        } else {
+            swStart = Date()
+            swRunning = true
+        }
+    }
+
+    func lapOrReset() {
+        if swRunning {
+            laps.insert(swElapsed, at: 0)
+        } else if swElapsed > 0 {
+            swAccum = 0
+            swStart = nil
+            laps = []
+        } else {
+            laps.insert(0, at: 0)
+            swRunning = true
+            swStart = Date()
+        }
+    }
+
+    func removeLap(at i: Int) {
+        guard laps.indices.contains(i) else { return }
+        laps.remove(at: i)
+    }
+
+    func startPauseResume() {
+        if cdActive {
+            if cdEnd != nil {
+                cdPausedRemain = cdRemaining
+                cdEnd = nil
+            } else {
+                cdEnd = Date().addingTimeInterval(cdPausedRemain ?? 1)
+            }
+        } else {
+            cdFinished = false
+            cdPausedRemain = nil
+            cdEnd = Date().addingTimeInterval(TimeInterval(cdMinutes * 60))
+            Notifications.scheduleCountdown(in: cdMinutes * 60)
+        }
+    }
+
+    func resetCountdown() {
+        cdEnd = nil
+        cdPausedRemain = nil
+        cdFinished = false
+        Notifications.cancelCountdown()
+    }
+
+    /// 自然走完：提示音 + 触觉 +（可选）计入今日统计
+    func markCountdownFinished() {
+        cdFinished = true
+        SoundPlayer.shared.playTone(Prefs.shared.toneType)
+        Haptic.medium()
+        if Prefs.shared.countdownCounts, cdMinutes > 0 {
+            Store.shared.record(phase: .focus, seconds: cdMinutes * 60,
+                                start: Date().addingTimeInterval(-Double(cdMinutes * 60)),
+                                completed: true,
+                                taskId: FocusEngine.shared.currentTaskID)
+            FocusEngine.shared.refreshToday()
+        }
+    }
+
+    // MARK: 快照
+
+    private func persist() {
+        d.set(swRunning, forKey: Self.key + ".swRunning")
+        d.set(swAccum, forKey: Self.key + ".swAccum")
+        d.set(swStart?.timeIntervalSince1970 ?? 0, forKey: Self.key + ".swStart")
+        d.set(laps, forKey: Self.key + ".laps")
+        d.set(cdMinutes, forKey: Self.key + ".cdMinutes")
+        d.set(cdEnd?.timeIntervalSince1970 ?? 0, forKey: Self.key + ".cdEnd")
+        d.set(cdPausedRemain ?? -1, forKey: Self.key + ".cdPaused")
+        d.set(cdFinished, forKey: Self.key + ".cdFinished")
+    }
+
+    private func restore() {
+        swRunning = d.bool(forKey: Self.key + ".swRunning")
+        swAccum = d.object(forKey: Self.key + ".swAccum") as? TimeInterval ?? 0
+        let s = d.double(forKey: Self.key + ".swStart")
+        swStart = s > 0 ? Date(timeIntervalSince1970: s) : nil
+        laps = d.object(forKey: Self.key + ".laps") as? [TimeInterval] ?? []
+        cdMinutes = d.object(forKey: Self.key + ".cdMinutes") as? Int ?? 10
+        let e = d.double(forKey: Self.key + ".cdEnd")
+        cdEnd = e > Date().timeIntervalSince1970 ? Date(timeIntervalSince1970: e) : nil
+        let p = d.double(forKey: Self.key + ".cdPaused")
+        cdPausedRemain = p > 0 ? p : nil
+        cdFinished = d.bool(forKey: Self.key + ".cdFinished")
     }
 }

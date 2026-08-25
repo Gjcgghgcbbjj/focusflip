@@ -5,6 +5,7 @@ struct SettleCard: View {
     let info: PhaseCompletion
     let taskColor: Color
     let todayCount: Int
+    var dailyGoal: Int = 0
     let startNext: () -> Void
     let later: () -> Void
 
@@ -56,7 +57,11 @@ struct SettleCard: View {
                 .padding(.top, 10)
 
                 if info.wasFocus {
-                    Text("今日第 \(todayCount) 个番茄")
+                    Text(dailyGoal > 0
+                         ? (todayCount >= dailyGoal
+                            ? "今日第 \(todayCount) 个番茄 · 目标达成 🎉"
+                            : "今日第 \(todayCount) 个番茄 · 距目标还差 \(dailyGoal - todayCount) 个")
+                         : "今日第 \(todayCount) 个番茄")
                         .font(DS.F.subhead)
                         .foregroundColor(.white.opacity(0.8))
                         .padding(.top, 8)

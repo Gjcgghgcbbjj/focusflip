@@ -43,4 +43,25 @@ targets:
       - sdk: CoreData.framework
       - sdk: AVFoundation.framework
       - sdk: UserNotifications.framework
+  FocusFlipUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.focusflip.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: FocusFlip
+    dependencies:
+      - target: FocusFlip
+
+schemes:
+  FocusFlip:
+    build:
+      targets:
+        FocusFlip: all
+    test:
+      targets:
+        - FocusFlipUITests
 

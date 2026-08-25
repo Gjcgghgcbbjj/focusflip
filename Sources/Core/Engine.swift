@@ -162,6 +162,12 @@ final class FocusEngine: ObservableObject {
         return max(0, totalSeconds - Int(date.timeIntervalSince(start)))
     }
 
+    /// 界面展示用：idle 态预览所选时长（空环 + 25:00，让开始页"活"起来）
+    func displayRemaining(at date: Date = Date()) -> Int {
+        if case .idle = state { return prefs.focusMinutes * 60 }
+        return remaining(at: date)
+    }
+
     private func handleTick() {
         guard isRunning else { return }
         remainingSeconds = remaining()
@@ -240,6 +246,12 @@ final class FocusEngine: ObservableObject {
         finishCurrent(completed: true)
         SoundPlayer.shared.playTone(Prefs.shared.toneType)
         advanceToNext(afterCompleted: true)
+
+        if wasFocus, prefs.dailyGoal > 0, todayPomodoros == prefs.dailyGoal {
+            ToastCenter.shared.show("今日目标 \(prefs.dailyGoal) 个番茄达成 🎉",
+                                    undoLabel: "知道了", undo: nil)
+            Haptic.success()
+        }
 
         var preparedNext = false
         if case .prepared = state { preparedNext = true }

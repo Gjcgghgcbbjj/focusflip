@@ -10,10 +10,15 @@ struct CountdownSheet: View {
     @State private var newTitle = ""
     @State private var newDate = Calendar.current.date(byAdding: .day, value: 30, to: Date())!
     @State private var showAdd = false
-
     @State private var newColor = "#5865F2"
+    @State private var newReminderDays = 0            // 0=不提醒
+    @State private var newLinkedTaskID: UUID?
+
+    @State private var tasks: [TaskEntity] = []
+
     static let palette = ["#5865F2", "#6A79FF", "#9C27B0", "#E5573F",
                           "#F08A24", "#2FA84F", "#1E88C7", "#3A3F58"]
+    static let reminderOptions = [(0, "不提醒"), (1, "提前1天"), (3, "提前3天"), (7, "提前7天")]
 
     var body: some View {
         NavigationView {
@@ -25,6 +30,7 @@ struct CountdownSheet: View {
                                 let title = c.title; let date = c.targetDate; let hex = c.colorHex
                                 var tx = Transaction(); tx.disablesAnimations = true
                                 withTransaction(tx) { Store.shared.deleteCountdown(c) }
+                                Notifications.cancelTargetReminder(id: c.id)
                                 Haptic.medium()
                                 ToastCenter.shared.show("已删除「\(title)」") {
                                     _ = Store.shared.addCountdown(title: title, date: date, colorHex: hex)
@@ -52,6 +58,9 @@ struct CountdownSheet: View {
                                 LazyVGrid(columns: Array(repeating: GridItem(
                                     .flexible(), spacing: 10), count: 8), spacing: 10) {
                                     ForEach(Self.palette, id: \.self) { hex in
+                                        Button {
+                                            newColor = hex; Haptic.tick()
+                                        } label: {
                                         Circle()
                                             .fill(Color(hex: hex))
                                             .frame(width: 30, height: 30)
@@ -63,11 +72,46 @@ struct CountdownSheet: View {
                                                     Image(systemName: "checkmark")
                                                         .font(.system(size: 12, weight: .heavy))
                                                         .foregroundColor(.white) : nil)
-                                            .onTapGesture {
-                                                newColor = hex; Haptic.tick()
-                                            }
+                                        }
+                                        .buttonStyle(PressStyle(scale: 0.88))
                                     }
                                 }
+                            }
+                            HStack {
+                                Text("关联任务").foregroundColor(.secondary)
+                                Spacer()
+                                Menu {
+                                    Button("不关联") { newLinkedTaskID = nil; Haptic.tick() }
+                                    ForEach(tasks) { t in
+                                        Button(t.name) { newLinkedTaskID = t.id; Haptic.tick() }
+                                    }
+                                } label: {
+                                    HStack(spacing: 5) {
+                                        if let id = newLinkedTaskID,
+                                           let t = tasks.first(where: { $0.id == id }) {
+                                            Circle().fill(Color(hex: t.colorHex)).frame(width: 7, height: 7)
+                                            Text(t.name).foregroundColor(.primary)
+                                        } else {
+                                            Text("不关联").foregroundColor(.secondary)
+                                        }
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .font(.system(size: 9, weight: .semibold))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .font(DS.F.subhead)
+                                }
+                            }
+                            HStack {
+                                Text("提醒").foregroundColor(.secondary)
+                                Spacer()
+                                Picker("", selection: $newReminderDays) {
+                                    ForEach(Self.reminderOptions, id: \.0) { opt in
+                                        Text(opt.1).tag(opt.0)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
+                                .onChange(of: newReminderDays) { _ in Haptic.tick() }
                             }
                             Button {
                                 add()
@@ -79,6 +123,7 @@ struct CountdownSheet: View {
                                     .padding(.vertical, 13)
                                     .background(Capsule().fill(Color(hex: newColor)))
                             }
+                            .buttonStyle(PressStyle(scale: 0.97, pressHaptic: Haptic.medium))
                             .disabled(newTitle.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
                     } else {
@@ -87,6 +132,7 @@ struct CountdownSheet: View {
                         } label: {
                             Label("添加倒计时", systemImage: "plus.circle.fill")
                         }
+                        .buttonStyle(PressStyle())
                     }
                 }
             }
@@ -158,14 +204,27 @@ struct CountdownSheet: View {
     private func add() {
         let name = newTitle.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty, !Self.palette.contains(where: { $0.isEmpty }) else { return }
-        Store.shared.addCountdown(title: name,
-                                  date: newDate,
-                                  colorHex: Self.palette.contains(newColor) ? newColor : "#5865F2")
+        let c = Store.shared.addCountdown(title: name,
+                                          date: newDate,
+                                          colorHex: Self.palette.contains(newColor) ? newColor : "#5865F2")
+        Prefs.shared.targetReminderDays[c.id.uuidString] = newReminderDays
+        if let tid = newLinkedTaskID {
+            Prefs.shared.targetLinkedTask[c.id.uuidString] = tid.uuidString
+        } else {
+            Prefs.shared.targetLinkedTask.removeValue(forKey: c.id.uuidString)
+        }
+        Notifications.scheduleTargetReminder(id: c.id, title: c.title,
+                                             targetDate: c.targetDate, daysBefore: newReminderDays)
         newTitle = ""
+        newLinkedTaskID = nil
+        newReminderDays = 0
         showAdd = false
         Haptic.success()
         DispatchQueue.main.async { reload() }
     }
 
-    private func reload() { items = Store.shared.countdowns() }
+    private func reload() {
+        items = Store.shared.countdowns()
+        tasks = Store.shared.tasks()
+    }
 }

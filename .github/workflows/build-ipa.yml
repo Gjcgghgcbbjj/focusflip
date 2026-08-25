@@ -138,11 +138,15 @@ jobs:
             print(best[1]['udid'])
           ")
           echo "Device: $DEVICE"
+          echo "DEVICE=$DEVICE" >> "$GITHUB_ENV"
           xcrun simctl boot "$DEVICE" 2>/dev/null || true
           xcrun simctl bootstatus "$DEVICE" -b
           xcrun simctl install "$DEVICE" "$APP"
-          # Launch and check it stays alive
-          LAUNCH_OUT=$(xcrun simctl launch "$DEVICE" com.focusflip.app 2>&1)
+          # Launch and check it stays alive.
+          # SIMCTL_CHILD_FF_UI_TOUR=1 注入 app 环境：跳过通知权限弹窗（会挡 openurl 与截图主体）
+          # FF_SEED_DEMO=1：空库种演示数据，让巡游截到有数据的真实形态
+          LAUNCH_OUT=$(SIMCTL_CHILD_FF_UI_TOUR=1 SIMCTL_CHILD_FF_SEED_DEMO=1 \
+            xcrun simctl launch "$DEVICE" com.focusflip.app 2>&1)
           echo "Launch output: $LAUNCH_OUT"
           # First launch after cold boot can be slow (SpringBoard warm-up)
           sleep 10
@@ -156,9 +160,72 @@ jobs:
             xcrun simctl spawn "$DEVICE" log show --last 1m --predicate 'process == "FocusFlip"' 2>/dev/null | tail -30 || true
             exit 1
           fi
-          # Screenshot for evidence
-          xcrun simctl io "$DEVICE" screenshot build/simulator-launch.png 2>/dev/null || true
-          xcrun simctl shutdown "$DEVICE" 2>/dev/null || true
+
+      - name: UI interaction tests (swipe/add/delete reproduction loop)
+        run: |
+          xcodebuild test \
+            -project FocusFlip.xcodeproj \
+            -scheme FocusFlip \
+            -destination "platform=iOS Simulator,id=$DEVICE" \
+            -only-testing:FocusFlipUITests \
+            -resultBundlePath build/ui-tests.xcresult \
+            CODE_SIGNING_ALLOWED=NO > build/uitest.log 2>&1 || true
+          grep -E "Test Case|error:|Fatal|crashed" build/uitest.log | head -30 || true
+          tail -15 build/uitest.log
+
+      - name: Export UI test attachments (screenshots)
+        if: always()
+        run: |
+          xcrun xcresulttool export attachments --path build/ui-tests.xcresult \
+            --output-path build/attachments || true
+          ls -R build/attachments 2>/dev/null || true
+
+      - name: Upload UI test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: |
+            build/ui-tests.xcresult
+            build/uitest.log
+            build/attachments
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload simulator crash reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-crash-reports
+          path: ~/Library/Logs/DiagnosticReports/FocusFlip*
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Restore previous tour screenshots (md5 baseline)
+        uses: actions/cache/restore@v4
+        with:
+          path: tour-prev
+          key: tour-shots-${{ github.ref_name }}
+          restore-keys: tour-shots-
+
+      - name: UI screenshot tour (5 tabs × light/dark + keyboard, md5 vs prev run)
+        continue-on-error: true   # 巡游是证据不是门禁；失败看 tour.log 下一轮修
+        run: |
+          chmod +x Scripts/ui-tour.sh
+          DEVICE="$DEVICE" BUNDLE_ID="com.focusflip.app" FF_UI_TOUR=1 \
+            OUT_DIR=build/tour PREV_DIR=tour-prev \
+            ./Scripts/ui-tour.sh
+
+      - name: Save tour screenshots as next-run baseline
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: tour-prev
+          key: tour-shots-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Shutdown simulator
+        if: always()
+        run: xcrun simctl shutdown "$DEVICE" 2>/dev/null || true
 
       - name: Package IPA
         run: |
@@ -181,12 +248,12 @@ jobs:
           retention-days: 90
           compression-level: 0
 
-      - name: Upload Simulator Screenshot
+      - name: Upload UI tour artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: simulator-launch-screenshot
-          path: build/simulator-launch.png
+          name: focusflip-ui-tour
+          path: build/tour/
           retention-days: 30
 
       - name: Create Release on tag

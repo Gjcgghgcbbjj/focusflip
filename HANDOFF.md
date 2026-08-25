@@ -169,6 +169,49 @@ git tag vX.Y.Z && git push origin vX.Y.Z   # 若撞旧项目tag: gh release dele
 7. tmp 目录每 bash 调用即焚；持久脚本放 `/root/dsphn/tmp/`
 8. 用户反馈的"闪退"优先怀疑：已保存删除实体的属性访问（本仓两大崩溃皆此）
 
+## UI 截图巡游（skill §六闭环，PR#2）
+
+- 每次推送自动产出 `focusflip-ui-tour` artifact：5 tab × 亮/暗共 10 张 + `tour.log`（每张 md5 对比上一 run 打 changed/UNCHANGED，基线走 actions/cache 跨 run）
+- **导航：`SIMCTL_CHILD_FF_TAB=<focus|tasks|stats|targets|settings>` 冷启动**（FlowSimApp 读 env 设初始 tab）。**不要用 simctl openurl**——iOS 26 模拟器实测 warm openurl 不投递、冷启动弹「Open in FocusFlip?」确认框；快捷指令深链（focusflip://tab/…）真机待复验
+- `FF_UI_TOUR=1`（SIMCTL_CHILD_ 前缀注入）：跳过通知权限弹窗——弹窗会挡导航与截图主体
+- 键盘态：任务页输入框 onAppear 0.3s 自动聚焦（TodoView.swift:420），02-tasks 天然带键盘；完整键盘截图看 12-tasks-dark。idb 点按仅 `INSTALL_IDB=1` 时启用——**idb-companion 已移出 homebrew-core，须 `brew tap facebook/fb` 再装**（skill §六的 `brew install idb-companion` 裸命令已失效）
+- 巡游是证据不是门禁（continue-on-error）；坐标一律屏幕百分比
+- 巡游发现待办：①首页浮动 tab bar 暗色发亮 = iOS 26 Liquid Glass 拾取场景色（其他页正常，观察不盲改）；②任务页日期 zh_CN 硬编码（StatsView:781 / TodoView:549）在英文设备直出中文
+
+## 交互批次（PR#2 后半，2026-08-24）
+
+- **每日番茄目标**：`prefs.dailyGoal`（0=关）；环心「今日 n/goal」、结算卡目标行、达成 Toast（Engine.completePhase 判 `==` 只响一次）
+- **通知操作按钮**：FOCUS_DONE/BREAK_DONE category + START_NEXT action；响应在 AppDelegate（@UIApplicationDelegateAdaptor），冷启动也能开跑
+- **目标关联任务 + DDL 提醒**：`prefs.targetLinkedTask / targetReminderDays`（UserDefaults 映射，**故意不动 CoreData 模型避免迁移**）；提醒=目标日前 N 天 9 点，删除即取消；目标卡「已投入」用单次 fetch 聚合
+- **自由计时落盘**：`FreeTimerModel`（freetimer.snapshot.v1），didSet persist / init restore；倒计时可计入统计（prefs.countdownCounts，默认关，走完记 focus 会话）
+- **全年热力图**：StatsView 53 周格子（周一对齐、五档色阶）；⚠️ 巡游截不到（在首屏下方），真机待确认
+- **任务拖拽排序**：已撤（editMode+onMove 与 swipeActions 在 iOS15 List 是崩溃族）；sortOrder 字段与 Store.setOrder 保留待后用
+- **idle 环预览**：`Engine.displayRemaining` idle 态显示所选时长（25:00），空环语义不变
+- 种子钩子：`FF_SEED_DEMO=1` 空库种 3 任务+7 天会话（Store.seedDemoIfEmpty），巡游从此截到有数据的真实形态
+
+## 闪退/手势事故复盘（2026-08-24，已修）
+
+- **症状**：任务页左滑/右滑/添加/删除全坏 + 闪退感 + 动画怪；新旧构建都复现
+- **根因**：行级 `.contentShape+.onTapGesture`（旧）/整行 Button（新）与 List swipeActions **手势歧义**——短滑被识别成点击 → 误开编辑页，滑动露出时灵时坏。XCUITest 截屏实锤（滑动后编辑页开着）
+- **修复**：整卡 `Button`（点卡=编辑）+ 色圈/播放嵌套 Button（内层在自己范围内优先）；编辑页删除加已删实体守卫（血泪#8）
+- **复现环**：`UITests/TodoInteractionTests`（XCUITest + FF_SEED_DEMO）驱动 删除→撤销→设当前→快捷开始→添加→编辑 全叙事，已全绿；CI 非门禁但红了必须看
+- **测试基建坑**：嵌套按钮对 XCUITest 不可 hittable → 用坐标点击；跨 tab 用 FF_TAB 冷启动，别点 tab 栏（离屏元素 exists 但不 hittable）
+- **教训**：List 行上永远别用裸 onTapGesture 抢点击——用 Button；「旧版也崩」= 根因在共享路径，先 diff 新旧差异集再下结论
+- 真机待复验：iOS 15/16 实机手势（模拟器是 iOS 26）
+
+## 任务卡片动画架构（2026-08-25，List → SwipeableCard）
+
+- List 给不出卡片动画（行高瞬塌、无入场），任务页换 `ScrollView+LazyVStack+SwipeableCard`（TodoView.swift 尾部）：拖拽橡皮筋限幅、40%宽/甩动阈值、全扫飞出、露出 128pt 停留可点、插入 scale(.92)+fade+y14 弹簧、移除 slide-fade，事务全在 withAnimation(DS.Motion.soft/quick)
+- **动效设计原型**：`docs/animation-mockup.html`（纯前端，弹簧物理与 DS.Motion 同源 k=(2π/r)² c=2ζ√k），playwright 真鼠标验证 20 断言（/root/dsphn/tmp/mocktest/test.mjs+test2.mjs）——**改动画先过模拟器再看真机**
+- 踩坑：①.highPriorityGesture 否则快滑被内嵌 Button 抢成 tap ②动作钮必须 accessibilityHidden(未露出)+accessibilityAction，否则常驻 a11y 树，XCUITest firstMatch 点到盖住的钮穿透成卡 tap ③XCUITest 滑动坐标用整卡（task.card.<名>），文本坐标拖距只有几十 pt 只够露出 ④HTML mockup 的 transform 容器要 pointer-events:none 否则挡背后按钮
+
+### UIPan 重做（2026-08-25，底层互动改版第一期）
+
+- SwipeableCard 拖拽换 `SwipePanContainer`（UIHostingController + UIPanGestureRecognizer）：`gestureRecognizerShouldBegin` 按速度门控——竖向让路 ScrollView（滚动不再发黏）、横向 1:1 直接变换 layer（无 SwiftUI 逐帧 diff）、原生速度采样（450pt/s 甩动阈值）
+- DragGesture 版的隐藏代价：highPriorityGesture 不分方向，竖滚也被手势吃掉；predictedEnd 的"甩动"与原生速度手感有差
+- **新崩溃（血泪#8 变体）**：UIHostingController.updateUIViewController 无条件重建 rootView → 删除后重渲染他卡时访问已删 NSManagedObject → UUID 桥接 SIGTRAP（Foundation._unconditionallyBridgeFromObjectiveC）。修法：cardBody 入口 `guard t.managedObjectContext != nil`。DragGesture 版没暴露是因为它不强制重建
+- PressStyle v2：pressHaptic 钩子（按下即触觉，原生键盘感）、r.24 ζ.7、加深按压暗化；圆环/倒计时卡/时间线行/色点全部 Button 化（8 处 onTapGesture 清到 2 处刻意保留）
+
 ## Backlog（远期，均未开工）
 
 - 动态字体适配关键文本（现全固定字号，个人自用可接受）

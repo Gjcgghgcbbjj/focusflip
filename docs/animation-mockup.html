@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusFlip 动画模拟器 · 任务卡片</title>
+<style>
+  :root {
+    --bg: #F2F2F7; --card: #FFFFFF; --text: #000; --text2: rgba(60,60,67,.6);
+    --sep: rgba(60,60,67,.12); --indigo: #5865F2; --green: #2FA84F; --red: #E5573F;
+    --toast: #26262E; --undo: #8FA0FF; --disc-alpha: .13;
+  }
+  html[data-theme="dark"] {
+    --bg: #000; --card: #1C1C1E; --text: #FFF; --text2: rgba(235,235,245,.6);
+    --sep: rgba(84,84,88,.4);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background:#2b2d33; min-height:100vh; display:flex; flex-direction:column;
+    align-items:center; gap:14px; padding:24px 12px; color:#fff;
+  }
+  .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .tb-btn {
+    background:#3a3d45; border:1px solid #4a4d56; color:#fff; border-radius:20px;
+    padding:8px 16px; font-size:13px; cursor:pointer; user-select:none;
+  }
+  .tb-btn.on { background:var(--indigo); border-color:var(--indigo); }
+  .tb-note { font-size:12px; color:#9a9da6; }
+  .phone {
+    width:390px; height:780px; background:var(--bg); border-radius:44px;
+    overflow:hidden; position:relative; display:flex; flex-direction:column;
+    box-shadow:0 24px 60px rgba(0,0,0,.5), 0 0 0 10px #111;
+    transition: background .3s;
+  }
+  .statusbar {
+    height:52px; display:flex; align-items:flex-end; justify-content:center;
+    padding-bottom:6px; position:relative; flex:none;
+  }
+  .island { position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    width:120px; height:34px; background:#000; border-radius:20px; }
+  html[data-theme="dark"] .island { background:#1a1a1c; }
+  .time { font-size:16px; font-weight:600; color:var(--text); margin-left:26px; }
+  .navbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 18px 8px; flex:none;
+  }
+  .navtitle { font-size:32px; font-weight:700; color:var(--text); letter-spacing:.5px; }
+  .nav-add {
+    width:38px; height:38px; border-radius:50%; background:var(--card);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    box-shadow:0 2px 10px rgba(0,0,0,.10); color:var(--indigo); font-size:22px; font-weight:500;
+    user-select:none;
+  }
+  .scroll { flex:1; overflow-y:auto; padding:2px 16px 90px; scrollbar-width:none; }
+  .scroll::-webkit-scrollbar { display:none; }
+  .secheader { font-size:13px; font-weight:600; color:var(--text2); margin:10px 4px 6px; }
+  .currentline {
+    display:flex; align-items:center; gap:8px; background:var(--card); border-radius:14px;
+    padding:11px 14px; margin-bottom:4px; box-shadow:0 1px 4px rgba(0,0,0,.05);
+    font-size:13px; color:var(--text);
+  }
+  .currentline .dot { width:8px; height:8px; border-radius:50%; background:var(--indigo); }
+  .currentline .go { margin-left:auto; color:var(--indigo); font-size:12px; }
+  /* ---- 卡片 ---- */
+  .slot { overflow:hidden; }              /* 高度收起用 */
+  .card {
+    background:var(--card); border-radius:22px; padding:14px; margin:5px 0;
+    display:flex; align-items:center; gap:12px; position:relative;
+    box-shadow:0 1px 6px rgba(0,0,0,.06); cursor:grab; user-select:none;
+    will-change:transform;
+  }
+  .card.pressing { transform:scale(.97); }
+  .card .disc {
+    width:46px; height:46px; border-radius:12px; flex:none;
+    display:flex; align-items:center; justify-content:center; font-size:19px;
+    cursor:pointer; user-select:none;
+  }
+  .card .body { flex:1; min-width:0; }
+  .card .name-row { display:flex; align-items:center; gap:6px; }
+  .card .name { font-size:15px; font-weight:600; color:var(--text); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  .card.done .name { text-decoration:line-through; color:var(--text2); }
+  .card .chip {
+    font-size:10px; font-weight:600; padding:2.5px 8px; border-radius:99px;
+  }
+  .card .meta { font-size:11.5px; color:var(--text2); margin-top:3px; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
+  .card .play {
+    width:38px; height:38px; border-radius:50%; flex:none; cursor:pointer; user-select:none;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+  /* 滑动容器 */
+  .swipe-wrap { position:relative; margin:5px 0; }
+  .swipe-wrap .slot-inner { position:relative; overflow:visible; pointer-events:none; }
+  .swipe-wrap .slot-inner .card { pointer-events:auto; }
+  .actions-l, .actions-r {
+    position:absolute; top:5px; bottom:5px; display:flex; align-items:center;
+    border-radius:22px; overflow:hidden; width:0;
+  }
+  .actions-l { left:0; justify-content:flex-start; }
+  .actions-r { right:0; justify-content:flex-end; }
+  .action-btn {
+    height:100%; display:flex; align-items:center; justify-content:center; gap:6px;
+    color:#fff; font-size:13px; font-weight:600; white-space:nowrap; padding:0 4px;
+  }
+  .action-btn.del { background:var(--red); }
+  .action-btn.cur { background:var(--indigo); }
+  /* ---- 已完成 ---- */
+  .done-toggle {
+    display:flex; align-items:center; gap:4px; padding:8px 4px; cursor:pointer;
+    font-size:13px; font-weight:600; color:var(--text2); user-select:none;
+  }
+  .done-toggle .chev { transition:transform .25s; font-size:10px; }
+  .done-toggle.open .chev { transform:rotate(0deg); }
+  .done-toggle:not(.open) .chev { transform:rotate(-90deg); }
+  /* ---- Toast ---- */
+  .toast {
+    position:absolute; left:18px; right:18px; bottom:86px; z-index:40;
+    background:var(--toast); border-radius:99px; padding:13px 12px 13px 18px;
+    display:flex; align-items:center; gap:14px; box-shadow:0 5px 14px rgba(0,0,0,.28);
+  }
+  .toast .msg { color:#fff; font-size:13px; flex:1; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; }
+  .toast .undo { color:var(--undo); font-size:14px; font-weight:700; cursor:pointer; padding:4px; }
+  /* ---- Tab bar ---- */
+  .tabbar {
+    position:absolute; left:14px; right:14px; bottom:14px; height:64px;
+    background:var(--card); border-radius:32px; display:flex; align-items:center;
+    box-shadow:0 4px 18px rgba(0,0,0,.12); z-index:30;
+  }
+  .tab { flex:1; text-align:center; font-size:10.5px; color:var(--text2); cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .tab .ic { font-size:20px; }
+  .tab.active .pill { background:rgba(142,142,147,.18); border-radius:18px; }
+  .tab .pill { padding:5px 14px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .tab.active { color:var(--indigo); font-weight:600; }
+  /* ---- 添加 sheet ---- */
+  .backdrop { position:absolute; inset:0; background:rgba(0,0,0,.35); z-index:49;
+    opacity:0; pointer-events:none; }
+  .backdrop.show { opacity:1; pointer-events:auto; }
+  .sheet {
+    position:absolute; left:0; right:0; bottom:0; top:44px; z-index:50;
+    background:var(--bg); border-radius:22px 22px 0 0; display:flex; flex-direction:column;
+    will-change:transform;
+  }
+  .sheet-grab { width:36px; height:5px; border-radius:3px; background:var(--sep);
+    margin:8px auto 0; flex:none; }
+  .sheet-nav { display:flex; align-items:center; justify-content:space-between; padding:8px 18px; }
+  .sheet-nav .t { font-size:17px; font-weight:600; color:var(--text); }
+  .sheet-nav .btn { color:var(--indigo); font-size:16px; cursor:pointer; padding:6px; user-select:none; }
+  .sheet-nav .btn.disabled { color:var(--text2); opacity:.4; pointer-events:none; }
+  .sheet-body { flex:1; overflow-y:auto; padding:0 20px; }
+  .bigfield {
+    width:100%; border:none; outline:none; background:transparent; color:var(--text);
+    font-size:21px; font-weight:600; padding:16px 0 14px; font-family:inherit;
+  }
+  .bigfield::placeholder { color:var(--text2); }
+  .sheet hr { border:none; border-top:1px solid var(--sep); }
+  .lbl { font-size:10px; font-weight:600; letter-spacing:1.2px; color:var(--text2); margin:18px 0 10px; }
+  .dots { display:flex; gap:13px; }
+  .cdot { width:30px; height:30px; border-radius:50%; cursor:pointer; position:relative; }
+  .cdot.sel::after {
+    content:""; position:absolute; inset:-4px; border-radius:50%;
+    border:2px solid var(--text); opacity:.65;
+  }
+  .preview {
+    margin-top:12px; background:var(--card); border-radius:22px; padding:14px;
+    display:flex; align-items:center; gap:12px; box-shadow:0 1px 6px rgba(0,0,0,.06);
+  }
+  .preview .pdisc { width:46px; height:46px; border-radius:12px; display:flex; align-items:center;
+    justify-content:center; font-size:19px; }
+  .preview .pname { font-size:15px; font-weight:600; color:var(--text); }
+  .preview .pmeta { font-size:11.5px; color:var(--text2); margin-top:3px; }
+  .preview .pplay { margin-left:auto; width:38px; height:38px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:14px; }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="tb-btn" id="btnSlow">🐢 慢速 0.25x</button>
+    <button class="tb-btn" id="btnDark">🌙 深色</button>
+    <button class="tb-btn" id="btnReset">↺ 重置</button>
+    <button class="tb-btn" id="btnDemo">▶ 自动演示</button>
+    <span class="tb-note" id="statusNote">动效令牌: quick r.24 ζ.78 · soft r.34 ζ.84（与 App DS.Motion 一致）</span>
+  </div>
+
+  <div class="phone">
+    <div class="statusbar"><div class="island"></div><div class="time">9:41</div></div>
+    <div class="navbar">
+      <div class="navtitle">任务</div>
+      <div class="nav-add" id="btnAdd">＋</div>
+    </div>
+    <div class="scroll">
+      <div class="currentline" id="currentLine">
+        <span class="dot"></span><span id="curName">写代码</span>
+        <span class="meta" id="curMeta" style="color:var(--text2)">今天 25 分钟</span>
+        <span class="go">去专注 ›</span>
+      </div>
+      <div class="secheader" id="activeHeader">3 项待办</div>
+      <div id="activeList"></div>
+      <div id="doneWrap">
+        <div class="done-toggle open" id="doneToggle">
+          <span id="doneLabel">已完成 · 0</span><span class="chev">▼</span>
+        </div>
+        <div id="doneList"></div>
+      </div>
+      <div id="grandEmpty" style="display:none; text-align:center; padding:26px 0;">
+        <div style="width:76px;height:76px;border-radius:50%;background:rgba(88,101,242,.07);
+          border:1.5px solid rgba(88,101,242,.16); display:flex;align-items:center;justify-content:center;
+          margin:0 auto 12px; font-size:25px; color:rgba(88,101,242,.62);">✓</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">今天想专注点什么？</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:6px">点右上角 ＋ 添加第一个任务</div>
+      </div>
+    </div>
+    <div class="tabbar">
+      <div class="tab"><span class="pill"><span class="ic">⏱</span>专注</span></div>
+      <div class="tab active"><span class="pill"><span class="ic">☑︎</span>任务</span></div>
+      <div class="tab"><span class="pill"><span class="ic">📊</span>统计</span></div>
+      <div class="tab"><span class="pill"><span class="ic">🚩</span>目标</span></div>
+      <div class="tab"><span class="pill"><span class="ic">⚙️</span>设置</span></div>
+    </div>
+    <div class="toast" id="toast" style="display:none">
+      <span class="msg" id="toastMsg"></span>
+      <span class="undo" id="toastUndo">撤销</span>
+    </div>
+    <div class="backdrop" id="backdrop"></div>
+    <div class="sheet" id="sheet" style="display:none">
+      <div class="sheet-grab"></div>
+      <div class="sheet-nav">
+        <span class="btn" id="sheetClose">关闭</span>
+        <span class="t">新任务</span>
+        <span class="btn disabled" id="sheetAdd">添加</span>
+      </div>
+      <div class="sheet-body">
+        <input class="bigfield" id="fieldName" placeholder="想到什么就记下来…">
+        <hr>
+        <div class="lbl">颜色</div>
+        <div class="dots" id="colorDots"></div>
+        <div class="lbl">预览</div>
+        <div class="preview">
+          <div class="pdisc" id="pDisc">⏱</div>
+          <div>
+            <div class="pname" id="pName">任务名</div>
+            <div class="pmeta">还没投入过</div>
+          </div>
+          <div class="pplay" id="pPlay">▶</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+"use strict";
+/* ================= 动效令牌（与 App DS.Motion 一致） ================= */
+const SPRINGS = {
+  quick: { response: .24, zeta: .78 },
+  soft:  { response: .34, zeta: .84 },
+  settle:{ response: .45, zeta: .76 },
+};
+const springParams = s => {
+  const k = Math.pow(2*Math.PI/s.response, 2);
+  return { k, c: 2*s.zeta*Math.sqrt(k) };
+};
+let TIME_SCALE = 1;
+
+/* 通用弹簧动画器：anim(springName, tick(t01), done)  t 从 0→1 */
+function animate(springName, tick, done) {
+  const { k, c } = springParams(SPRINGS[springName]);
+  let pos = 0, vel = 0, last = performance.now(), stop = false;
+  function frame(now) {
+    if (stop) return;
+    let dt = Math.min((now-last)/1000, .033) * TIME_SCALE; last = now;
+    const f = -k*(pos-1) - c*vel;
+    vel += f*dt; pos += vel*dt;
+    tick(pos, vel);
+    if (Math.abs(pos-1) < .001 && Math.abs(vel) < .02) { tick(1, 0); done && done(); return; }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  return () => { stop = true; };
+}
+
+/* ================= 数据与状态 ================= */
+const PALETTE = ["#5865F2","#E5573F","#2FA84F","#1E88C7","#9C27B0","#F08A24","#2AA198","#D81B60"];
+let tasks = [
+  { id:1, name:"写代码", color:"#5865F2", done:false, today:25, count:1, total:125, current:true },
+  { id:2, name:"读书",   color:"#2FA84F", done:false, today:25, count:1, total:125 },
+  { id:3, name:"运动",   color:"#E5573F", done:false, today:0,  count:0, total:100 },
+];
+let nextId = 4, showDone = true, undoStack = null, toastTimer = null;
+
+/* ================= 工具 ================= */
+const $ = id => document.getElementById(id);
+const fmt = s => { const h=s/3600|0, m=(s%3600)/60|0; return h?`${h}h ${m}m`:`${m} 分钟`; };
+const meta = t => {
+  const p=[];
+  if (t.today>0) p.push(`今天 ${fmt(t.today*60)}${t.count?` · ${t.count} 个番茄`:""}`);
+  if (t.total>1) p.push(`累计 ${fmt(t.total*60)}`);
+  return p.length?p.join(" · "):(t.done?"已完成":"还没投入过");
+};
+
+/* ================= 渲染 ================= */
+function render() {
+  const active = tasks.filter(t=>!t.done), done = tasks.filter(t=>t.done);
+  $("activeHeader").textContent = `${active.length} 项待办`;
+  $("doneLabel").textContent = `已完成 · ${done.length}`;
+  $("grandEmpty").style.display = tasks.length ? "none" : "block";
+  $("doneWrap").style.display = done.length ? "block" : "none";
+  $("doneList").style.display = showDone ? "block" : "none";
+  const cur = tasks.find(t=>t.current);
+  $("currentLine").style.display = (cur || anyRunning()) ? "flex" : "none";
+  if (cur) {
+    $("curName").textContent = cur.name;
+    $("curMeta").textContent = cur.today ? `今天 ${fmt(cur.today*60)}` : "";
+    document.querySelector("#currentLine .dot").style.background = cur.color;
+  }
+  renderList($("activeList"), active);
+  renderList($("doneList"), done);
+}
+const anyRunning = () => false;
+function renderList(listEl, arr) {
+  listEl.innerHTML = "";
+  arr.forEach(t => listEl.appendChild(cardNode(t)));
+}
+function cardNode(t) {
+  const wrap = document.createElement("div");
+  wrap.className = "swipe-wrap"; wrap.dataset.id = t.id;
+  wrap.innerHTML = `
+    <div class="actions-l"><div class="action-btn cur">⏱ 设为当前</div></div>
+    <div class="actions-r"><div class="action-btn del">🗑 删除</div></div>
+    <div class="slot-inner"></div>`;
+  const slot = wrap.querySelector(".slot-inner");
+  const card = document.createElement("div");
+  card.className = "card" + (t.done ? " done" : "");
+  card.innerHTML = `
+    <div class="disc" style="background:${t.color}${t.done?"0f":"21"};color:${t.color}${t.done?"80":""}">
+      ${t.done?"✓":"⏱"}</div>
+    <div class="body">
+      <div class="name-row">
+        <span class="name">${t.name}</span>
+        ${t.current && !t.done ? `<span class="chip" style="color:${t.color};background:${t.color}1a">当前</span>` : ""}
+      </div>
+      <div class="meta">${meta(t)}</div>
+    </div>
+    ${!t.done ? `<div class="play" style="color:${t.color};background:${t.color}1f">▶</div>` : ""}`;
+  slot.appendChild(card);
+  bindCard(wrap, card, t);
+  return wrap;
+}
+
+/* ================= 手势：左滑删除 / 右滑设当前 / 点按完成 ================= */
+function bindCard(wrap, card, t) {
+  const actsL = wrap.querySelector(".actions-l"), actsR = wrap.querySelector(".actions-r");
+  // 露出位按钮 = 真实操作（与 SwiftUI SwipeableCard 的 actionButton 对齐）
+  wrap.querySelector(".action-btn.del").addEventListener("click", () => {
+    if (performance.now() < suppressClickUntil) return;
+    dx = -128;            // 从露出位起滑
+    fullDelete();
+  });
+  wrap.querySelector(".action-btn.cur").addEventListener("click", () => {
+    if (performance.now() < suppressClickUntil) return;
+    tasks.forEach(x => x.current = false); t.current = true;
+    render();   // 重建即回正位
+    toast(`已设「${t.name}」为当前`);
+  });
+  const W = () => card.offsetWidth || 340;
+  let sx = 0, sy = 0, dx = 0, dragging = false, moved = false, samples = [];
+  let cancelAnim = null, suppressClickUntil = 0, downCtl = false, revealed = false;
+
+  function onMove(e) {
+    if (!dragging) return;
+    const ddx = e.clientX - sx, ddy = e.clientY - sy;
+    if (!moved && Math.abs(ddx) > 5 && Math.abs(ddx) > Math.abs(ddy)) moved = true;
+    if (!moved) return;
+    dx = ddx;
+    const limit = W()*.55;
+    if (Math.abs(dx) > limit) dx = Math.sign(dx)*(limit + (Math.abs(dx)-limit)*.25);
+    card.style.transform = `translateX(${dx}px)`;
+    actsR.style.width = dx < 0 ? `${-dx}px` : "0";
+    actsL.style.width = dx > 0 ? `${dx}px` : "0";
+    samples.push({ t: performance.now(), x: e.clientX });
+    if (samples.length > 4) samples.shift();
+  }
+  function onUp(e) {
+    if (!dragging) return;
+    dragging = false; card.classList.remove("pressing");
+    if (!moved) {   // 静止松手 = 点击；非控件区给按压回弹
+      if (!downCtl) animate("quick", p => { card.style.transform = `scale(${.97 + .03*p})`; },
+        () => { card.style.transform = ""; });
+      return;
+    }
+    suppressClickUntil = performance.now() + 400;   // 拖拽结束：吞掉补发的合成 click
+    const last = samples[samples.length-1], first = samples[0];
+    const vx = samples.length>1 ? (last.x-first.x)/(last.t-first.t||1) : 0;
+    const W_ = W();
+    if (dx < -W_*.4 || vx < -.45) { fullDelete(); return; }
+    if (dx > W_*.4 || vx > .45) { setCurrent(); return; }
+    if (dx < -56) { settleReveal(dx); return; }     // 部分滑动 → 停在露出位（与 app 一致）
+    springBack();
+  }
+  // 停在露出位：卡片与背后动作层同步弹到 -128px，删除按钮可点
+  function settleReveal(from) {
+    animate("quick", p => {
+      const v = from + (-128 - from) * p;
+      card.style.transform = `translateX(${v}px)`;
+      actsR.style.width = `${-v}px`;
+    }, () => {
+      card.style.transform = "translateX(-128px)";
+      actsR.style.width = "128px";
+      revealed = true;
+    });
+  }
+
+  // 控件(色圈/播放)上起手也可拖拽：移动取消点击、静止算点击（与 iOS 手势语义一致）
+  card.addEventListener("pointerdown", e => {
+    if (revealed) {   // 已露出时再按卡片：先收起，本次不作为拖拽起点
+      revealed = false;
+      springBack(-128);
+      return;
+    }
+    sx = e.clientX; sy = e.clientY; dx = 0; moved = false; dragging = true; samples = [];
+    downCtl = !!(e.target.closest(".disc") || e.target.closest(".play"));
+    const onCtl = downCtl;
+    if (!onCtl) { try { card.setPointerCapture(e.pointerId); } catch (_) {} }
+    if (cancelAnim) cancelAnim();
+    card.classList.add("pressing");
+  });
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  card.addEventListener("pointercancel", () => { dragging=false; card.classList.remove("pressing"); springBack(); });
+
+  function springBack(from) {
+    revealed = false;
+    const start = from ?? dx;
+    cancelAnim = animate("quick", p => { card.style.transform = `translateX(${start*(1-p)}px)`;
+      actsR.style.width = `${start<0?-start*(1-p):0}px`; actsL.style.width = `${start>0?start*(1-p):0}px`; },
+      () => { card.style.transform=""; actsR.style.width="0"; actsL.style.width="0"; });
+  }
+  function setCurrent() {
+    tasks.forEach(x=>x.current=false); t.current = true;
+    const from = dx;
+    animate("soft", p => { card.style.transform = `translateX(${from*(1-p)}px)`;
+      actsL.style.width = `${from*(1-p)}px`; },
+      () => { render(); toast(`已设「${t.name}」为当前`); });
+  }
+  function fullDelete() {
+    const from = dx, W_ = W();
+    animate("quick", p => { card.style.transform = `translateX(${from + (-W_-40-from)*p}px)`; },
+      () => {
+        const idx = tasks.findIndex(x=>x.id===t.id);
+        undoStack = { task: t, index: idx, order: idx };
+        tasks.splice(idx,1);
+        // 高度收起 + 淡出（soft 弹簧）
+        wrap.style.height = wrap.offsetHeight+"px"; wrap.style.transition="none";
+        animate("soft", p => {
+          wrap.style.height = `${wrap.firstH ?? wrap.offsetHeight*(1-p)}px`;
+          card.style.opacity = String(1-p);
+        }, () => { render(); }, 0);
+        // 高度动画需要初值：先锁当前高
+        wrap.firstH = undefined;
+        toast(`已删除「${t.name}」`, undoDelete);
+      });
+  }
+  // 修正高度收起：锁定初值再动画
+  const origFullDelete = fullDelete;
+  fullDelete = function() {
+    wrap.style.height = wrap.offsetHeight+"px";
+    const from = dx, W_ = W();
+    animate("quick", p => { card.style.transform = `translateX(${from + (-W_-40-from)*p}px)`; },
+      () => {
+        const idx = tasks.findIndex(x=>x.id===t.id);
+        undoStack = { task: t, index: idx };
+        tasks.splice(idx,1);
+        const h0 = parseFloat(wrap.style.height)||wrap.offsetHeight;
+        animate("soft", p => { wrap.style.height = `${h0*(1-p)}px`; card.style.opacity = String(1-p);
+          card.style.transform = `translateX(${-W_-40-from*(1-p)}px)`; },
+          () => render());
+        toast(`已删除「${t.name}」`, undoDelete);
+      });
+  };
+
+  // 色圈 = 完成切换（FLIP 落位，按 data-id 键控——render 会重建 DOM）
+  card.querySelector(".disc").addEventListener("click", () => {
+    if (performance.now() < suppressClickUntil) return;   // 拖拽补发的合成 click
+    const all = [...document.querySelectorAll(".swipe-wrap")];
+    const first = new Map(all.map(el => [el.dataset.id, el.getBoundingClientRect().top]));
+    t.done = !t.done; t.current = t.done ? false : t.current;
+    render();
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".swipe-wrap").forEach(el => {
+        const f = first.get(el.dataset.id); if (f === undefined) return;
+        const d = f - el.getBoundingClientRect().top;
+        if (Math.abs(d) < 2) return;
+        el.style.transform = `translateY(${d}px)`; el.style.transition = "none";
+        animate("soft", p => { el.style.transform = `translateY(${d*(1-p)}px)`; },
+          () => { el.style.transform = ""; el.style.transition = ""; });
+      });
+    });
+  });
+  // 播放 = 快捷开始（模拟：设当前 + toast）
+  const play = card.querySelector(".play");
+  if (play) play.addEventListener("click", () => {
+    if (performance.now() < suppressClickUntil) return;   // 拖拽补发的合成 click
+    tasks.forEach(x=>x.current=false); t.current = true; render();
+    toast(`开始「${t.name}」的专注 · 已切到专注页`);
+  });
+
+  function toast(msg, undoFn) {
+    $("toastMsg").textContent = msg;
+    const u = $("toastUndo");
+    u.style.display = undoFn ? "block" : "none";
+    u.onclick = undoFn || null;
+    $("toast").style.display = "flex";
+    $("toast").animate(
+      [{ transform:"translateY(60px)", opacity:0 }, { transform:"translateY(0)", opacity:1 }],
+      { duration: 380*TIME_SCALE, easing:"cubic-bezier(.34,1.3,.64,1)" });
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 5000*TIME_SCALE);
+  }
+  function undoDelete() {
+    if (!undoStack) return;
+    const { task, index } = undoStack; undoStack = null;
+    tasks.splice(Math.min(index, tasks.length), 0, task);
+    hideToast(); render();
+    const el = document.querySelector(`.swipe-wrap[data-id="${task.id}"]`);
+    if (el) el.animate(
+      [{ transform:"scale(.92)", opacity:0 }, { transform:"scale(1)", opacity:1 }],
+      { duration: 340*TIME_SCALE, easing:"cubic-bezier(.34,1.3,.64,1)" });
+  }
+  function hideToast() {
+    const tt = $("toast");
+    tt.animate([{ opacity:1 }, { opacity:0 }], { duration: 180*TIME_SCALE }).onfinish = () => tt.style.display = "none";
+  }
+  wrap._toast = { toast, undoDelete, hideToast };  // 供 fullDelete 闭包用
+}
+/* fullDelete 里引用同卡的 toast：重定向到 wrap 上保存的实例 */
+function toast(msg, undoFn) {
+  const ev = new CustomEvent("ff-toast", { detail: { msg, undoFn } });
+  window.dispatchEvent(ev);
+}
+window.addEventListener("ff-toast", e => {
+  /* 由最近交互的 wrap 处理；这里兜底全局 toast */
+  $("toastMsg").textContent = e.detail.msg;
+  const u = $("toastUndo");
+  u.style.display = e.detail.undoFn ? "block" : "none";
+  u.onclick = () => { e.detail.undoFn && e.detail.undoFn(); hideGlobalToast(); };
+  $("toast").style.display = "flex";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideGlobalToast, 5000*TIME_SCALE);
+});
+function hideGlobalToast() {
+  const tt = $("toast");
+  tt.animate([{ opacity:1 }, { opacity:0 }], { duration:180 }).onfinish = () => tt.style.display = "none";
+}
+/* 点 Toast 本体（非撤销）提前消失，不挡下方卡片 */
+$("toast").addEventListener("click", e => {
+  if (!e.target.classList.contains("undo")) { hideToastEarly(); }
+});
+function hideToastEarly() {
+  const tt = $("toast");
+  if (tt.style.display === "none") return;
+  clearTimeout(toastTimer);
+  tt.animate([{ opacity:1 }, { opacity:0 }], { duration:150 }).onfinish = () => tt.style.display = "none";
+}
+
+/* ================= 添加 sheet ================= */
+let sheetColor = PALETTE[0];
+function openSheet() {
+  sheetColor = PALETTE[(tasks.length) % PALETTE.length];
+  $("fieldName").value = ""; $("pName").textContent = "任务名";
+  renderDots(); updatePreview();
+  const s = $("sheet"); s.style.display = "flex";
+  $("backdrop").classList.add("show");
+  s.animate([{ transform:"translateY(100%)" }, { transform:"translateY(0)" }],
+    { duration: 420*TIME_SCALE, easing:"cubic-bezier(.32,.94,.6,1)" });
+  setTimeout(()=> $("fieldName").focus(), 300*TIME_SCALE);
+}
+function closeSheet() {
+  const s = $("sheet");
+  s.animate([{ transform:"translateY(0)" }, { transform:"translateY(100%)" }],
+    { duration: 300*TIME_SCALE, easing:"cubic-bezier(.5,0,.75,.4)" }).onfinish = () => {
+      s.style.display = "none"; $("backdrop").classList.remove("show");
+    };
+}
+function renderDots() {
+  const box = $("colorDots"); box.innerHTML = "";
+  PALETTE.forEach(c => {
+    const d = document.createElement("div");
+    d.className = "cdot" + (c === sheetColor ? " sel" : "");
+    d.style.background = c;
+    d.onclick = () => { sheetColor = c; renderDots(); updatePreview(); };
+    box.appendChild(d);
+  });
+}
+function updatePreview() {
+  const n = $("fieldName").value.trim();
+  $("pName").textContent = n || "任务名";
+  $("pName").style.color = n ? "var(--text)" : "var(--text2)";
+  $("pDisc").style.background = sheetColor + "21"; $("pDisc").style.color = sheetColor;
+  $("pPlay").style.background = sheetColor + "1f"; $("pPlay").style.color = sheetColor;
+  $("sheetAdd").classList.toggle("disabled", !n);
+}
+$("fieldName").addEventListener("input", updatePreview);
+$("fieldName").addEventListener("keydown", e => { if (e.key === "Enter") addTask(); });
+$("sheetAdd").addEventListener("click", addTask);
+$("btnAdd").addEventListener("click", openSheet);
+$("sheetClose").addEventListener("click", closeSheet);
+$("backdrop").addEventListener("click", closeSheet);
+function addTask() {
+  const n = $("fieldName").value.trim();
+  if (!n) return;
+  const t = { id: nextId++, name: n, color: sheetColor, done:false, today:0, count:0, total:0 };
+  tasks.push(t);
+  closeSheet();
+  render();
+  const el = document.querySelector(`.swipe-wrap[data-id="${t.id}"]`);
+  if (el) el.animate(
+    [{ transform:"scale(.92) translateY(14px)", opacity:0 }, { transform:"scale(1) translateY(0)", opacity:1 }],
+    { duration: 380*TIME_SCALE, easing:"cubic-bezier(.34,1.3,.64,1)" });
+  setTimeout(()=> el && el.scrollIntoView({ behavior:"smooth", block:"nearest" }), 100);
+}
+
+/* ================= 工具栏 ================= */
+$("btnSlow").addEventListener("click", e => {
+  TIME_SCALE = TIME_SCALE === 1 ? .25 : 1;
+  e.target.classList.toggle("on", TIME_SCALE !== 1);
+});
+$("btnDark").addEventListener("click", e => {
+  const dark = document.documentElement.dataset.theme !== "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  e.target.classList.toggle("on", dark);
+});
+$("btnReset").addEventListener("click", () => location.reload());
+$("doneToggle").addEventListener("click", () => {
+  showDone = !showDone;
+  $("doneToggle").classList.toggle("open", showDone);
+  const l = $("doneList"); l.style.display = showDone ? "block" : "none";
+  if (showDone) l.animate([{ opacity:0 }, { opacity:1 }], { duration:250 });
+});
+$("toastUndo").addEventListener("click", () => { /* 由 bindCard 的闭包覆盖；全局兜底 */ });
+
+/* ================= 错误捕获 + 自动演示 ================= */
+window.__ffErrors = [];
+window.onerror = (msg, src, line) => {
+  window.__ffErrors.push(`${msg} @${(src||"").split("/").pop()}:${line}`);
+  $("statusNote").textContent = `⚠ JS 错误 ${window.__ffErrors.length}: ${window.__ffErrors[window.__ffErrors.length-1]}`;
+  $("statusNote").style.color = "#ff8a80";
+};
+const sleep = ms => new Promise(r => setTimeout(r, ms * Math.max(TIME_SCALE, .5)));
+async function synthSwipe(cardEl, fromX, toX) {
+  const r = cardEl.getBoundingClientRect();
+  const y = r.top + r.height/2, x0 = r.left + r.width*fromX, x1 = r.left + r.width*toX;
+  const opts = x => ({ bubbles:true, cancelable:true, pointerId:7, isPrimary:true,
+    pointerType:"mouse", clientX:x, clientY:y });
+  cardEl.dispatchEvent(new PointerEvent("pointerdown", opts(x0)));
+  const steps = 10;
+  for (let i=1;i<=steps;i++) {
+    await new Promise(r=>requestAnimationFrame(r));
+    cardEl.dispatchEvent(new PointerEvent("pointermove", opts(x0+(x1-x0)*i/steps)));
+  }
+  cardEl.dispatchEvent(new PointerEvent("pointerup", opts(x1)));
+}
+async function autoDemo() {
+  const note = $("statusNote"); note.style.color = "#ffd54f";
+  const step = s => note.textContent = "自动演示: " + s;
+  try {
+    step("右滑删除「读书」…");
+    await synthSwipe(document.querySelector('.swipe-wrap[data-id="2"] .card'), .9, -.45);
+    await sleep(900);
+    if (!document.body.textContent.includes("已删除")) throw new Error("删除 toast 未出现");
+    step("点撤销…");
+    $("toastUndo").click(); await sleep(600);
+    if (!tasks.find(t=>t.name==="读书")) throw new Error("撤销未恢复");
+    step("色圈切完成「运动」…");
+    document.querySelector('.swipe-wrap[data-id="3"] .disc').click(); await sleep(800);
+    if (!tasks.find(t=>t.name==="运动").done) throw new Error("完成切换未生效");
+    document.querySelector('.swipe-wrap[data-id="3"] .disc').click(); await sleep(600);
+    step("添加任务…");
+    $("btnAdd").click(); await sleep(500);
+    $("fieldName").value = "测试任务"; $("fieldName").dispatchEvent(new Event("input"));
+    await sleep(200); $("sheetAdd").click(); await sleep(700);
+    if (!tasks.find(t=>t.name==="测试任务")) throw new Error("添加未生效");
+    note.textContent = `自动演示完成 ✓（JS 错误 ${window.__ffErrors.length}）`;
+    note.style.color = "#8ff0a4";
+  } catch (err) {
+    note.textContent = "自动演示失败: " + err.message;
+    note.style.color = "#ff8a80";
+    window.__ffErrors.push("demo: " + err.message);
+  }
+}
+$("btnDemo").addEventListener("click", autoDemo);
+if (location.search.includes("auto=1")) setTimeout(autoDemo, 600);
+
+render();
+</script>
+</body>
+</html>

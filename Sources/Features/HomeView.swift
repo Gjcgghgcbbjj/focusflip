@@ -42,7 +42,8 @@ struct HomeView: View {
             if let done = engine.lastCompletion {
                 SettleCard(info: done,
                            taskColor: baseColor,
-                           todayCount: engine.todayPomodoros) {
+                           todayCount: engine.todayPomodoros,
+                           dailyGoal: prefs.dailyGoal) {
                     engine.startPreparedPhase()
                     engine.lastCompletion = nil
                 } later: {
@@ -258,8 +259,13 @@ struct HomeView: View {
 
     private var ringBlock: some View {
         TimelineView(.animation) { ctx in
-            let remaining = engine.remaining(at: ctx.date)
+            let remaining = engine.displayRemaining(at: ctx.date)
             let fraction = displayFraction(remaining: remaining)
+            Button {
+                guard engine.isRunning || engine.isPaused else { return }
+                Haptic.light()
+                engine.togglePause()
+            } label: {
             ZStack {
                 Circle()
                     .stroke(fg.opacity(0.25), lineWidth: Layout.ringWidth)
@@ -291,15 +297,22 @@ struct HomeView: View {
                         .foregroundColor(fg)
                         .scaleEffect(bloom ? 1.05 : 1.0)
                         .animation(.easeInOut(duration: 0.25), value: remaining)
+                    if prefs.dailyGoal > 0 {
+                        let done = engine.todayPomodoros
+                        Text(done >= prefs.dailyGoal
+                             ? "今日 \(done)/\(prefs.dailyGoal) 🎉"
+                             : "今日 \(done)/\(prefs.dailyGoal)")
+                            .font(.system(size: 12, weight: .medium))
+                            .monospacedDigit()
+                            .kerning(0.5)
+                            .foregroundColor(fgSoft)
+                    }
                 }
             }
             .frame(width: Layout.ringSize, height: Layout.ringSize)
             .contentShape(Rectangle())
-            .onTapGesture {
-                guard engine.isRunning || engine.isPaused else { return }
-                Haptic.light()
-                engine.togglePause()
             }
+            .buttonStyle(PressStyle(scale: 0.975))
                         .onChange(of: engine.phase) { _ in fireBloom() }
             .onAppear { applyImmersive() }
             .onDisappear { setTabBar(hidden: false) }
@@ -487,7 +500,7 @@ struct HomeView: View {
                 if engine.phase == .focus { showGiveUpConfirm = true }
                 else { engine.skip() }
             } label: {
-                Text("放弃")
+                Text(engine.phase == .focus ? "放弃" : "跳过休息")
                     .font(DS.F.subheadSb)
                     .padding(.horizontal, 24)
                     .frame(minHeight: DS.H.ghostPill)
@@ -497,6 +510,7 @@ struct HomeView: View {
                             .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
                     )
             }
+            .buttonStyle(PressStyle())
             Spacer()
             Button {
                 Haptic.light()
@@ -512,6 +526,7 @@ struct HomeView: View {
                             .overlay(Circle().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
                     )
             }
+            .buttonStyle(PressStyle())
             Spacer()
             Button {
                 Haptic.light()
@@ -527,6 +542,7 @@ struct HomeView: View {
                             .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
                     )
             }
+            .buttonStyle(PressStyle())
         }
         .foregroundColor(fg)
         .padding(.horizontal, 48)

@@ -81,6 +81,22 @@ final class KeepAlive {
 
 enum Notifications {
 
+    static let actionStartNext = "START_NEXT"
+    private static let focusDoneCategory = "FOCUS_DONE"
+    private static let breakDoneCategory = "BREAK_DONE"
+
+    /// 通知操作按钮：专注完成→[开始休息]；休息结束→[开始专注]。冷启动/前台都走 delegate
+    static func registerCategories() {
+        let startNext = UNNotificationAction(identifier: actionStartNext,
+                                             title: "开始下一阶段",
+                                             options: [.foreground])
+        let focusCat = UNNotificationCategory(identifier: focusDoneCategory,
+                                              actions: [startNext], intentIdentifiers: [])
+        let breakCat = UNNotificationCategory(identifier: breakDoneCategory,
+                                              actions: [startNext], intentIdentifiers: [])
+        UNUserNotificationCenter.current().setNotificationCategories([focusCat, breakCat])
+    }
+
     static func requestOnce() {
         let key = "notifAsked"
         let first = !UserDefaults.standard.bool(forKey: key)
@@ -94,6 +110,23 @@ enum Notifications {
                     }
                 }
             }
+    }
+
+    static func scheduleCountdown(in seconds: Int) {
+        guard UserDefaults.standard.object(forKey: "notifEnabled") as? Bool ?? true else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "时间到 ⏰"
+        content.body = "倒计时结束，回来看看吧"
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false)
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: "freetimer-countdown", content: content, trigger: trigger))
+    }
+
+    /// 只取消自由倒计时自己的待发通知——绝不碰番茄引擎的（cancelAll 误伤事故）
+    static func cancelCountdown() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: ["freetimer-countdown"])
     }
 
     static func schedule(in seconds: Int, phase: Phase, taskName: String?) {
@@ -111,10 +144,33 @@ enum Notifications {
             content.title = "长歇结束"; content.body = "充好电了，开始下一轮"
         }
         content.sound = .default
+        content.categoryIdentifier = phase == .focus ? focusDoneCategory : breakDoneCategory
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false)
         UNUserNotificationCenter.current().add(
             UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger))
+    }
+
+    /// 目标倒计时提醒：目标日前几天早上 9 点
+    static func scheduleTargetReminder(id: UUID, title: String, targetDate: Date, daysBefore: Int) {
+        cancelTargetReminder(id: id)
+        guard daysBefore > 0,
+              UserDefaults.standard.object(forKey: "notifEnabled") as? Bool ?? true else { return }
+        var fire = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: targetDate) ?? targetDate
+        fire = Calendar.current.date(byAdding: .day, value: -daysBefore, to: fire) ?? fire
+        guard fire > Date() else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "🎯 \(title)"
+        content.body = daysBefore == 1 ? "明天就是目标日，最后冲刺！" : "还有 \(daysBefore) 天，加油"
+        content.sound = .default
+        let trigger = UNCalendarNotificationTrigger(dateMatching: Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fire), repeats: false)
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: "target-\(id.uuidString)", content: content, trigger: trigger))
+    }
+
+    static func cancelTargetReminder(id: UUID) {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: ["target-\(id.uuidString)"])
     }
 
     static func cancelAll() {
