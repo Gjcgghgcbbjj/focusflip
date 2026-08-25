@@ -283,15 +283,20 @@ struct RollText: View {
 // MARK: - Press feedback / haptics
 
 struct PressStyle: ButtonStyle {
-    var scale: CGFloat = 0.97
-    var pressedOpacity: Double = 0.86
+    var scale: CGFloat = 0.96
+    var pressedOpacity: Double = 0.82
+    /// 按下瞬间的触觉（原生键盘感：press 即反馈，不等 release）
+    var pressHaptic: (() -> Void)? = nil
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? scale : 1)
             .opacity(configuration.isPressed ? pressedOpacity : 1)
-            .animation(.spring(response: 0.26, dampingFraction: 0.72),
+            .animation(.spring(response: 0.24, dampingFraction: 0.7),
                        value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { pressed in
+                if pressed { pressHaptic?() }
+            }
     }
 }
 

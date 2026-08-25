@@ -261,6 +261,11 @@ struct HomeView: View {
         TimelineView(.animation) { ctx in
             let remaining = engine.displayRemaining(at: ctx.date)
             let fraction = displayFraction(remaining: remaining)
+            Button {
+                guard engine.isRunning || engine.isPaused else { return }
+                Haptic.light()
+                engine.togglePause()
+            } label: {
             ZStack {
                 Circle()
                     .stroke(fg.opacity(0.25), lineWidth: Layout.ringWidth)
@@ -306,11 +311,8 @@ struct HomeView: View {
             }
             .frame(width: Layout.ringSize, height: Layout.ringSize)
             .contentShape(Rectangle())
-            .onTapGesture {
-                guard engine.isRunning || engine.isPaused else { return }
-                Haptic.light()
-                engine.togglePause()
             }
+            .buttonStyle(PressStyle(scale: 0.975))
                         .onChange(of: engine.phase) { _ in fireBloom() }
             .onAppear { applyImmersive() }
             .onDisappear { setTabBar(hidden: false) }

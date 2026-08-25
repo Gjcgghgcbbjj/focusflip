@@ -16,13 +16,15 @@ struct TargetView: View {
                     if items.isEmpty { emptyState }
 
                     ForEach(items) { item in
-                        countdownCard(item)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                Haptic.light()
-                                editing = item
-                            }
-                            .contextMenu {
+                        Button {
+                            Haptic.light()
+                            editing = item
+                        } label: {
+                            countdownCard(item)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressStyle())
+                        .contextMenu {
                                 Button {
                                     Haptic.light()
                                     editing = item
@@ -423,6 +425,9 @@ struct EditCountdownSheet: View {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12),
                                                  count: 8), spacing: 12) {
                             ForEach(CountdownSheet.palette, id: \.self) { hex in
+                                Button {
+                                    colorHex = hex; Haptic.tick()
+                                } label: {
                                 Circle()
                                     .fill(Color(hex: hex))
                                     .frame(width: 32, height: 32)
@@ -432,7 +437,8 @@ struct EditCountdownSheet: View {
                                             Image(systemName: "checkmark")
                                                 .font(.system(size: 13, weight: .heavy))
                                                 .foregroundColor(.white) : nil)
-                                    .onTapGesture { colorHex = hex; Haptic.tick() }
+                                }
+                                .buttonStyle(PressStyle(scale: 0.88))
                             }
                         }
                     }

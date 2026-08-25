@@ -58,6 +58,9 @@ struct CountdownSheet: View {
                                 LazyVGrid(columns: Array(repeating: GridItem(
                                     .flexible(), spacing: 10), count: 8), spacing: 10) {
                                     ForEach(Self.palette, id: \.self) { hex in
+                                        Button {
+                                            newColor = hex; Haptic.tick()
+                                        } label: {
                                         Circle()
                                             .fill(Color(hex: hex))
                                             .frame(width: 30, height: 30)
@@ -69,9 +72,8 @@ struct CountdownSheet: View {
                                                     Image(systemName: "checkmark")
                                                         .font(.system(size: 12, weight: .heavy))
                                                         .foregroundColor(.white) : nil)
-                                            .onTapGesture {
-                                                newColor = hex; Haptic.tick()
-                                            }
+                                        }
+                                        .buttonStyle(PressStyle(scale: 0.88))
                                     }
                                 }
                             }

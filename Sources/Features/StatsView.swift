@@ -354,7 +354,7 @@ struct StatsView: View {
                         .onTapGesture {
                             Haptic.light()
                             filterName = selected ? nil : r.name
-                            reload()
+                            withAnimation(DS.Motion.soft) { reload() }
                         }
                     }
                     Spacer(minLength: 0)
@@ -396,6 +396,10 @@ struct StatsView: View {
             VStack(spacing: 0) {
                 ForEach(timeline.indices, id: \.self) { i in
                     let e = timeline[i]
+                    Button {
+                        Haptic.light()
+                        openNote(i)
+                    } label: {
                     HStack(alignment: .top, spacing: 12) {
                         Text(Self.clock(e.start))
                             .font(.system(size: 11).monospacedDigit())
@@ -450,10 +454,8 @@ struct StatsView: View {
                         Spacer(minLength: 0)
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        Haptic.light()
-                        openNote(i)
                     }
+                    .buttonStyle(PressStyle(scale: 0.985, pressedOpacity: 0.7))
                     .contextMenu {
                         Button {
                             UIPasteboard.general.string = "\(Self.clock(e.start)) · \(e.taskName) · \(e.mins) 分钟"
@@ -832,7 +834,11 @@ struct TimelineAllSheet: View {
     private func allRow(_ se: SessionEntity) -> some View {
         let t = se.taskId.flatMap { Store.shared.task(id: $0) }
         let f = DateFormatter(); f.dateFormat = "HH:mm"
-        return HStack(spacing: 10) {
+        return Button {
+            Haptic.light()
+            noteTarget = se
+        } label: {
+        HStack(spacing: 10) {
             Text(f.string(from: se.startDate))
                 .font(.system(size: 11).monospacedDigit())
                 .foregroundColor(.secondary)
@@ -854,7 +860,8 @@ struct TimelineAllSheet: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture { noteTarget = se }
+        }
+        .buttonStyle(PressStyle(scale: 0.985, pressedOpacity: 0.7))
     }
 
     private func load() {

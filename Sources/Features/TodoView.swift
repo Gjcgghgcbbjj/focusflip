@@ -841,9 +841,11 @@ private final class SwipePanCoordinator<Content: View>: NSObject, UIGestureRecog
                         finish: @escaping () -> Void = {}) {
         UIView.animate(withDuration: 0.3, delay: 0,
                        usingSpringWithDamping: 0.78, initialSpringVelocity: 0,
-                       options: [.beginFromCurrentState, .allowUserInteraction]) {
-            view.transform = CGAffineTransform(translationX: x, y: 0)
-        }, completion: { _ in finish() })
+                       options: [.beginFromCurrentState, .allowUserInteraction],
+                       animations: {
+                           view.transform = CGAffineTransform(translationX: x, y: 0)
+                       },
+                       completion: { _ in finish() })
     }
 
     // 竖向速度为主时拒绝开始 → 滚动列表完全不受影响
