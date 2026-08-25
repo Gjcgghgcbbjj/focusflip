@@ -190,7 +190,15 @@ struct TodoView: View {
         }
     }
 
+    @ViewBuilder
     private func cardBody(_ t: TaskEntity) -> some View {
+        // 血泪#8 变体：删除后 SwiftUI 重渲染他卡时，已删实体任何属性访问都崩（UUID 桥接 SIGTRAP）
+        if t.managedObjectContext != nil {
+            cardContent(t)
+        }
+    }
+
+    private func cardContent(_ t: TaskEntity) -> some View {
         let isActive = engine.currentTaskID == t.id
         let tint = Color(hex: t.colorHex)
         let todaySec = todaySecondsByTask[t.id] ?? 0
