@@ -670,6 +670,7 @@ struct TaskEditSheet: View {
                         task.colorHex = colorHex
                         if task.isDone != isDone { Store.shared.setDone(task, isDone) }
                         else { Store.shared.save() }
+                        Haptic.medium()
                         onDone(); dismiss()
                     }.font(.system(size: 17, weight: .semibold))
                 }

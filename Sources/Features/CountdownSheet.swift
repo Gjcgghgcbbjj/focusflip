@@ -123,6 +123,7 @@ struct CountdownSheet: View {
                                     .padding(.vertical, 13)
                                     .background(Capsule().fill(Color(hex: newColor)))
                             }
+                            .buttonStyle(PressStyle(scale: 0.97, pressHaptic: Haptic.medium))
                             .disabled(newTitle.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
                     } else {
@@ -131,6 +132,7 @@ struct CountdownSheet: View {
                         } label: {
                             Label("添加倒计时", systemImage: "plus.circle.fill")
                         }
+                        .buttonStyle(PressStyle())
                     }
                 }
             }

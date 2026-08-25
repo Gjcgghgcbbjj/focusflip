@@ -510,6 +510,7 @@ struct HomeView: View {
                             .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
                     )
             }
+            .buttonStyle(PressStyle())
             Spacer()
             Button {
                 Haptic.light()
@@ -525,6 +526,7 @@ struct HomeView: View {
                             .overlay(Circle().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
                     )
             }
+            .buttonStyle(PressStyle())
             Spacer()
             Button {
                 Haptic.light()
@@ -540,6 +542,7 @@ struct HomeView: View {
                             .overlay(Capsule().stroke(Color.white.opacity(0.10), lineWidth: 0.5))
                     )
             }
+            .buttonStyle(PressStyle())
         }
         .foregroundColor(fg)
         .padding(.horizontal, 48)

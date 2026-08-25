@@ -274,12 +274,14 @@ struct StatsView: View {
                     Text("已筛选：\(fn)")
                         .font(DS.F.caption).foregroundColor(DS.accent)
                     Button {
-                        filterName = nil; reload()
+                        filterName = nil
+                        withAnimation(DS.Motion.soft) { reload() }
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary.opacity(0.6))
                     }
+                    .buttonStyle(PressStyle(scale: 0.85))
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
