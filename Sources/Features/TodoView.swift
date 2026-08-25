@@ -710,7 +710,6 @@ private struct SwipeableCard<Content: View>: View {
 
     @State private var offset: CGFloat = 0
     private let revealWidth: CGFloat = 128          // 部分露出时按钮停留位
-    private var cardWidth: CGFloat { UIScreen.main.bounds.width - 32 }
 
     var body: some View {
         ZStack {
@@ -727,17 +726,18 @@ private struct SwipeableCard<Content: View>: View {
                              title: "删除", role: .delete)
                     .accessibilityHidden(offset > -40)
             }
-            // 前景卡
-            content()
-                .offset(x: offset)
-                // highPriorityGesture：位移超 8pt 后拖拽优先于内嵌 Button 的 tap，
-                // 快速滑动不会被误判成点击（静止点按仍归按钮）
-                .highPriorityGesture(dragGesture)
-                // VoiceOver 用户不靠滑动：自定义动作直达
-                .accessibilityAction(named: Text("删除")) { onDelete() }
-                .accessibilityAction(named: Text(canSetCurrent ? "设为当前" : "当前")) {
-                    if canSetCurrent { onSetCurrent() }
-                }
+            // 前景卡：UIKit 平移手势承载（竖向让路滚动、横向 1:1 跟手、原生速度）
+            SwipePanContainer(canSetCurrent: canSetCurrent,
+                              offset: $offset,
+                              onDelete: onDelete,
+                              onSetCurrent: onSetCurrent) {
+                content()
+                    // VoiceOver 用户不靠滑动：自定义动作直达
+                    .accessibilityAction(named: Text("删除")) { onDelete() }
+                    .accessibilityAction(named: Text(canSetCurrent ? "设为当前" : "当前")) {
+                        if canSetCurrent { onSetCurrent() }
+                    }
+            }
         }
     }
 
@@ -770,42 +770,135 @@ private struct SwipeableCard<Content: View>: View {
         .accessibilityLabel(title)
     }
 
-    /// 拖拽：橡皮筋限幅；松手按位移+甩动速度判定（阈值同模拟器：40% 宽或 flick）
-    private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
-            .onChanged { g in
-                var dx = g.translation.width
-                let limit = cardWidth * 0.55
-                if abs(dx) > limit {
-                    dx = (dx > 0 ? 1 : -1) * (limit + (abs(dx) - limit) * 0.25)
-                }
-                offset = dx
+    /// 拖拽判定与动画全部在 SwipePanCoordinator（UIKit 原生速度/弹簧）
+}
+
+// MARK: - UIKit 平移手势容器：竖向让路滚动、横向 1:1 跟手、原生速度采样
+// 拖动中直接变换 layer（零 SwiftUI 逐帧开销）；offset 只在结束/露出时回写驱动动作层 a11y
+
+private final class SwipePanCoordinator<Content: View>: NSObject, UIGestureRecognizerDelegate {
+    var canSetCurrent = true
+    var onDelete: () -> Void = {}
+    var onSetCurrent: () -> Void = {}
+    var onOffsetSettle: (CGFloat) -> Void = {}   // 结束时回写（驱动动作层 accessibilityHidden）
+    weak var gestureView: UIView?
+    var host: UIHostingController<Content>?
+    private var lastZone = 0
+
+    @objc func pan(_ g: UIPanGestureRecognizer) {
+        guard let view = g.view else { return }
+        let w = max(view.bounds.width, 1)
+        switch g.state {
+        case .began:
+            lastZone = 0
+        case .changed:
+            var dx = g.translation(in: view).x
+            let limit = w * 0.55
+            if abs(dx) > limit { dx = (dx > 0 ? 1 : -1) * (limit + (abs(dx) - limit) * 0.25) }
+            view.transform = CGAffineTransform(translationX: dx, y: 0)
+            // 越过动作阈值的瞬间给轻触感（iOS 原生滑动习惯）
+            let zone = dx < -w * 0.4 ? -1 : (canSetCurrent && dx > w * 0.4 ? 1 : 0)
+            if zone != lastZone {
+                lastZone = zone
+                if zone != 0 { Haptic.light() }
             }
-            .onEnded { g in
-                let dx = g.translation.width
-                let flick = g.predictedEndTranslation.width - dx   // 甩动趋势
-                if dx < -cardWidth * 0.4 || flick < -cardWidth * 0.6 {
-                    performDelete()
-                } else if canSetCurrent,
-                          dx > cardWidth * 0.4 || flick > cardWidth * 0.6 {
-                    withAnimation(DS.Motion.quick) { offset = 0 }
-                    Haptic.medium()
-                    onSetCurrent()
-                } else if offset < -56 {
-                    withAnimation(DS.Motion.quick) { offset = -revealWidth }  // 停在露出位
-                } else {
-                    springBack()
-                }
-            }
+        case .ended, .cancelled, .failed:
+            decide(dx: g.translation(in: view).x,
+                   vx: g.velocity(in: view).x, width: w, view: view)
+        default:
+            break
+        }
     }
 
-    private func performDelete() {
-        Haptic.warning()
-        withAnimation(DS.Motion.quick) { offset = -(UIScreen.main.bounds.width) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { onDelete() }
+    private func decide(dx: CGFloat, vx: CGFloat, width: CGFloat, view: UIView) {
+        let fullLeft = dx < -width * 0.4 || vx < -450      // 位移或甩速任一达标
+        let fullRight = dx > width * 0.4 || vx > 450
+        if fullLeft {
+            Haptic.warning()
+            onOffsetSettle(-9999)
+            UIView.animate(withDuration: 0.2, delay: 0,
+                           options: [.beginFromCurrentState, .curveEaseIn]) {
+                view.transform = CGAffineTransform(
+                    translationX: -UIScreen.main.bounds.width, y: 0)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { [self] in onDelete() }
+        } else if fullRight && canSetCurrent {
+            Haptic.medium()
+            spring(view: view, to: 0)
+            onOffsetSettle(0)
+            onSetCurrent()
+        } else if dx < -56 {
+            spring(view: view, to: -128)
+            onOffsetSettle(-128)
+        } else {
+            spring(view: view, to: 0)
+            onOffsetSettle(0)
+        }
     }
 
-    private func springBack() {
-        withAnimation(DS.Motion.quick) { offset = 0 }
+    /// DS.Motion.quick 的 UIKit 对应：damping .78 / 约 0.3s
+    private func spring(view: UIView, to x: CGFloat,
+                        finish: @escaping () -> Void = {}) {
+        UIView.animate(withDuration: 0.3, delay: 0,
+                       usingSpringWithDamping: 0.78, initialSpringVelocity: 0,
+                       options: [.beginFromCurrentState, .allowUserInteraction]) {
+            view.transform = CGAffineTransform(translationX: x, y: 0)
+        }, completion: { _ in finish() })
+    }
+
+    // 竖向速度为主时拒绝开始 → 滚动列表完全不受影响
+    func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
+        guard let pan = g as? UIPanGestureRecognizer, let view = g.view else { return true }
+        let v = pan.velocity(in: view)
+        return abs(v.x) > abs(v.y)      // 横向才接管；竖向交还给 ScrollView
+    }
+    func gestureRecognizer(_ g: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith o: UIGestureRecognizer) -> Bool { false }
+}
+
+private struct SwipePanContainer<Content: View>: UIViewControllerRepresentable {
+    var canSetCurrent: Bool
+    @Binding var offset: CGFloat
+    var onDelete: () -> Void
+    var onSetCurrent: () -> Void
+    @ViewBuilder var content: () -> Content
+
+    func makeCoordinator() -> SwipePanCoordinator<Content> { SwipePanCoordinator<Content>() }
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        let container = UIView()
+        container.backgroundColor = .clear
+        let host = UIHostingController(rootView: content())
+        host.view.backgroundColor = .clear
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.topAnchor.constraint(equalTo: container.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            host.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+        ])
+        let pan = UIPanGestureRecognizer(target: context.coordinator,
+                                         action: #selector(SwipePanCoordinator.pan(_:)))
+        pan.delegate = context.coordinator
+        pan.cancelsTouchesInView = true
+        container.addGestureRecognizer(pan)
+        context.coordinator.gestureView = container
+        sync(coordinator: context.coordinator)
+        return container
+    }
+
+    func updateUIViewController(_ vc: UIViewController, context: Context) {
+        context.coordinator.host?.rootView = content()
+        sync(coordinator: context.coordinator)
+    }
+
+    private func sync(coordinator: SwipePanCoordinator) {
+        coordinator.canSetCurrent = canSetCurrent
+        coordinator.onDelete = onDelete
+        coordinator.onSetCurrent = onSetCurrent
+        coordinator.onOffsetSettle = { offset in
+            if offset != -9999 { self.offset = offset }
+        }
     }
 }
